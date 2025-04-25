@@ -1,4 +1,5 @@
 #include "loader.h"
+#include "cpu.h"
 #include "memory.h"
 #include <elf.h>
 #include <errno.h>
@@ -18,42 +19,6 @@ enum {
     LD_INVALID_ELF
 };
 
-#define CHECK_MAGIC(e)                              \
-    ((e->header->e_ident[EI_MAG0] == ELFMAG0)       \
-        && (e->header->e_ident[EI_MAG1] == ELFMAG1) \
-        && (e->header->e_ident[EI_MAG2] == ELFMAG2) \
-        && (e->header->e_ident[EI_MAG3] == ELFMAG3))
-
-#define CHECK_CLASS(e) \
-    (e->header->e_ident[EI_CLASS] == ELFCLASS32)
-
-#define CHECK_DATA(e) \
-    (e->header->e_ident[EI_CLASS] == ELFDATA2LSB)
-
-#define CHECK_ELF_VER(e) \
-    (e->header->e_ident[EI_VERSION] == EV_CURRENT)
-
-#define CHECK_ABI(e) \
-    (e->header->e_ident[EI_OSABI] == ELFOSABI_SYSV)
-
-#define CHECK_ABIVER(e) \
-    (e->header->e_ident[EI_ABIVERSION] == 0)
-
-#define CHECK_TYPE(e) \
-    (e->header->e_type == ET_EXEC)
-
-#define CHECK_MACHINE(e) \
-    (e->header->e_machine == EM_RISCV)
-
-#define CHECK_ENTRY(e) \
-    (e->header->e_entry != 0)
-
-#define CHECK_PRG_HDR(e) \
-    (e->header->e_phoff != 0)
-
-#define CHECK_SEC_HDR(e) \
-    (e->header->e_shoff != 0)
-
 struct Elf_File {
     size_t data_sz;
     size_t prog_size;
@@ -64,42 +29,28 @@ struct Elf_File {
     Elf32_Ehdr* header;
 };
 
+#define VALIDATE(cond)             \
+    do {                           \
+        if (!(cond))               \
+            return LD_INVALID_ELF; \
+    } while (0)
+
 static int _ld_validate_elf(Elf_File* elf)
 {
-    if (!CHECK_MAGIC(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_CLASS(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_DATA(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_ELF_VER(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_ABI(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_ABIVER(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_TYPE(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_MACHINE(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_ENTRY(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_PRG_HDR(elf))
-        return LD_INVALID_ELF;
-
-    if (!CHECK_SEC_HDR(elf))
-        return LD_INVALID_ELF;
-
-    // CHECK E_FLAGS
+    VALIDATE(elf->header->e_ident[EI_MAG0] == ELFMAG0);
+    VALIDATE(elf->header->e_ident[EI_MAG1] == ELFMAG1);
+    VALIDATE(elf->header->e_ident[EI_MAG2] == ELFMAG2);
+    VALIDATE(elf->header->e_ident[EI_MAG3] == ELFMAG3);
+    VALIDATE(elf->header->e_ident[EI_CLASS] == ELFCLASS32);
+    VALIDATE(elf->header->e_ident[EI_CLASS] == ELFDATA2LSB);
+    VALIDATE(elf->header->e_ident[EI_VERSION] == EV_CURRENT);
+    VALIDATE(elf->header->e_ident[EI_OSABI] == ELFOSABI_SYSV);
+    VALIDATE(elf->header->e_ident[EI_ABIVERSION] == 0);
+    VALIDATE(elf->header->e_type == ET_EXEC);
+    VALIDATE(elf->header->e_machine == EM_RISCV);
+    VALIDATE(elf->header->e_entry != 0);
+    VALIDATE(elf->header->e_phoff != 0);
+    VALIDATE(elf->header->e_shoff != 0);
 
     return LD_OK;
 }
@@ -111,8 +62,7 @@ static void _ld_elf(Elf_File* elf)
     uint32_t memsz;
     uint32_t addr;
 
-
-    printf("memory: %p\n", __mem.m);
+    printf("memory: %p\n", __vmem.m);
     for (int i = 0; i < elf->header->e_phnum; i++) {
         if (elf->programs[i].p_type != PT_LOAD)
             continue;
@@ -128,12 +78,13 @@ static void _ld_elf(Elf_File* elf)
         if (fsz < memsz)
             mem_wb_s((addr + foff), 0, (memsz - fsz));
 
-        //sleep(10);
-        printf("Loaded Segment number %d, with addr %x and size %d in %p\n", i + 1, addr, memsz, __mem.m + addr);
+        // sleep(10);
+        printf("Loaded Segment number %d, with addr %x and size %d in %p\n", i + 1, addr, memsz, __vmem.m + addr);
+        //printf("%x\n", *(__vmem.m + addr));
     }
 }
 
-Elf_File* ld_elf(const char* file_name)
+Elf_File* ld_elf(const char* file_name, VCore* core)
 {
     int fd;
     struct stat fst;
@@ -160,6 +111,8 @@ Elf_File* ld_elf(const char* file_name)
         elf->prog_size = elf->header->e_phentsize * elf->header->e_phnum;
         elf->sect_size = elf->header->e_shentsize * elf->header->e_shnum;
         _ld_elf(elf);
+        // load entry point
+        vcore_load_register(core, PC, elf->header->e_entry);
         goto close;
     }
 
