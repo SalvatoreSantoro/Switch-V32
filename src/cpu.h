@@ -44,14 +44,30 @@
 
 #define REG_NUMS 33
 
+// Check compress
+#define COMPR_OPCODE_MASK 0b11
+#define IS_COMPRESSED(x) (((x & COMPR_OPCODE_MASK) != 0b11))
+
+
+// Check opcode
+#define OPCODE_MASK 0b1111111
+#define OPCODE_TYPE(x) (x & OPCODE_MASK)
+#define R_TYPE 0b0110011
+#define IR_TYPE 0b0010011
+#define IL_TYPE 0b0000011
+#define S_TYPE 0b0100011
+#define B_TYPE 0b1100011
+#define J_TYPE 0b1101111
+#define JI_TYPE 0b1100111
+#define LUI 0b0110111
+#define AUIPC 0b0010111
+#define ENV_TYPE 0b1110011
+
+
 typedef struct {
     uint32_t regs[REG_NUMS];
 } VCore;
 
-VCore* vcore_create(void);
-
-void vcore_destroy(VCore* core);
-
-void vcore_load_register(VCore* core, int reg, uint32_t value);
+void vcore_r_type(VCore* core, uint32_t ins);
 
 #endif

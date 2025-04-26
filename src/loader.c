@@ -12,8 +12,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-#define ELF_HDR_SIZE 52
-
 enum {
     LD_OK = 0,
     LD_INVALID_ELF
@@ -55,7 +53,7 @@ static int _ld_validate_elf(Elf_File* elf)
     return LD_OK;
 }
 
-static void _ld_elf(Elf_File* elf)
+static void _ld_elf_seg(Elf_File* elf)
 {
     size_t fsz;
     uint32_t foff;
@@ -80,7 +78,7 @@ static void _ld_elf(Elf_File* elf)
 
         // sleep(10);
         printf("Loaded Segment number %d, with addr %x and size %d in %p\n", i + 1, addr, memsz, __vmem.m + addr);
-        //printf("%x\n", *(__vmem.m + addr));
+        // printf("%x\n", *(__vmem.m + addr));
     }
 }
 
@@ -110,9 +108,9 @@ Elf_File* ld_elf(const char* file_name, VCore* core)
         elf->sections = (Elf32_Shdr*)(elf->data + elf->header->e_shoff);
         elf->prog_size = elf->header->e_phentsize * elf->header->e_phnum;
         elf->sect_size = elf->header->e_shentsize * elf->header->e_shnum;
-        _ld_elf(elf);
+        _ld_elf_seg(elf);
         // load entry point
-        vcore_load_register(core, PC, elf->header->e_entry);
+        core->regs[PC] = elf->header->e_entry;
         goto close;
     }
 

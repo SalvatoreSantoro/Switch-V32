@@ -6,7 +6,7 @@
 NAME:=SRV32
 
 CC:=gcc
-DEFAULT_FLAGS:=-std=c99 -O2 -Wall -Wextra -Werror -pedantic
+DEFAULT_FLAGS:= -O2 -Wall -Wextra -Werror
 CFLAGS:=$(DEFAULT_FLAGS) -DNDDEBUG
 CFLAGS_DEBUG:=$(DEFAULT_FLAGS) $(DEBUG_FLAGS) -g -DDEBUG
 TEST_CFLAGS:=$(CFLAGS_DEBUG) -fno-plt -fno-pie
@@ -31,9 +31,8 @@ TEST_OBJS := $(patsubst $(TEST_DIR)/%.c, $(BUILD_DIR)/%.t.o, $(TEST_SRCS)) \
 ### BUILD
 all: $(BUILD_DIR)/$(NAME)
 
-$(BUILD_DIR)/$(LIB_NAME): $(OBJS)
-	ar rcs $@ $^
-
+$(BUILD_DIR)/$(NAME): $(OBJS)
+	$(CC) $(CFLAGS) $(OBJS) -o $(BUILD_DIR)/$(NAME)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
