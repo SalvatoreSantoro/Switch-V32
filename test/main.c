@@ -9,7 +9,7 @@
 int main(void)
 {
     Elf_File* file;
-    VCore core = {0};
+    VCore core = { 0 };
     uint32_t ins;
     if ((file = ld_elf("gas", &core)) == NULL) {
         perror("ELF ERROR");
@@ -34,22 +34,34 @@ int main(void)
                 vcore_r_type(&core, ins);
                 break;
             case IR_TYPE:
+                vcore_ir_type(&core, ins);
                 break;
             case IL_TYPE:
                 break;
             case S_TYPE:
                 break;
             case B_TYPE:
+                vcore_b_type(&core, ins);
+                continue; // skip the PC + 4
                 break;
             case J_TYPE:
+                vcore_j_type(&core, ins);
+                continue; // skip the PC + 4
                 break;
-            case JI_TYPE:
+            case IJ_TYPE:
+                vcore_ij_type(&core, ins);
+                continue;
                 break;
             case LUI:
+                vcore_lui_type(&core, ins);
                 break;
             case AUIPC:
+                vcore_auipc_type(&core, ins);
                 break;
             case ENV_TYPE:
+                break;
+            default:
+                fprintf(stderr, "%x BADOPCODE\n", ins);
                 break;
             }
             core.regs[PC] += 4;

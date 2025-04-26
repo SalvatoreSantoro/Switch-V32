@@ -48,7 +48,6 @@
 #define COMPR_OPCODE_MASK 0b11
 #define IS_COMPRESSED(x) (((x & COMPR_OPCODE_MASK) != 0b11))
 
-
 // Check opcode
 #define OPCODE_MASK 0b1111111
 #define OPCODE_TYPE(x) (x & OPCODE_MASK)
@@ -58,16 +57,27 @@
 #define S_TYPE 0b0100011
 #define B_TYPE 0b1100011
 #define J_TYPE 0b1101111
-#define JI_TYPE 0b1100111
+#define IJ_TYPE 0b1100111
 #define LUI 0b0110111
 #define AUIPC 0b0010111
 #define ENV_TYPE 0b1110011
-
 
 typedef struct {
     uint32_t regs[REG_NUMS];
 } VCore;
 
 void vcore_r_type(VCore* core, uint32_t ins);
+
+void vcore_ir_type(VCore* core, uint32_t ins);
+
+void vcore_b_type(VCore* core, uint32_t ins);
+
+void vcore_j_type(VCore* core, uint32_t ins);
+
+void vcore_ij_type(VCore* core, uint32_t ins);
+
+void vcore_lui_type(VCore* core, uint32_t ins);
+
+void vcore_auipc_type(VCore* core, uint32_t ins);
 
 #endif
