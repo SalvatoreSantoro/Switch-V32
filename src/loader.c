@@ -111,6 +111,8 @@ Elf_File* ld_elf(const char* file_name, VCore* core)
         _ld_elf_seg(elf);
         // load entry point
         core->regs[PC] = elf->header->e_entry;
+        // load stack base
+        core->regs[REG_SP] = STACK_BASE;
         goto close;
     }
 

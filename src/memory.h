@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define TYPE_b uint8_t
-#define TYPE_l uint16_t
+#define TYPE_h uint16_t
 #define TYPE_w uint32_t
 
 #define PAGE_SIZE 4096
@@ -19,6 +19,9 @@ struct Memory {
 };
 
 extern struct Memory __vmem __attribute__((aligned(PAGE_SIZE)));
+
+// end of memory, leaving 1 page under empty (argc, argv, env)
+#define STACK_BASE (((uintptr_t)&__vmem.m) + (MEM_SIZE - PAGE_SIZE))
 
 // Write {Byte/Long/Word} data value in memory address "addr"
 #define GEN_W_FUN_HDR(sign_size)                                                \
@@ -40,19 +43,31 @@ extern struct Memory __vmem __attribute__((aligned(PAGE_SIZE)));
     void mem_r##sign_size##_ptr(uint32_t addr, void* data);
 
 GEN_W_PTR_FUN_HDR(b)
-GEN_W_PTR_FUN_HDR(l)
+GEN_W_PTR_FUN_HDR(h)
 GEN_W_PTR_FUN_HDR(w)
 
 GEN_R_PTR_FUN_HDR(b)
-GEN_R_PTR_FUN_HDR(l)
+GEN_R_PTR_FUN_HDR(h)
 GEN_R_PTR_FUN_HDR(w)
 
 GEN_W_FUN_HDR(b)
-GEN_W_FUN_HDR(l)
+GEN_W_FUN_HDR(h)
 GEN_W_FUN_HDR(w)
 
 GEN_R_FUN_HDR(b)
-GEN_R_FUN_HDR(l)
+GEN_R_FUN_HDR(h)
 GEN_R_FUN_HDR(w)
+
+#define mem_rb_ptr(addr, data) mem_rb_ptr_s(addr, data, 1)
+#define mem_rh_ptr(addr, data) mem_rh_ptr_s(addr, data, 1)
+#define mem_rw_ptr(addr, data) mem_rw_ptr_s(addr, data, 1)
+
+#define mem_wb_ptr(addr, data) mem_wb_ptr_s(addr, data, 1)
+#define mem_wh_ptr(addr, data) mem_wh_ptr_s(addr, data, 1)
+#define mem_ww_ptr(addr, data) mem_ww_ptr_s(addr, data, 1)
+
+#define mem_wb(addr, data) mem_wb_s(addr, data, 1)
+#define mem_wh(addr, data) mem_wh_s(addr, data, 1)
+#define mem_ww(addr, data) mem_ww_s(addr, data, 1)
 
 #endif // !_MEM32_H

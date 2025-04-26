@@ -1,0 +1,20 @@
+[build]
+command = "riscv32-elf-as"
+args = ["-g", "-o", "out.elf"]
+
+[tools]
+assembler = "riscv32-elf-as"
+disassembler = "riscv32-elf-objdump"
+
+[settings]
+syntax_highlighting = true
+inline_comments = true
+autocompletion = true
+
+[include_paths]
+# Add paths to any external libraries or include files
+path = ["/path/to/include"]
+
+[arch]
+# Define architecture specific settings (e.g., for RISC-V)
+arch = "riscv32"

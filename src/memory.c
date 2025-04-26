@@ -1,4 +1,5 @@
 #include "memory.h"
+#include <stdint.h>
 
 struct Memory __vmem;
 
@@ -33,29 +34,17 @@ struct Memory __vmem;
     }
 
 GEN_W_PTR_FUN(b, 1)
-GEN_W_PTR_FUN(l, 2)
+GEN_W_PTR_FUN(h, 2)
 GEN_W_PTR_FUN(w, 4)
 
 GEN_R_PTR_FUN(b, 1)
-GEN_R_PTR_FUN(l, 2)
+GEN_R_PTR_FUN(h, 2)
 GEN_R_PTR_FUN(w, 4)
 
 GEN_W_FUN(b, 1)
-GEN_W_FUN(l, 2)
+GEN_W_FUN(h, 2)
 GEN_W_FUN(w, 4)
 
 GEN_R_FUN(b, 1)
-GEN_R_FUN(l, 2)
+GEN_R_FUN(h, 2)
 GEN_R_FUN(w, 4)
-
-#define mem_rb_ptr(addr, data) mem_rb_ptr_s(addr, data, 1)
-#define mem_rl_ptr(addr, data) mem_rb_ptr_s(addr, data, 1)
-#define mem_rw_ptr(addr, data) mem_rb_ptr_s(addr, data, 1)
-
-#define mem_wb_ptr(addr, data) mem_wb_ptr_s(addr, data, 1)
-#define mem_wl_ptr(addr, data) mem_wl_ptr_s(addr, data, 1)
-#define mem_ww_ptr(addr, data) mem_ww_ptr_s(addr, data, 1)
-
-#define mem_wb(addr, data) mem_wb_s(addr, data, 1)
-#define mem_wl(addr, data) mem_wl_s(addr, data, 1)
-#define mem_ww(addr, data) mem_ww_s(addr, data, 1)
