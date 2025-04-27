@@ -72,6 +72,19 @@
 #define SH (0x1)
 #define SW (0x2)
 
+const char* re_na(int reg_num)
+{
+    switch (reg_num) {
+#define X(name, value) \
+    case value:        \
+        return #name;
+        REG_LIST
+#undef X
+    default:
+        return "UNKNOWN_REG";
+    }
+}
+
 void vcore_r_type(VCore* core, uint32_t ins)
 {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
@@ -79,47 +92,49 @@ void vcore_r_type(VCore* core, uint32_t ins)
     switch (R_FUNC(ins)) {
     case ADD:
         *rd = rs1 + rs2;
-        printf("ADD rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("ADD ");
         break;
     case SUB:
         *rd = rs1 - rs2;
-        printf("SUB rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SUB ");
         break;
     case XOR:
         *rd = rs1 ^ rs2;
-        printf("XOR rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("XOR ");
         break;
     case OR:
         *rd = rs1 | rs2;
-        printf("OR rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("OR ");
         break;
     case AND:
         *rd = rs1 & rs2;
-        printf("AND rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("AND ");
         break;
     case SLL:
         *rd = rs1 << rs2;
-        printf("SLL rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SLL ");
         break;
     case SRL:
         *rd = (unsigned)rs1 >> rs2;
-        printf("SRL rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SRL ");
         break;
     case SRA:
         *rd = (signed)rs1 >> rs2;
-        printf("SRA rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SRA ");
         break;
     case SLT:
         *rd = ((signed)rs1 < (signed)rs2) ? 1 : 0;
-        printf("SLT rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SLT ");
         break;
     case SLTU:
         *rd = ((unsigned)rs1 < (unsigned)rs2) ? 1 : 0;
-        printf("SLTU rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SLTU ");
         break;
     default:
         fprintf(stderr, "%x R-Type BADCODE\n", ins);
     }
+    printf("rd: %s, rs1: %s, rs2: %s\n", re_na(RD(ins)), re_na(RS1(ins)), re_na(RS2(ins)));
+    printf("content now:  %x, %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)], core->regs[RS2(ins)]);
 }
 
 void vcore_ir_type(VCore* core, uint32_t ins)
@@ -131,18 +146,24 @@ void vcore_ir_type(VCore* core, uint32_t ins)
 
     if (func == SRA) {
         *rd = (signed)rs1 >> imm;
-        printf("SRA rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("SRA ");
+        printf("rd: %s, rs1: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+        printf("content now:  %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)]);
         return;
     }
 
     if (func == SRL) {
         *rd = (unsigned)rs1 >> imm;
-        printf("SRL rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("SRL ");
+        printf("rd: %s, rs1: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+        printf("content now:  %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)]);
         return;
     }
     if (func == SLL) {
         *rd = rs1 << imm;
-        printf("SLL rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("SLL ");
+        printf("rd: %s, rs1: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+        printf("content now:  %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)]);
         return;
     }
 
@@ -152,31 +173,33 @@ void vcore_ir_type(VCore* core, uint32_t ins)
     switch (func) {
     case ADD:
         *rd = rs1 + imm;
-        printf("ADD rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("ADD ");
         break;
     case XOR:
         *rd = rs1 ^ imm;
-        printf("XOR rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("XOR ");
         break;
     case OR:
         *rd = rs1 | imm;
-        printf("OR rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("OR ");
         break;
     case AND:
         *rd = rs1 & imm;
-        printf("AND rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("AND ");
         break;
     case SLT:
         *rd = ((signed)rs1 < (signed)imm) ? 1 : 0;
-        printf("SLT rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("SLT ");
         break;
     case SLTU:
         *rd = ((unsigned)rs1 < (unsigned)imm) ? 1 : 0;
-        printf("SLTU rd: %d, rs1 %d, imm %d\n", RD(ins), rs1, imm);
+        printf("SLTU ");
         break;
     default:
         fprintf(stderr, "%x IR-Type BADCODE\n", ins);
     }
+    printf("rd: %s, rs1: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+    printf("content now:  %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)]);
 }
 
 void vcore_b_type(VCore* core, uint32_t ins)
@@ -217,32 +240,35 @@ void vcore_b_type(VCore* core, uint32_t ins)
     default:
         fprintf(stderr, "%x B-Type BADCODE\n", ins);
     }
+    printf("rs1: %s, rs2: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+    printf("content now: %x, %x\n", core->regs[RS1(ins)], core->regs[RS2(ins)]);
 }
 
 inline void vcore_j_type(VCore* core, uint32_t ins)
 {
     core->regs[RD(ins)] = core->regs[PC] + 4;
     core->regs[PC] += J_IMM(ins);
-    printf("J rd: %d\n", RD(ins));
+    printf("J rd: %s, imm: %x\n", re_na(RD(ins)), J_IMM(ins));
 }
 
 inline void vcore_ij_type(VCore* core, uint32_t ins)
 {
     core->regs[RD(ins)] = core->regs[PC] + 4;
     core->regs[PC] = core->regs[RS1(ins)] + I_IMM(ins);
-    printf("IJ rd: %d\n", RD(ins));
+    printf("IJ rd: %s, rs1: %s , imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), I_IMM(ins));
 }
 
 inline void vcore_lui_type(VCore* core, uint32_t ins)
 {
     core->regs[RD(ins)] = U_IMM(ins);
-    printf("LUI rd: %d imm: %d\n", RD(ins), U_IMM(ins));
+    printf("LUI rd: %s, imm: %x\n", re_na(RD(ins)), J_IMM(ins));
 }
 
 inline void vcore_auipc_type(VCore* core, uint32_t ins)
 {
     core->regs[RD(ins)] = core->regs[PC] + U_IMM(ins);
-    printf("AUIPC rd: %d imm: %d\n", RD(ins), U_IMM(ins));
+    printf("AUIPC rd: %s, imm: %x\n", re_na(RD(ins)), J_IMM(ins));
+    printf("content now: %x\n", core->regs[RD(ins)]);
 }
 
 void vcore_il_type(VCore* core, uint32_t ins)
@@ -256,29 +282,31 @@ void vcore_il_type(VCore* core, uint32_t ins)
         *rd = mem_rb(rs1 + imm);
         if (*rd >= 0b10000000)
             *rd |= 0xFFFFFF00;
-        printf("LB rd: %d, rs1 %d\n", RD(ins), rs1);
+        printf("LB ");
         break;
     case LH:
         *rd = mem_rh(rs1 + imm);
         if (*rd >= 0b1000000000000000)
             *rd |= 0xFFFF0000;
-        printf("LH rd: %d, rs1 %d\n", RD(ins), rs1);
+        printf("LH ");
         break;
     case LW:
         *rd = mem_rw(rs1 + imm);
-        printf("LW rd: %d, rs1 %d\n", RD(ins), rs1);
+        printf("LW ");
         break;
     case LBU:
         *rd = (unsigned)mem_rb(rs1 + imm);
-        printf("LBU rd: %d, rs1 %d\n", RD(ins), rs1);
+        printf("LBU ");
         break;
     case LHU:
         *rd = (unsigned)mem_rh(rs1 + imm);
-        printf("LHU rd: %d, rs1 %d\n", RD(ins), rs1);
+        printf("LHU ");
         break;
     default:
         fprintf(stderr, "%x IL-Type BADCODE\n", ins);
     }
+    printf("rd: %s, rs1: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
+    printf("content now:  %x, %x\n", core->regs[RD(ins)], core->regs[RS1(ins)]);
 }
 
 void vcore_s_type(VCore* core, uint32_t ins)
@@ -288,17 +316,19 @@ void vcore_s_type(VCore* core, uint32_t ins)
     switch (FUNC(ins)) {
     case SB:
         mem_wb(rs1 + S_IMM(ins), rs2);
-        printf("SB rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SB ");
         break;
     case SH:
         mem_wh(rs1 + S_IMM(ins), rs2);
-        printf("SH rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SH ");
         break;
     case SW:
         mem_ww(rs1 + S_IMM(ins), rs2);
-        printf("SW rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+        printf("SW ");
         break;
     default:
         fprintf(stderr, "%x S-Type BADCODE\n", ins);
     }
+    printf("rd: %s, rs1: %s, rs2: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), re_na(RS2(ins)), S_IMM(ins));
+    printf("content now:  %x, %x\n", core->regs[RS1(ins)], core->regs[RS2(ins)]);
 }

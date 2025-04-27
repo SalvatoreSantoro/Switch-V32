@@ -22,9 +22,12 @@ int main(void)
 
     int i = 0;
     while (i < 1000) {
+        printf("\n");
+        printf("PC: %x\n", core.regs[PC]);
+        printf("SP: %x\n", core.regs[SP]);
+        printf("GP: %x\n", core.regs[GP]);
         getchar();
         ins = mem_rw(core.regs[PC]);
-        printf("%x\n", ins);
         if (IS_COMPRESSED(ins)) {
             printf("Compressed\n");
             core.regs[PC] += 2;
@@ -72,7 +75,6 @@ int main(void)
         i += 1;
     }
 
-
     /* printf("%x\n", core.regs[REG_ZERO]); */
     /* printf("%x\n", core.regs[REG_RA]); */
     /* printf("%x\n", core.regs[REG_SP]); */
@@ -113,6 +115,5 @@ int main(void)
     /**/
     /* printf("%x\n", core.regs[PC]); */
 
-    printf("%d\n", *(uint32_t*)core.regs[REG_T0]);
-
+    printf("%d\n", *(uint32_t*)core.regs[T0]);
 }
