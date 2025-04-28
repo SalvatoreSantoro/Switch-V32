@@ -21,7 +21,7 @@ struct Memory {
 extern struct Memory __vmem __attribute__((aligned(PAGE_SIZE)));
 
 // end of memory, leaving 1 page under empty (argc, argv, env)
-#define STACK_BASE (((uintptr_t)&__vmem.m) + (MEM_SIZE - PAGE_SIZE))
+#define STACK_BASE (MEM_SIZE - PAGE_SIZE)
 
 // Write {Byte/Long/Word} data value in memory address "addr"
 #define GEN_W_FUN_HDR(sign_size)                                                \
@@ -65,9 +65,5 @@ GEN_R_FUN_HDR(w)
 #define mem_wb_ptr(addr, data) mem_wb_ptr_s(addr, data, 1)
 #define mem_wh_ptr(addr, data) mem_wh_ptr_s(addr, data, 1)
 #define mem_ww_ptr(addr, data) mem_ww_ptr_s(addr, data, 1)
-
-#define mem_wb(addr, data) mem_wb_s(addr, data, 1)
-#define mem_wh(addr, data) mem_wh_s(addr, data, 1)
-#define mem_ww(addr, data) mem_ww_s(addr, data, 1)
 
 #endif // !_MEM32_H

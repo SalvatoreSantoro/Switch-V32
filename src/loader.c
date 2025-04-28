@@ -143,8 +143,9 @@ static void _ld_elf_seg(Elf_File* elf)
         mem_wb_ptr_s(addr, (elf->data + foff), memsz);
         // for bss section
         // memory is currently static so should already be to 0, but just in case...
-        if (fsz < memsz)
-            mem_wb_s((addr + foff), 0, (memsz - fsz));
+        if (fsz < memsz) {
+            mem_wb_s((addr + fsz), 0, (memsz - fsz));
+        }
 
         // sleep(10);
         printf("Loaded Segment number %d, with addr %x and size %d in %p\n", i + 1, addr, memsz, __vmem.m + addr);
@@ -192,7 +193,7 @@ Elf_File* ld_elf(const char* file_name, VCore* core)
         core->regs[SP] = STACK_BASE;
         // load GP
         sym = _ld_elf_getsym(elf, "__global_pointer$");
-        assert(sym && "CAN'T FIND __global_pointer$");
+        assert(sym && "CAN'T FIND SYMBOL __global_pointer$");
         core->regs[GP] = sym->st_value;
         goto close;
     }

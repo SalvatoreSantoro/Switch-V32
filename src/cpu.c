@@ -14,27 +14,36 @@
 #define R_IMM_MASK (0b111111111111 << 20)
 #define U_IMM_MASK (0b11111111111111111111 << 12)
 
-// Gets
+// Instruction Decoders
 #define RD(x) ((x & IM_RD_MASK) >> 7)
 #define RS1(x) ((x & RS1_MASK) >> 15)
 #define RS2(x) ((x & RS2_MASK) >> 20)
-#define I_IMM(x) ((x & R_IMM_MASK) >> 20)
 #define R_FUNC(x) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
 #define FUNC(x) ((x & F3_MASK) >> 12)
+
+#define I_IMM(x) ((signed)(x & R_IMM_MASK) >> 20)
+
 #define B_IMM(x) (                   \
     (((0b1111 << 8) & x) >> 7)       \
     | (((0b111111 << 25) & x) >> 20) \
     | (((0b1 << 7) & x) << 4)        \
-    | (((0b1 << 31) & x) >> 19))
+    | ((signed)((0b1 << 31) & x) >> 19))
 
-#define J_IMM(x) (                     \
-    (((0b1111111111 << 20) & x) >> 19) \
-    | (((0b1 << 20) & x) >> 9)         \
-    | (((0b11111111 << 12) & x))       \
-    | (((0b1 << 31) & x) >> 11))
+#define J_IMM(x) (                       \
+    ((((x) >> 21) & 0b1111111111) << 1)  \
+    | ((((x) >> 20) & 0b1) << 11)        \
+    | ((((x) >> 12) & 0b11111111) << 12) \
+    | (((signed)(x) >> 11) & 0xFFF00000))
+
+// OLD
+/* #define J_IMM(x) (                     \ */
+/*     (((0b1111111111 << 21) & x) >> 20) \ */
+/*     | (((0b1 << 20) & x) >> 9)        \ */
+/*     | (((0b11111111 << 12) & x))       \ */
+/*     | ((signed)((0b1 << 31) & x) >> 11)) */
 
 #define U_IMM(x) (x & (U_IMM_MASK))
-#define S_IMM(x) ((RD(x)) | ((x & IM2_F7_MASK) >> 20)) // 19?
+#define S_IMM(x) ((RD(x)) | ((signed)(x & IM2_F7_MASK) >> 20))
 
 // R / IR type
 // func7:func3
@@ -205,43 +214,45 @@ void vcore_ir_type(VCore* core, uint32_t ins)
 void vcore_b_type(VCore* core, uint32_t ins)
 {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
+    int32_t inc = 4;
     int32_t imm = B_IMM(ins);
     switch (FUNC(ins)) {
     case BEQ:
         if (rs1 == rs2)
-            core->regs[PC] += imm;
-        printf("BEQ rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BEQ ");
         break;
     case BNE:
         if (rs1 != rs2)
-            core->regs[PC] += imm;
-        printf("BNE rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BNE ");
         break;
     case BLT:
         if ((signed)rs1 < (signed)rs2)
-            core->regs[PC] += imm;
-        printf("BLT rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BLT ");
         break;
     case BGE:
         if ((signed)rs1 >= (signed)rs2)
-            core->regs[PC] += imm;
-        printf("BGE rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BGE ");
         break;
     case BLTU:
         if ((unsigned)rs1 < (unsigned)rs2)
-            core->regs[PC] += imm;
-        printf("BLTU rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BLTU ");
         break;
     case BGEU:
         if ((unsigned)rs1 >= (unsigned)rs2)
-            core->regs[PC] += imm;
-        printf("BGEU rd: %d, rs1 %d, rs2 %d\n", RD(ins), rs1, rs2);
+            inc = imm;
+        printf("BGEU ");
         break;
     default:
         fprintf(stderr, "%x B-Type BADCODE\n", ins);
     }
-    printf("rs1: %s, rs2: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), imm);
-    printf("content now: %x, %x\n", core->regs[RS1(ins)], core->regs[RS2(ins)]);
+    core->regs[PC] += inc;
+    printf("rs1: %s, rs2: %s, imm: %x\n", re_na(RS1(ins)), re_na(RS2(ins)), imm);
+    printf("content now:  %x, %x\n", core->regs[RS1(ins)], core->regs[RS2(ins)]);
 }
 
 inline void vcore_j_type(VCore* core, uint32_t ins)
@@ -262,6 +273,7 @@ inline void vcore_lui_type(VCore* core, uint32_t ins)
 {
     core->regs[RD(ins)] = U_IMM(ins);
     printf("LUI rd: %s, imm: %x\n", re_na(RD(ins)), J_IMM(ins));
+    printf("content now: %x\n", core->regs[RD(ins)]);
 }
 
 inline void vcore_auipc_type(VCore* core, uint32_t ins)
@@ -329,6 +341,6 @@ void vcore_s_type(VCore* core, uint32_t ins)
     default:
         fprintf(stderr, "%x S-Type BADCODE\n", ins);
     }
-    printf("rd: %s, rs1: %s, rs2: %s, imm: %x\n", re_na(RD(ins)), re_na(RS1(ins)), re_na(RS2(ins)), S_IMM(ins));
+    printf("rs1: %s, rs2: %s, imm: %x\n", re_na(RS1(ins)), re_na(RS2(ins)), S_IMM(ins));
     printf("content now:  %x, %x\n", core->regs[RS1(ins)], core->regs[RS2(ins)]);
 }

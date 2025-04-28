@@ -1,6 +1,7 @@
 #include "../src/cpu.h"
 #include "../src/loader.h"
 #include "../src/memory.h"
+#include "../src/system.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +12,7 @@ int main(void)
     Elf_File* file;
     VCore core = { 0 };
     uint32_t ins;
-    if ((file = ld_elf("gas", &core)) == NULL) {
+    if ((file = ld_elf("doom", &core)) == NULL) {
         perror("ELF ERROR");
         return EXIT_FAILURE;
     }
@@ -21,12 +22,11 @@ int main(void)
     ld_destroy_elf(file);
 
     int i = 0;
-    while (i < 1000) {
+    while (1) {
         printf("\n");
         printf("PC: %x\n", core.regs[PC]);
         printf("SP: %x\n", core.regs[SP]);
         printf("GP: %x\n", core.regs[GP]);
-        getchar();
         ins = mem_rw(core.regs[PC]);
         if (IS_COMPRESSED(ins)) {
             printf("Compressed\n");
@@ -56,7 +56,7 @@ int main(void)
                 break;
             case IJ_TYPE:
                 vcore_ij_type(&core, ins);
-                continue;
+                continue; // skip the PC + 4
                 break;
             case LUI:
                 vcore_lui_type(&core, ins);
@@ -65,6 +65,7 @@ int main(void)
                 vcore_auipc_type(&core, ins);
                 break;
             case ENV_TYPE:
+                system_call(&core);
                 break;
             default:
                 fprintf(stderr, "%x BADOPCODE\n", ins);
@@ -74,46 +75,4 @@ int main(void)
         }
         i += 1;
     }
-
-    /* printf("%x\n", core.regs[REG_ZERO]); */
-    /* printf("%x\n", core.regs[REG_RA]); */
-    /* printf("%x\n", core.regs[REG_SP]); */
-    /* printf("%x\n", core.regs[REG_GP]); */
-    /* printf("%x\n", core.regs[REG_TP]); */
-    /* printf("T0: %x\n", core.regs[REG_T0]); */
-    /* printf("%x\n", core.regs[REG_T1]); */
-    /* printf("%x\n", core.regs[REG_T2]); */
-    /* printf("%x\n", core.regs[REG_T3]); */
-    /* printf("%x\n", core.regs[REG_S0]); */
-    /* printf("%x\n", core.regs[REG_S1]); */
-    /* printf("%x\n", core.regs[REG_A0]); */
-    /* printf("%x\n", core.regs[REG_A1]); */
-    /* printf("%x\n", core.regs[REG_A2]); */
-    /* printf("%x\n", core.regs[REG_A3]); */
-    /* printf("%x\n", core.regs[REG_A4]); */
-    /* printf("%x\n", core.regs[REG_A5]); */
-    /* printf("%x\n", core.regs[REG_A6]); */
-    /* printf("%x\n", core.regs[REG_A7]); */
-    /**/
-    /* printf("%x\n", core.regs[REG_S2]); */
-    /* printf("%x\n", core.regs[REG_S3]); */
-    /* printf("%x\n", core.regs[REG_S4]); */
-    /* printf("%x\n", core.regs[REG_S5]); */
-    /* printf("%x\n", core.regs[REG_S6]); */
-    /* printf("%x\n", core.regs[REG_S7]); */
-    /* printf("%x\n", core.regs[REG_S8]); */
-    /* printf("%x\n", core.regs[REG_S9]); */
-    /* printf("%x\n", core.regs[REG_S10]); */
-    /* printf("%x\n", core.regs[REG_S11]); */
-    /**/
-    /**/
-    /* printf("%x\n", core.regs[REG_T3]); */
-    /* printf("%x\n", core.regs[REG_T4]); */
-    /* printf("%x\n", core.regs[REG_T5]); */
-    /* printf("%x\n", core.regs[REG_T6]); */
-    /**/
-    /**/
-    /* printf("%x\n", core.regs[PC]); */
-
-    printf("%d\n", *(uint32_t*)core.regs[T0]);
 }
