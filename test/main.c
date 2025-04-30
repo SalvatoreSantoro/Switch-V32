@@ -5,32 +5,23 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-int main(void)
-{
-    Elf_File* file;
-    VCore core = { 0 };
+int main(void) {
+    VCore core = {0};
     uint32_t ins;
-    if ((file = ld_elf("doom", &core)) == NULL) {
-        perror("ELF ERROR");
-        return EXIT_FAILURE;
-    }
-    // kept file allocated on heap just in case
-    // if i find out that the loader is useless after loading the file
-    // could just deallocate it directly in ld_elf
-    ld_destroy_elf(file);
 
-    int i = 0;
+    ld_elf("gas", &core);
+
+    printf("BRK: %x\n", core.brk);
+    printf("STACK: %x\n", core.regs[SP]);
+
     while (1) {
-        printf("\n");
-        printf("PC: %x\n", core.regs[PC]);
-        printf("SP: %x\n", core.regs[SP]);
-        printf("GP: %x\n", core.regs[GP]);
-        ins = mem_rw(core.regs[PC]);
+        // RESET ZERO REGISTER
+        core.regs[ZERO] = 0;
+        ins = mem_rw(core.pc);
         if (IS_COMPRESSED(ins)) {
             printf("Compressed\n");
-            core.regs[PC] += 2;
+            core.pc += 2;
         } else {
             // printf("Uncompressed\n");
             switch (OPCODE_TYPE(ins)) {
@@ -69,10 +60,10 @@ int main(void)
                 break;
             default:
                 fprintf(stderr, "%x BADOPCODE\n", ins);
+                exit(EXIT_FAILURE);
                 break;
             }
-            core.regs[PC] += 4;
+            core.pc += 4;
         }
-        i += 1;
     }
 }

@@ -1,5 +1,6 @@
 #include "loader.h"
 #include "cpu.h"
+#include "macros.h"
 #include "memory.h"
 #include <assert.h>
 #include <elf.h>
@@ -13,33 +14,32 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-enum {
-    LD_OK = 0,
-    LD_INVALID_ELF
-};
-
-struct Elf_File {
-    size_t data_sz;
+typedef struct {
     size_t prog_size;
     size_t sect_size;
     size_t symb_size;
-    uint8_t* data;
-    Elf32_Phdr* programs;
-    Elf32_Shdr* sections;
-    Elf32_Ehdr* header;
-    Elf32_Sym* symbols;
-    const char* symbols_names;
-    const char* sections_names;
-};
+    uint8_t *data;
+    Elf32_Phdr *programs;
+    Elf32_Shdr *sections;
+    Elf32_Ehdr *header;
+    Elf32_Sym *symbols;
+    const char *symbols_names;
+    const char *sections_names;
+} Elf_File;
 
-#define VALIDATE(cond)             \
-    do {                           \
-        if (!(cond))               \
-            return LD_INVALID_ELF; \
+#define LOADER_CRASH(str)                                                                                              \
+    do {                                                                                                               \
+        fprintf(stderr, "The ELF loader crashed: %s", str);                                                            \
+        exit(EXIT_FAILURE);                                                                                            \
     } while (0)
 
-static int _ld_elf_validate(Elf_File* elf)
-{
+#define VALIDATE(cond)                                                                                                 \
+    do {                                                                                                               \
+        if (!(cond))                                                                                                   \
+            LOADER_CRASH("ELF HEADER INVALID\n");                                                                      \
+    } while (0)
+
+static void _ld_elf_validate(Elf_File *elf) {
     VALIDATE(elf->header->e_ident[EI_MAG0] == ELFMAG0);
     VALIDATE(elf->header->e_ident[EI_MAG1] == ELFMAG1);
     VALIDATE(elf->header->e_ident[EI_MAG2] == ELFMAG2);
@@ -55,13 +55,10 @@ static int _ld_elf_validate(Elf_File* elf)
     VALIDATE(elf->header->e_phoff != 0);
     VALIDATE(elf->header->e_shoff != 0);
     VALIDATE(elf->header->e_shstrndx != SHN_UNDEF);
-
-    return LD_OK;
 }
 
-static Elf32_Shdr* _ld_elf_getsect(Elf_File* elf, const char* sect_name)
-{
-    Elf32_Shdr* sect;
+static Elf32_Shdr *_ld_elf_getsect(Elf_File *elf, const char *sect_name) {
+    Elf32_Shdr *sect;
     for (int i = 0; i < elf->header->e_shnum; i++) {
         sect = &elf->sections[i];
         // the section name is offset inside the string of names
@@ -71,10 +68,8 @@ static Elf32_Shdr* _ld_elf_getsect(Elf_File* elf, const char* sect_name)
     return NULL;
 }
 
-static Elf32_Sym* _ld_elf_getsym(Elf_File* elf, const char* sym_name)
-{
-    Elf32_Sym* sym;
-    printf("SIZE %ld\n", elf->symb_size);
+static Elf32_Sym *_ld_elf_getsym(Elf_File *elf, const char *sym_name) {
+    Elf32_Sym *sym;
     for (size_t i = 0; i < elf->symb_size; i++) {
         sym = &elf->symbols[i];
         if (strcmp(sym_name, elf->symbols_names + sym->st_name) == 0)
@@ -92,8 +87,7 @@ static Elf32_Sym* _ld_elf_getsym(Elf_File* elf, const char* sym_name)
 // sh_link member of the initial entry in section header table
 // contains the value zero.
 
-static void _ld_elf_section_names(Elf_File* elf)
-{
+static void _ld_elf_section_names(Elf_File *elf) {
     Elf32_Shdr shstrtab;
     uint32_t idx = elf->header->e_shstrndx;
 
@@ -102,35 +96,35 @@ static void _ld_elf_section_names(Elf_File* elf)
 
     shstrtab = elf->sections[idx];
 
-    elf->sections_names = (const char*)(elf->data + shstrtab.sh_offset);
+    elf->sections_names = (const char *) (elf->data + shstrtab.sh_offset);
 }
 
-static void _ld_elf_symbols(Elf_File* elf)
-{
-    Elf32_Shdr* sect;
+static void _ld_elf_symbols(Elf_File *elf) {
+    Elf32_Shdr *sect;
 
     // load symbols table
     sect = _ld_elf_getsect(elf, ".symtab");
-    assert(((sect != NULL) && (sect->sh_type == SHT_SYMTAB)) && "CAN'T FIND .symtab");
+    if (sect == NULL)
+        LOADER_CRASH("CAN'T FIND .symtab\n");
+
     elf->symb_size = sect->sh_size / sect->sh_entsize;
-    elf->symbols = (Elf32_Sym*)(elf->data + sect->sh_offset);
+    elf->symbols = (Elf32_Sym *) (elf->data + sect->sh_offset);
 
     // load symbols names
     sect = _ld_elf_getsect(elf, ".strtab");
-    assert(((sect != NULL) && (sect->sh_type == SHT_STRTAB)) && "CAN'T FIND .strtab");
-    elf->symbols_names = (const char*)(elf->data + sect->sh_offset);
+    if (sect == NULL)
+        LOADER_CRASH("CAN'T FIND .strtab\n");
+    elf->symbols_names = (const char *) (elf->data + sect->sh_offset);
 }
 
 /* static void _ld_find_section */
 
-static void _ld_elf_seg(Elf_File* elf)
-{
+static void _ld_elf_seg(Elf_File *elf) {
     size_t fsz;
     uint32_t foff;
     uint32_t memsz;
     uint32_t addr;
 
-    printf("memory: %p\n", __vmem.m);
     for (int i = 0; i < elf->header->e_phnum; i++) {
         if (elf->programs[i].p_type != PT_LOAD)
             continue;
@@ -147,70 +141,80 @@ static void _ld_elf_seg(Elf_File* elf)
             mem_wb_s((addr + fsz), 0, (memsz - fsz));
         }
 
-        // sleep(10);
-        printf("Loaded Segment number %d, with addr %x and size %d in %p\n", i + 1, addr, memsz, __vmem.m + addr);
-        // printf("%x\n", *(__vmem.m + addr));
+        LOG_LOAD();
     }
 }
 
-Elf_File* ld_elf(const char* file_name, VCore* core)
-{
+void ld_elf(const char *file_name, VCore *core) {
+    Elf32_Sym *sym;
+    Elf_File *elf = NULL;
     int fd;
     struct stat fst;
-    Elf32_Sym* sym;
-    Elf_File* elf = NULL;
-
-    if ((fd = open(file_name, O_RDONLY)) == -1)
-        return NULL;
-
-    if (fstat(fd, &fst) == -1)
-        goto close;
 
     if ((elf = calloc(1, sizeof(Elf_File))) == NULL)
-        goto close;
+        LOADER_CRASH(strerror(errno));
+
+    // load the file
+    if ((fd = open(file_name, O_RDONLY)) == -1)
+        LOADER_CRASH(strerror(errno));
+
+    if (fstat(fd, &fst) == -1)
+        LOADER_CRASH(strerror(errno));
 
     if ((elf->data = mmap(NULL, fst.st_size, PROT_READ, MAP_PRIVATE, fd, 0)) == NULL)
-        goto free;
+        LOADER_CRASH(strerror(errno));
 
-    elf->data_sz = fst.st_size;
-    elf->header = (Elf32_Ehdr*)elf->data;
+    elf->header = (Elf32_Ehdr *) elf->data;
 
-    if (_ld_elf_validate(elf) == LD_OK) {
-        elf->programs = (Elf32_Phdr*)(elf->data + elf->header->e_phoff);
-        elf->sections = (Elf32_Shdr*)(elf->data + elf->header->e_shoff);
-        elf->prog_size = elf->header->e_phentsize * elf->header->e_phnum;
-        elf->sect_size = elf->header->e_shentsize * elf->header->e_shnum;
-        // init section names string
-        _ld_elf_section_names(elf);
-        // init symbols string
-        _ld_elf_symbols(elf);
+    // crash if the format is incorrect
+    _ld_elf_validate(elf);
 
-        // load segments
-        _ld_elf_seg(elf);
-        // load entry point
-        core->regs[PC] = elf->header->e_entry;
-        // load stack base
-        core->regs[SP] = STACK_BASE;
-        // load GP
-        sym = _ld_elf_getsym(elf, "__global_pointer$");
-        assert(sym && "CAN'T FIND SYMBOL __global_pointer$");
+    elf->programs = (Elf32_Phdr *) (elf->data + elf->header->e_phoff);
+    elf->sections = (Elf32_Shdr *) (elf->data + elf->header->e_shoff);
+    elf->prog_size = elf->header->e_phentsize * elf->header->e_phnum;
+    elf->sect_size = elf->header->e_shentsize * elf->header->e_shnum;
+
+    // init section names string
+    _ld_elf_section_names(elf);
+
+    // init symbols string
+    _ld_elf_symbols(elf);
+
+    // load segments
+    _ld_elf_seg(elf);
+
+    // load entry point
+    core->regs[PC] = elf->header->e_entry;
+
+    // load stack base
+    core->regs[SP] = STACK_BASE;
+
+    // load GP
+    sym = _ld_elf_getsym(elf, "__global_pointer$");
+
+    if (sym == NULL)
+        fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __global_pointer$, relying on program init routine to set GP\n");
+    else
         core->regs[GP] = sym->st_value;
-        goto close;
-    }
 
-    // if not LD_OK invalid file format
-    errno = EINVAL;
+    // load brk
+    sym = _ld_elf_getsym(elf, "__BSS_END__");
+    if (sym == NULL) {
+        fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __BSS_END__, automatically computing brk value\n");
+        Elf32_Phdr last_segment = elf->programs[elf->prog_size];
+        core->brk = last_segment.p_vaddr + last_segment.p_memsz;
+    } else
+        core->brk = sym->st_value;
 
-free:
-    free(elf);
-    elf = NULL;
-close:
+    // load errno
+    sym = _ld_elf_getsym(elf, "__BSS_END__");
+    if (sym == NULL)
+        fprintf(stderr, "[WARNING] CAN'T FIND ERRNO\n");
+    else
+        core->elf_errno = sym->st_value;
+
+    munmap(elf->data, fst.st_size);
     close(fd);
-    return elf;
-}
-
-void ld_destroy_elf(Elf_File* elf)
-{
-    munmap(elf->data, elf->data_sz);
     free(elf);
+    return;
 }
