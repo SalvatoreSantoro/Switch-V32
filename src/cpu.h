@@ -2,7 +2,7 @@
 #define _RISCV32_CPU_H
 
 #include <stdint.h>
-// Register list using X-Macro pattern (no REG_ prefix)
+// Register list using X-Macro pattern
 #define REG_LIST                                                                                                       \
     X(ZERO, 0) /* x0 */                                                                                                \
     X(RA, 1)   /* x1 */                                                                                                \
@@ -62,10 +62,13 @@ enum {
 #define AUIPC          0b0010111
 #define ENV_TYPE       0b1110011
 
+
+
 typedef struct {
     uint32_t regs[REG_NUMS];
     uint32_t pc;
-    uint32_t brk;
+    // ELF
+    uint32_t elf_brk;
     uint32_t elf_errno;
 } VCore;
 

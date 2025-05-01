@@ -1,0 +1,4 @@
+1-MPU
+2-Gestione eccezioni (divisione per 0 ecc.)
+3-Support also environment variables
+4-Fix FSTAT and check system calls in general

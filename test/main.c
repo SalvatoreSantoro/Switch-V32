@@ -1,5 +1,4 @@
 #include "../src/cpu.h"
-#include "../src/loader.h"
 #include "../src/memory.h"
 #include "../src/system.h"
 #include <stdint.h>
@@ -7,16 +6,30 @@
 #include <stdlib.h>
 
 int main(void) {
+    // take them as args
+    const char *elf_stdin = NULL;
+    const char *elf_stdout = "out.txt";
+    const char *elf_stderr = "out.txt";
+    int elf_argc = 3;
+    const char *elf_argv1 = "doom";
+    const char *elf_argv2 = "-iwad";
+    const char *elf_argv3 = "doom1.wad";
+
     VCore core = {0};
     uint32_t ins;
 
+    // IMPORTANT: RIGHT NOW WE'RE ASSUMING EVERYTHING FITS INTO 1 PAGE (4096 BYTES)
+    ld_elf_args(elf_argc, elf_argv1, elf_argv2, elf_argv3);
+
     ld_elf("gas", &core);
 
-    printf("BRK: %x\n", core.brk);
-    printf("STACK: %x\n", core.regs[SP]);
+    ld_elf_std(elf_stdin, elf_stdout, elf_stderr);
 
+    printf("BRK: %x\n", core.elf_brk);
+    printf("STACK: %x\n", core.regs[SP]);
     while (1) {
-        // RESET ZERO REGISTER
+        // getchar();
+        //  RESET ZERO REGISTER
         core.regs[ZERO] = 0;
         ins = mem_rw(core.pc);
         if (IS_COMPRESSED(ins)) {

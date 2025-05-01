@@ -13,6 +13,7 @@
 
 // 2^24
 #define MEM_SIZE 16777216
+
 // end of memory, leaving 1 page under empty (argc, argv, env)
 #define STACK_BASE (MEM_SIZE - PAGE_SIZE)
 

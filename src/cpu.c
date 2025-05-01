@@ -23,15 +23,15 @@
 #define R_FUNC(x) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
 #define FUNC(x)   ((x & F3_MASK) >> 12)
 
-#define I_IMM(x) ((signed) (x & R_IMM_MASK) >> 20)
+#define I_IMM(x) ((int32_t) (x & R_IMM_MASK) >> 20)
 
 #define B_IMM(x)                                                                                                       \
     ((((0b1111 << 8) & x) >> 7) | (((0b111111 << 25) & x) >> 20) | (((0b1 << 7) & x) << 4) |                           \
-     ((signed) ((0b1 << 31) & x) >> 19))
+     ((int32_t) ((0b1 << 31) & x) >> 19))
 
 #define J_IMM(x)                                                                                                       \
     (((((x) >> 21) & 0b1111111111) << 1) | ((((x) >> 20) & 0b1) << 11) | ((((x) >> 12) & 0b11111111) << 12) |          \
-     (((signed) (x) >> 11) & 0xFFF00000))
+     (((int32_t) (x) >> 11) & 0xFFF00000))
 
 // OLD
 /* #define J_IMM(x) (                     \ */
@@ -41,7 +41,7 @@
 /*     | ((signed)((0b1 << 31) & x) >> 11)) */
 
 #define U_IMM(x) (x & (U_IMM_MASK))
-#define S_IMM(x) ((RD(x)) | ((signed) (x & IM2_F7_MASK) >> 20))
+#define S_IMM(x) ((RD(x)) | ((int32_t) (x & IM2_F7_MASK) >> 20))
 
 // R / IR type
 // func7:func3
@@ -55,6 +55,15 @@
 #define SRA  (0x205)
 #define SLT  (0x002)
 #define SLTU (0x003)
+
+#define MUL    (0x010)
+#define MULH   (0x011)
+#define MULHSU (0x012)
+#define MULHU  (0x013)
+#define DIV    (0x014)
+#define DIVU   (0x015)
+#define REM    (0x016)
+#define REMU   (0x017)
 
 // B Type
 // func3
@@ -94,6 +103,7 @@ const char *re_na(int reg_num) {
 void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
+    uint64_t tmp_mul;
     switch (R_FUNC(ins)) {
     case ADD:
         *rd = rs1 + rs2;
@@ -120,20 +130,58 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("SLL");
         break;
     case SRL:
-        *rd = (unsigned) rs1 >> rs2;
+        *rd = (uint32_t) rs1 >> rs2;
         LOG_R("SRL");
         break;
     case SRA:
-        *rd = (signed) rs1 >> rs2;
+        *rd = (int32_t) rs1 >> rs2;
         LOG_R("SRA");
         break;
     case SLT:
-        *rd = ((signed) rs1 < (signed) rs2) ? 1 : 0;
+        *rd = ((int32_t) rs1 < (int32_t) rs2) ? 1 : 0;
         LOG_R("SLT");
         break;
     case SLTU:
-        *rd = ((unsigned) rs1 < (unsigned) rs2) ? 1 : 0;
+        *rd = ((uint32_t) rs1 < (uint32_t) rs2) ? 1 : 0;
         LOG_R("SLTU");
+        break;
+    case MUL:
+        *rd = (int32_t) rs1 * (int32_t) rs2;
+        LOG_R("MUL");
+        break;
+    case MULH:
+        tmp_mul = (int64_t) (int32_t) rs1 * (int64_t) (int32_t) rs2;
+        tmp_mul &= (0xFFFFFFFF00000000);
+        *rd = (uint32_t) (tmp_mul >> 32);
+        LOG_R("MULH");
+        break;
+    case MULHSU:
+        tmp_mul = (int64_t) (int32_t) rs1 * (uint64_t) (uint32_t) rs2;
+        tmp_mul &= (0xFFFFFFFF00000000);
+        *rd = (uint32_t) (tmp_mul >> 32);
+        LOG_R("MULHSU");
+        break;
+    case MULHU:
+        tmp_mul = (uint64_t) (uint32_t) rs1 * (uint64_t) (uint32_t) rs2;
+        tmp_mul &= (0xFFFFFFFF00000000);
+        *rd = (uint32_t) (tmp_mul >> 32);
+        LOG_R("MULHU");
+        break;
+    case DIV:
+        *rd = (int32_t) rs1 / (int32_t) rs2;
+        LOG_R("DIV");
+        break;
+    case DIVU:
+        *rd = (uint32_t) rs1 / (uint32_t) rs2;
+        LOG_R("DIVU");
+        break;
+    case REM:
+        *rd = (int32_t) rs1 % (int32_t) rs2;
+        LOG_R("REM");
+        break;
+    case REMU:
+        *rd = (uint32_t) rs1 % (uint32_t) rs2;
+        LOG_R("REMU");
         break;
     default:
         fprintf(stderr, "%x R-Type BADCODE\n", ins);
@@ -150,13 +198,13 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
     uint32_t shift_imm = RS2(ins);
 
     if (func == SRA) {
-        *rd = (signed) rs1 >> shift_imm;
+        *rd = (int32_t) rs1 >> shift_imm;
         LOG_I("SRA", shift_imm);
         return;
     }
 
     if (func == SRL) {
-        *rd = (unsigned) rs1 >> shift_imm;
+        *rd = (uint32_t) rs1 >> shift_imm;
         LOG_I("SRL", shift_imm);
         return;
     }
@@ -187,11 +235,11 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
         LOG_I("AND", imm);
         break;
     case SLT:
-        *rd = ((signed) rs1 < (signed) imm) ? 1 : 0;
+        *rd = ((int32_t) rs1 < (int32_t) imm) ? 1 : 0;
         LOG_I("SLT", imm);
         break;
     case SLTU:
-        *rd = ((unsigned) rs1 < (unsigned) imm) ? 1 : 0;
+        *rd = ((uint32_t) rs1 < (uint32_t) imm) ? 1 : 0;
         LOG_I("SLTU", imm);
         break;
     default:
@@ -215,22 +263,22 @@ void vcore_b_type(VCore *core, uint32_t ins) {
         LOG_B("BNE", imm);
         break;
     case BLT:
-        if ((signed) rs1 < (signed) rs2)
+        if ((int32_t) rs1 < (int32_t) rs2)
             inc = imm;
         LOG_B("BLT", imm);
         break;
     case BGE:
-        if ((signed) rs1 >= (signed) rs2)
+        if ((int32_t) rs1 >= (int32_t) rs2)
             inc = imm;
         LOG_B("BGE", imm);
         break;
     case BLTU:
-        if ((unsigned) rs1 < (unsigned) rs2)
+        if ((uint32_t) rs1 < (uint32_t) rs2)
             inc = imm;
         LOG_B("BLTU", imm);
         break;
     case BGEU:
-        if ((unsigned) rs1 >= (unsigned) rs2)
+        if ((uint32_t) rs1 >= (uint32_t) rs2)
             inc = imm;
         LOG_B("BGEU", imm);
         break;
@@ -281,15 +329,15 @@ void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LH", imm);
         break;
     case LW:
-        *rd = mem_rw(rs1 + imm);
         LOG_I("LW", imm);
+        *rd = mem_rw(rs1 + imm);
         break;
     case LBU:
-        *rd = (unsigned) mem_rb(rs1 + imm);
+        *rd = (uint32_t) mem_rb(rs1 + imm);
         LOG_I("LBU", imm);
         break;
     case LHU:
-        *rd = (unsigned) mem_rh(rs1 + imm);
+        *rd = (uint32_t) mem_rh(rs1 + imm);
         LOG_I("LHU", imm);
         break;
     default:
