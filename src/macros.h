@@ -1,9 +1,9 @@
 #ifndef _RISCV32_MACROS_H
 #define _RISCV32_MACROS_H
 
-//#define CPU_VERBOSE
-//#define SYS_VERBOSE
-//#define LOADER_VERBOSE
+//#define ALL_VERBOSE
+#define SYS_VERBOSE
+#define LOADER_VERBOSE
 //#define CPU_VERBOSE
 
 #ifdef ALL_VERBOSE
@@ -69,9 +69,13 @@
 #endif
 
 #ifdef SYS_VERBOSE
-    // LOG_SYS(op)
+    #define LOG_DE(op, d) printf("%s: %d\n", op, d);
+    #define LOG_EX(op, x) printf("%s: %x\n", op, x);
+    #define LOG_STR(op, s) printf("%s: %d\n", op, s);
 #else
-    // LOG_SYS(op)
+    #define LOG_DE(op, d)
+    #define LOG_EX(op, x)
+    #define LOG_STR(op, s)
 #endif
 
 #ifdef LOADER_VERBOSE

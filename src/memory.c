@@ -1,8 +1,10 @@
 #include "memory.h"
 #include <stdint.h>
+#include <stdio.h>
 
 struct Memory __vmem;
 
+// BROKEN:FIX
 // Write {Byte/Long/Word} data value in memory address "addr"
 #define GEN_WS_FUN(sign_size, data_size)                                                                               \
     void mem_w##sign_size##_s(uint32_t addr, TYPE_##sign_size data, size_t sz) {                                       \

@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <sys/types.h>
 
 // Base Integer
 
@@ -329,12 +330,12 @@ void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LH", imm);
         break;
     case LW:
+        *rd = (uint32_t) mem_rw(rs1 + imm);
         LOG_I("LW", imm);
-        *rd = mem_rw(rs1 + imm);
         break;
     case LBU:
-        *rd = (uint32_t) mem_rb(rs1 + imm);
         LOG_I("LBU", imm);
+        *rd = (uint32_t) mem_rb(rs1 + imm);
         break;
     case LHU:
         *rd = (uint32_t) mem_rh(rs1 + imm);
