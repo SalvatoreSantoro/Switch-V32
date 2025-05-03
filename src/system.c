@@ -3,6 +3,7 @@
 #include "macros.h"
 #include "memory.h"
 #include <assert.h>
+#include <bits/types/struct_timeval.h>
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -67,6 +68,12 @@ struct EMU_timespec {
     int32_t tv_nsec; /* and nanoseconds */
 };
 
+// they're the same should optimize this...
+struct EMU_timeval {
+    int64_t tv_sec;
+    int32_t tv_usec;
+};
+
 struct EMU_stat {
     int16_t st_dev;
     uint16_t st_ino;
@@ -87,6 +94,11 @@ struct EMU_stat {
 static void _emu_copy_timespec(struct EMU_timespec *ets, struct timespec *ts) {
     ets->tv_sec = ts->tv_sec;
     ets->tv_nsec = ts->tv_nsec;
+}
+
+static void _emu_copy_timeval(struct EMU_timeval *etv, struct timeval *tv) {
+    etv->tv_sec = tv->tv_sec;
+    etv->tv_usec = tv->tv_usec;
 }
 
 static void _emu_copy_stat(struct EMU_stat *es, struct stat *fs) {
@@ -199,6 +211,7 @@ static void _ld_elf_seg(Elf_File *elf) {
         memsz = elf->programs[i].p_memsz;
         foff = elf->programs[i].p_offset;
         addr = elf->programs[i].p_vaddr;
+        LOG_LOAD();
 
         mem_wb_ptr_s(addr, (elf->data + foff), memsz);
         // for bss section
@@ -206,8 +219,6 @@ static void _ld_elf_seg(Elf_File *elf) {
         if (fsz < memsz) {
             mem_wb_s((addr + fsz), 0, (memsz - fsz));
         }
-
-        LOG_LOAD();
     }
 }
 
@@ -349,6 +360,7 @@ void system_call(VCore *core) {
     int fd;
     struct stat fs;
     struct timespec ts;
+    struct timeval tv;
     uintptr_t tmp_addr;
     uintptr_t tmp_addr2;
     switch (core->regs[A7]) {
@@ -382,11 +394,11 @@ void system_call(VCore *core) {
         _emu_copy_stat((struct EMU_stat *) (__vmem.m + tmp_addr), &fs);
         break;
     case GETTIMEOFDAY:
-        LOG_DE("GETTIMEOFDAY UNIMPLEMENTED", 0);
-        break;
+        LOG_DE("GETTIMEOFDAY", 0);
         tmp_addr = core->regs[A0];
         tmp_addr2 = core->regs[A1];
-        core->regs[A0] = gettimeofday((struct timeval *) (__vmem.m + tmp_addr), (void *) tmp_addr2);
+        core->regs[A0] = gettimeofday(&tv, (void *) tmp_addr2);
+        _emu_copy_timeval((struct EMU_timeval *) (__vmem.m + tmp_addr), &tv);
         break;
     case EXIT:
         LOG_DE("EXIT", core->regs[A0]);

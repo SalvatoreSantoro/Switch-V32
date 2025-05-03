@@ -6,7 +6,7 @@
 NAME:=SRV32
 
 CC:=gcc
-DEFAULT_FLAGS:= -O2 -Wall -Wextra #-Werror
+DEFAULT_FLAGS:= -O2 -Wall -Wextra -lSDL2 -pthread #-Werror
 CFLAGS:=$(DEFAULT_FLAGS) -DNDDEBUG
 CFLAGS_DEBUG:=$(DEFAULT_FLAGS) $(DEBUG_FLAGS) -g -DDEBUG
 TEST_CFLAGS:=$(CFLAGS_DEBUG) -fno-plt -fno-pie

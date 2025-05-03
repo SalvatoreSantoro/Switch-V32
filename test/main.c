@@ -1,6 +1,8 @@
 #include "../src/cpu.h"
 #include "../src/memory.h"
+#include "../src/sdl.h"
 #include "../src/system.h"
+#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +20,14 @@ int main(void) {
     VCore core = {0};
     uint32_t ins;
 
+    pthread_t thread;
+
+    // Create the thread
+    if (pthread_create(&thread, NULL, video_init, NULL) != 0) {
+        perror("Failed to create thread");
+        return 1;
+    }
+
     // IMPORTANT: RIGHT NOW WE'RE ASSUMING EVERYTHING FITS INTO 1 PAGE (4096 BYTES)
     ld_elf_args(elf_argc, elf_argv1, elf_argv2, elf_argv3);
 
@@ -25,19 +35,20 @@ int main(void) {
 
     ld_elf_std(elf_stdin, elf_stdout, elf_stderr);
 
-    // int activated = 0;
+    //int activated = 0;
     while (1) {
         // if (activated)
-        // getchar();
-        //   RESET ZERO REGISTER
+        //     getchar();
+        //     RESET ZERO REGISTER
         core.regs[ZERO] = 0;
         ins = mem_rw(core.pc);
         /* printf("BRK: %x\n", core.elf_brk); */
         /* printf("STACK: %x\n", core.regs[SP]); */
         /* printf("PC: %x\n", core.pc); */
         /* printf("INS: %x\n", ins); */
-        // if (ins == 0xe1010113)
-        //   activated = 1;
+        /* if (ins == 0x02e80463) */
+        /*     activated = 1; */
+        // printf("%x\n", ins);
         if (IS_COMPRESSED(ins)) {
             printf("Compressed\n");
             core.pc += 2;
@@ -79,10 +90,15 @@ int main(void) {
                 break;
             default:
                 fprintf(stderr, "%x BADOPCODE at %x\n", ins, core.pc);
-                exit(EXIT_FAILURE);
+                // exit(EXIT_FAILURE);
                 break;
             }
             core.pc += 4;
         }
+    }
+    // Wait for the thread to finish
+    if (pthread_join(thread, NULL) != 0) {
+        perror("Failed to join thread");
+        return 1;
     }
 }

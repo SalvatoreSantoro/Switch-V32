@@ -2,7 +2,7 @@
 #include <stdint.h>
 #include <stdio.h>
 
-struct Memory __vmem;
+struct Memory __vmem = {0};
 
 // BROKEN:FIX
 // Write {Byte/Long/Word} data value in memory address "addr"

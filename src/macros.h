@@ -2,8 +2,8 @@
 #define _RISCV32_MACROS_H
 
 //#define ALL_VERBOSE
-#define SYS_VERBOSE
-#define LOADER_VERBOSE
+//#define SYS_VERBOSE
+//#define LOADER_VERBOSE
 //#define CPU_VERBOSE
 
 #ifdef ALL_VERBOSE
