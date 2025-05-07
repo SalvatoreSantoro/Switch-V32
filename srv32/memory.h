@@ -12,8 +12,7 @@
 #define PAGE_SIZE 4096
 
 // 2^24
-#define MEM_SIZE (16777216*2)
-
+#define MEM_SIZE (33554432*4)
 
 // end of memory, leaving 1 page under empty (argc, argv, env)
 #define STACK_BASE (MEM_SIZE - PAGE_SIZE)
@@ -22,12 +21,14 @@ struct Memory {
     uint8_t m[MEM_SIZE];
 };
 
+#define BRK_LIMIT ((uintptr_t)__vmem.m + (MEM_SIZE >> 4))
+
 extern struct Memory __vmem __attribute__((aligned(PAGE_SIZE)));
 
+void mem_wb_s(uint32_t addr, uint8_t data, size_t sz);
+
 // Write {Byte/Long/Word} data value in memory address "addr"
-#define GEN_W_FUN_HDR(sign_size)                                                                                       \
-    void mem_w##sign_size##_s(uint32_t addr, TYPE_##sign_size data, size_t sz);                                        \
-    void mem_w##sign_size(uint32_t addr, TYPE_##sign_size data);
+#define GEN_W_FUN_HDR(sign_size) void mem_w##sign_size(uint32_t addr, TYPE_##sign_size data);
 
 // Read {Byte/Long/Word} value in memory address "addr"
 #define GEN_R_FUN_HDR(sign_size) TYPE_##sign_size mem_r##sign_size(uint32_t addr);

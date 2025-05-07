@@ -6,26 +6,14 @@
 NAME:=SRV32
 
 CC:=gcc
-DEFAULT_FLAGS:= -O2 -Wall -Wextra -lSDL2 -pthread #-Werror
-CFLAGS:=$(DEFAULT_FLAGS) -DNDDEBUG
-CFLAGS_DEBUG:=$(DEFAULT_FLAGS) $(DEBUG_FLAGS) -g -DDEBUG
-TEST_CFLAGS:=$(CFLAGS_DEBUG) -fno-plt -fno-pie
-TEST_LDFLAGS:=-no-pie
-
+CFLAGS:= -O2 -Wall -Wextra -lSDL2 #-Werror
 
 ### DIRECTORIES
-SRC_DIR := src
+SRC_DIR := srv32 
 BUILD_DIR := build
-TEST_DIR := test
-
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
-OBJS_DEBUG := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.d.o, $(SRCS))
-
-TEST_SRCS := $(wildcard $(TEST_DIR)/*.c)
-TEST_OBJS := $(patsubst $(TEST_DIR)/%.c, $(BUILD_DIR)/%.t.o, $(TEST_SRCS)) \
-             $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.t.o, $(SRCS))
 
 
 ### BUILD
@@ -41,18 +29,6 @@ $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 ### CREATE BUILD DIRECTORY IF NOT EXISTS
 $(BUILD_DIR):
 	@"mkdir" $(BUILD_DIR)
-
-### TEST TARGET
-test: $(TEST_OBJS)
-	$(CC) $(TEST_CFLAGS) $(TEST_LDFLAGS) $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
-	@echo "Running tests..."
-	$(BUILD_DIR)/test_binary
-
-$(BUILD_DIR)/%.t.o: $(TEST_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(TEST_CFLAGS) -c $< -o $@
-
-$(BUILD_DIR)/%.t.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(TEST_CFLAGS) -c $< -o $@
 
 
 ### SANITIZERS

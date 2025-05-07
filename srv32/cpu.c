@@ -14,6 +14,7 @@
 #define RS2_MASK    (0b11111 << 20)
 #define IM2_F7_MASK (0b1111111 << 25)
 #define F3_MASK     (0b111 << 12)
+#define F5_MASK     (0b11111 << 27)
 #define R_IMM_MASK  (0b111111111111 << 20)
 #define U_IMM_MASK  (0b11111111111111111111 << 12)
 
@@ -22,6 +23,7 @@
 #define RS1(x)    ((x & RS1_MASK) >> 15)
 #define RS2(x)    ((x & RS2_MASK) >> 20)
 #define R_FUNC(x) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
+#define A_FUNC(x) ((x & F3_MASK >> 12) | ((x & F5_MASK) >> 23))
 #define FUNC(x)   ((x & F3_MASK) >> 12)
 
 #define I_IMM(x) ((int32_t) (x & R_IMM_MASK) >> 20)
@@ -88,6 +90,18 @@
 #define SB (0x0)
 #define SH (0x1)
 #define SW (0x2)
+
+// A Type
+// func5:func3
+#define LR   (0x022)
+#define SC   (0x032)
+#define ASWP (0x012)
+#define AADD (0x002)
+#define AAND (0x0C2)
+#define AOR  (0x0A2)
+#define AXOR (0x042)
+#define AMAX (0x142)
+#define AMIN (0x102)
 
 const char *re_na(int reg_num) {
     switch (reg_num) {
@@ -330,6 +344,7 @@ void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LH", imm);
         break;
     case LW:
+        //printf("ADDR: %x\n", __vmem.m + rs1 + imm);
         *rd = (uint32_t) mem_rw(rs1 + imm);
         LOG_I("LW", imm);
         break;
@@ -364,5 +379,70 @@ void vcore_s_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x S-Type BADCODE\n", ins);
+    }
+}
+
+// acquire-release logic unimplemented for now, cause this implementation is
+// single threaded
+void vcore_a_type(VCore *core, uint32_t ins) {
+    uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
+    uint32_t *rd = &core->regs[RD(ins)];
+    uint32_t tmp_swp;
+    uint32_t tmp_load;
+
+    switch (A_FUNC(ins)) {
+    case LR:
+        core->reserved = rs1;
+        tmp_load = mem_rw(rs1);
+        // sign extension
+        // 8 bit
+        if ((tmp_load < 256) && (tmp_load > 127))
+            tmp_load |= 0xFFFFFF00;
+        // 16 bit
+        else if ((tmp_load < 65535) && (tmp_load > 32767))
+            tmp_load |= 0xFFFF0000;
+        *rd = tmp_load;
+        break;
+    case SC:
+        if (rs1 == core->reserved) {
+            mem_ww(rs1, rs2);
+            *rd = 0;
+        } else
+            *rd = 1;
+        break;
+    case ASWP:
+        tmp_swp = mem_rw(rs1);
+        *rd = rs2;
+        core->regs[RS2(ins)] = tmp_swp;
+        mem_ww(rs1, *rd);
+        break;
+    case AADD:
+        *rd = (mem_rw(rs1) + rs2);
+        mem_ww(rs1, *rd);
+        break;
+    case AAND:
+        *rd = (mem_rw(rs1) & rs2);
+        mem_ww(rs1, *rd);
+        break;
+    case AOR:
+        *rd = (mem_rw(rs1) | rs2);
+        mem_ww(rs1, *rd);
+        break;
+    case AXOR:
+        *rd = (mem_rw(rs1) ^ rs2);
+        mem_ww(rs1, *rd);
+        break;
+    case AMAX:
+        tmp_load = mem_rw(rs1);
+        *rd = (tmp_load > rs2 ? tmp_load : rs2);
+        mem_ww(rs1, *rd);
+        break;
+    case AMIN:
+        tmp_load = mem_rw(rs1);
+        *rd = (tmp_load < rs2 ? tmp_load : rs2);
+        mem_ww(rs1, *rd);
+        break;
+    default:
+        fprintf(stderr, "%x A-Type BADCODE\n", ins);
     }
 }

@@ -1,11 +1,12 @@
 #include "../src/cpu.h"
+#include "../src/emu.h"
+#include "../src/loader.h"
 #include "../src/memory.h"
 #include "../src/sdl.h"
-#include "../src/system.h"
-#include <pthread.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
 int main(void) {
     // take them as args
@@ -20,22 +21,15 @@ int main(void) {
     VCore core = {0};
     uint32_t ins;
 
-    pthread_t thread;
-
-    // Create the thread
-    if (pthread_create(&thread, NULL, video_init, NULL) != 0) {
-        perror("Failed to create thread");
-        return 1;
-    }
-
     // IMPORTANT: RIGHT NOW WE'RE ASSUMING EVERYTHING FITS INTO 1 PAGE (4096 BYTES)
-    ld_elf_args(elf_argc, elf_argv1, elf_argv2, elf_argv3);
+    emu_args(elf_argc, elf_argv1, elf_argv2, elf_argv3);
+
+    emu_std(elf_stdin, elf_stdout, elf_stderr);
 
     ld_elf("doom-riscv.elf", &core);
 
-    ld_elf_std(elf_stdin, elf_stdout, elf_stderr);
+    // int activated = 0;
 
-    //int activated = 0;
     while (1) {
         // if (activated)
         //     getchar();
@@ -85,20 +79,18 @@ int main(void) {
             case AUIPC:
                 vcore_auipc_type(&core, ins);
                 break;
+            case A_TYPE:
+                vcore_a_type(&core, ins);
+                break;
             case ENV_TYPE:
-                system_call(&core);
+                emu_system_call(&core);
                 break;
             default:
                 fprintf(stderr, "%x BADOPCODE at %x\n", ins, core.pc);
-                // exit(EXIT_FAILURE);
+                exit(EXIT_FAILURE);
                 break;
             }
             core.pc += 4;
         }
-    }
-    // Wait for the thread to finish
-    if (pthread_join(thread, NULL) != 0) {
-        perror("Failed to join thread");
-        return 1;
     }
 }

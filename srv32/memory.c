@@ -4,12 +4,10 @@
 
 struct Memory __vmem = {0};
 
-// BROKEN:FIX
-// Write {Byte/Long/Word} data value in memory address "addr"
-#define GEN_WS_FUN(sign_size, data_size)                                                                               \
-    void mem_w##sign_size##_s(uint32_t addr, TYPE_##sign_size data, size_t sz) {                                       \
-        memset(__vmem.m + addr, data, (sz) * (data_size));                                                             \
-    }
+// Write {Byte} data value in memory address "addr"
+void mem_wb_s(uint32_t addr, uint8_t data, size_t data_size) {
+    memset(__vmem.m + addr, data, data_size);
+}
 
 #define GEN_W_FUN(sign_size, data_size)                                                                                \
     void mem_w##sign_size(uint32_t addr, TYPE_##sign_size data) {                                                      \
@@ -47,10 +45,6 @@ GEN_R_PTR_FUN(w, 4)
 GEN_W_FUN(b, 1)
 GEN_W_FUN(h, 2)
 GEN_W_FUN(w, 4)
-
-GEN_WS_FUN(b, 1)
-GEN_WS_FUN(h, 2)
-GEN_WS_FUN(w, 4)
 
 GEN_R_FUN(b, 1)
 GEN_R_FUN(h, 2)

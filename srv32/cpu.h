@@ -61,12 +61,12 @@ enum {
 #define LUI            0b0110111
 #define AUIPC          0b0010111
 #define ENV_TYPE       0b1110011
-
-
+#define A_TYPE         0b0101111
 
 typedef struct {
     uint32_t regs[REG_NUMS];
     uint32_t pc;
+    uint32_t reserved; // atomics
     // ELF
     uint32_t elf_brk;
     uint32_t elf_errno;
@@ -92,6 +92,8 @@ void vcore_auipc_type(VCore *core, uint32_t ins);
 void vcore_il_type(VCore *core, uint32_t ins);
 
 void vcore_s_type(VCore *core, uint32_t ins);
+
+void vcore_a_type(VCore *core, uint32_t ins);
 
 void vcore_ecall(VCore *core);
 
