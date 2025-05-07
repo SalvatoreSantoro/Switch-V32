@@ -1,0 +1,3 @@
+[submodule "doom_riscv"]
+	path = doom_riscv
+	url = git@github.com:SalvatoreSantoro/doom_riscv.git
