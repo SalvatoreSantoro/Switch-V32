@@ -9,8 +9,8 @@ CC:=gcc
 CFLAGS:= -O2 -Wall -Wextra -lSDL2 #-Werror
 
 ### DIRECTORIES
-SRC_DIR := srv32 
-BUILD_DIR := build
+SRC_DIR:=srv32
+BUILD_DIR:=build
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)
 OBJS := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
@@ -25,6 +25,9 @@ $(BUILD_DIR)/$(NAME): $(OBJS)
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
+test: $(BUILD_DIR)/$(NAME) 
+	$(BUILD_DIR)/$(NAME)
+
 
 ### CREATE BUILD DIRECTORY IF NOT EXISTS
 $(BUILD_DIR):
@@ -38,9 +41,9 @@ valgrind: test
 
 .PHONY: asan
 asan: $(TEST_OBJS)
-	$(CC) $(TEST_CFLAGS) $(TEST_LDFLAGS) -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer $(TEST_OBJS) -o $(BUILD_DIR)/test_binary
+	$(CC) $(CFLAGS) -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer $(OBJS) -o $(BUILD_DIR)/$(NAME)
 	@echo "Running tests..."
-	$(BUILD_DIR)/test_binary
+	$(BUILD_DIR)/$(NAME)
 
 ### CLEAN BUILD FILES
 .PHONY: clean

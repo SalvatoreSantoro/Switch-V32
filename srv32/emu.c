@@ -20,7 +20,6 @@
         exit(EXIT_FAILURE);                                                                                            \
     } while (0)
 
-#define EMU_ADDRESS(x) ()
 
 // System calls needed from Newlib
 

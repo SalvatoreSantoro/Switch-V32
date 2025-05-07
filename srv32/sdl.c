@@ -1,5 +1,6 @@
 #include "sdl.h"
 #include <SDL2/SDL.h>
+#include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
 #include <stdbool.h>
 #include <stdint.h>
@@ -98,4 +99,10 @@ void sdl_shutdown(void) {
     SDL_DestroyRenderer(__ren);
     SDL_DestroyWindow(__win);
     SDL_Quit();
+}
+
+void sdl_events(void){
+    SDL_Event e;
+    while(SDL_PollEvent(&e))
+
 }

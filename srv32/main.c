@@ -1,8 +1,7 @@
-#include "../src/cpu.h"
-#include "../src/emu.h"
-#include "../src/loader.h"
-#include "../src/memory.h"
-#include "../src/sdl.h"
+#include "cpu.h"
+#include "emu.h"
+#include "loader.h"
+#include "memory.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,10 +12,10 @@ int main(void) {
     const char *elf_stdin = NULL;
     const char *elf_stdout = "out.txt";
     const char *elf_stderr = "err.txt";
-    int elf_argc = 1;
+    int elf_argc = 3;
     const char *elf_argv1 = "./doom";
-    const char *elf_argv2 = NULL;
-    const char *elf_argv3 = NULL;
+    const char *elf_argv2 = "-shdev";
+    const char *elf_argv3 = "doom1.wad";
 
     VCore core = {0};
     uint32_t ins;
@@ -26,7 +25,7 @@ int main(void) {
 
     emu_std(elf_stdin, elf_stdout, elf_stderr);
 
-    ld_elf("doom-riscv.elf", &core);
+    ld_elf("doom_riscv/src/riscv/doom-riscv.elf", &core);
 
     // int activated = 0;
 
