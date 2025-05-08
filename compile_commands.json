@@ -1,1 +1,98 @@
-[]
+[
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/cpu.o",
+      "srv32/cpu.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/cpu.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/cpu.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/emu.o",
+      "srv32/emu.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/emu.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/emu.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/loader.o",
+      "srv32/loader.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/loader.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/loader.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/main.o",
+      "srv32/main.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/main.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/memory.o",
+      "srv32/memory.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/memory.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/memory.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/gcc",
+      "-O2",
+      "-Wall",
+      "-Wextra",
+      "-I/usr/include/SDL2",
+      "-c",
+      "-o",
+      "build/sdl.o",
+      "srv32/sdl.c"
+    ],
+    "directory": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32",
+    "file": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/srv32/sdl.c",
+    "output": "/home/Salvatore/Progetti/SystemProgramming/SimpleRISCV32/build/sdl.o"
+  }
+]

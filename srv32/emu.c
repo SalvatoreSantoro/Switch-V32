@@ -1,5 +1,4 @@
 #include "emu.h"
-#include "../common/sdl_syscalls.h"
 #include "cpu.h"
 #include "macros.h"
 #include "memory.h"
@@ -19,7 +18,6 @@
         fprintf(stderr, "The system EMULATION crashed: %s\n", str);                                                    \
         exit(EXIT_FAILURE);                                                                                            \
     } while (0)
-
 
 // System calls needed from Newlib
 
@@ -240,7 +238,7 @@ void emu_system_call(VCore *core) {
         // SDL
     case SDL_INIT:
         tmp_addr = (uintptr_t) __vmem.m + core->regs[A0];
-        sdl_init((const char *) tmp_addr, core->regs[A1], core->regs[A2]);
+        sdl_init((const char *) tmp_addr, core->regs[A1], core->regs[A2], core->regs[A3]);
         break;
     case SDL_WRITE_PALETTE:
         tmp_addr = (uintptr_t) __vmem.m + core->regs[A0];
@@ -252,6 +250,11 @@ void emu_system_call(VCore *core) {
         break;
     case SDL_SHUTDOWN:
         sdl_shutdown();
+        break;
+    case SDL_PULL_EVENTS:
+        tmp_addr = (uintptr_t) __vmem.m + core->regs[A0];
+        tmp_addr2 = (uintptr_t) __vmem.m + core->regs[A1];
+        core->regs[A0] = sdl_pull_events((event_t *) tmp_addr, (int *) tmp_addr2, core->regs[A2]);
         break;
     default:
         fprintf(stderr, "UNSUPPORTED SYSCALL %d at %x\n", core->regs[A7], core->pc);

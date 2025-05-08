@@ -6,7 +6,7 @@
 NAME:=SRV32
 
 CC:=gcc
-CFLAGS:= -O2 -Wall -Wextra -lSDL2 #-Werror
+CFLAGS:= -O2 -Wall -Wextra -lSDL2 -I/usr/include/SDL2 #-Werror
 
 ### DIRECTORIES
 SRC_DIR:=srv32
