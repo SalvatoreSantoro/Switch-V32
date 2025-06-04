@@ -210,6 +210,7 @@ void ld_elf(const char *file_name, VCore *core) {
         core->elf_brk = sym->st_value;
 
     // load errno
+    // seems broken...
     sym = _ld_elf_getsym(elf, "errno");
     if (sym == NULL)
         fprintf(stderr, "[WARNING] CAN'T FIND ERRNO\n");

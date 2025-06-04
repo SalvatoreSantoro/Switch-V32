@@ -3,12 +3,6 @@
 
 #include <SDL_events.h>
 #include <SDL_scancode.h>
-// SDL
-#define SDL_INIT          2100
-#define SDL_WRITE_PALETTE 2101
-#define SDL_WRITE_FB      2102
-#define SDL_PULL_EVENTS   2103
-#define SDL_SHUTDOWN      2104
 
 // DOOM
 
@@ -20,7 +14,7 @@ typedef enum {
     ev_joystick
 } evtype_t;
 
-// WE'RE ASSUMING THAT INTs ARE THE SAME ON X86-64 and RV32, A LITTLE DANGEROUS
+// WE'RE ASSUMING THAT INTs ARE THE SAME ON X86-64 and RV32, SHOUL BE OK BUT IT'S A LITTLE DANGEROUS
 
 // Event structure.
 typedef struct {
@@ -66,6 +60,6 @@ typedef struct {
 #define KEY_RCTRL  SDL_SCANCODE_RCTRL
 #define KEY_RALT   SDL_SCANCODE_RALT
 
-#define KEY_LALT SDL_SCANCODE_LALT
+#define KEY_LALT       SDL_SCANCODE_LALT
 
 #endif

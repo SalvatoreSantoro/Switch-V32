@@ -11,19 +11,21 @@
 
 #define PAGE_SIZE 4096
 
-// 2^24
-#define MEM_SIZE (33554432*8)
-
-// end of memory, leaving 1 page under empty (argc, argv, env)
-#define STACK_BASE (MEM_SIZE - PAGE_SIZE)
+// 2^28
+#define MEM_SIZE (268435456)
 
 struct Memory {
     uint8_t m[MEM_SIZE];
 };
 
-#define BRK_LIMIT ((uintptr_t)__vmem.m + (MEM_SIZE >> 4))
+// end of memory, leaving 1 page under empty (argc, argv, env)
+#define STACK_BASE (MEM_SIZE - PAGE_SIZE)
+#define BRK_LIMIT ((uintptr_t)g_mem.m + (MEM_SIZE >> 4))
 
-extern struct Memory __vmem __attribute__((aligned(PAGE_SIZE)));
+// map address in the virtualized code to the correct memory address
+#define MAP_ADDR(addr) ((void*) (g_mem.m + addr))
+
+extern struct Memory g_mem __attribute__((aligned(PAGE_SIZE)));
 
 void mem_wb_s(uint32_t addr, uint8_t data, size_t sz);
 

@@ -1,3 +1,4 @@
+#include "args.h"
 #include "cpu.h"
 #include "emu.h"
 #include "loader.h"
@@ -7,46 +8,28 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int main(void) {
-    // take them as args
-    const char *elf_stdin = NULL;
-    const char *elf_stdout = "out.txt";
-    const char *elf_stderr = "err.txt";
-    int elf_argc = 3;
-    const char *elf_argv1 = "./doom";
-    const char *elf_argv2 = "-shdev";
-    const char *elf_argv3 = "doom1.wad";
-
+int main(int argc, char *argv[]) {
     VCore core = {0};
     uint32_t ins;
 
-    // IMPORTANT: RIGHT NOW WE'RE ASSUMING EVERYTHING FITS INTO 1 PAGE (4096 BYTES)
-    emu_args(elf_argc, elf_argv1, elf_argv2, elf_argv3);
+    // initialize global context
+    ctx_init(argc, argv);
 
-    emu_std(elf_stdin, elf_stdout, elf_stderr);
+    // IMPORTANT: RIGHT NOW WE'RE ASSUMING ARGC, ARGV FITS INTO 1 PAGE (4096 BYTES)
+    emu_args(ctx.elf_argc, ctx.elf_argvs);
+    emu_std(ctx.elf_stdin, ctx.elf_stdout, ctx.elf_stderr);
 
-    ld_elf("doom_riscv/src/riscv/doom-riscv.elf", &core);
+    ld_elf(ctx.elf_name, &core);
 
-    // int activated = 0;
-
+    //if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
     while (1) {
-        // if (activated)
-        //     getchar();
-        //     RESET ZERO REGISTER
         core.regs[ZERO] = 0;
         ins = mem_rw(core.pc);
-        /* printf("BRK: %x\n", core.elf_brk); */
-        /* printf("STACK: %x\n", core.regs[SP]); */
-        /* printf("PC: %x\n", core.pc); */
-        /* printf("INS: %x\n", ins); */
-        /* if (ins == 0x02e80463) */
-        /*     activated = 1; */
-        // printf("%x\n", ins);
         if (IS_COMPRESSED(ins)) {
-            printf("Compressed\n");
+            printf("Compressed unimplemented\n");
+            exit(EXIT_FAILURE);
             core.pc += 2;
         } else {
-            // printf("Uncompressed\n");
             switch (OPCODE_TYPE(ins)) {
             case R_TYPE:
                 vcore_r_type(&core, ins);

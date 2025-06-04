@@ -36,12 +36,6 @@
     (((((x) >> 21) & 0b1111111111) << 1) | ((((x) >> 20) & 0b1) << 11) | ((((x) >> 12) & 0b11111111) << 12) |          \
      (((int32_t) (x) >> 11) & 0xFFF00000))
 
-// OLD
-/* #define J_IMM(x) (                     \ */
-/*     (((0b1111111111 << 21) & x) >> 20) \ */
-/*     | (((0b1 << 20) & x) >> 9)        \ */
-/*     | (((0b11111111 << 12) & x))       \ */
-/*     | ((signed)((0b1 << 31) & x) >> 11)) */
 
 #define U_IMM(x) (x & (U_IMM_MASK))
 #define S_IMM(x) ((RD(x)) | ((int32_t) (x & IM2_F7_MASK) >> 20))
@@ -259,6 +253,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x IR-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -299,6 +294,7 @@ void vcore_b_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x B-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
     }
     core->pc += inc;
 }
@@ -358,6 +354,7 @@ void vcore_il_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x IL-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -379,6 +376,7 @@ void vcore_s_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x S-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
     }
 }
 
@@ -444,5 +442,6 @@ void vcore_a_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x A-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
     }
 }

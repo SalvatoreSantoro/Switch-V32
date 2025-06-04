@@ -1,10 +1,10 @@
 #ifndef _RISCV32_MACROS_H
 #define _RISCV32_MACROS_H
 
-//#define ALL_VERBOSE
-//#define SYS_VERBOSE
-//#define LOADER_VERBOSE
-//#define CPU_VERBOSE
+// #define ALL_VERBOSE
+// #define SYS_VERBOSE
+//  #define LOADER_VERBOSE
+//  #define CPU_VERBOSE
 
 #ifdef ALL_VERBOSE
     #define CPU_VERBOSE
@@ -69,8 +69,8 @@
 #endif
 
 #ifdef SYS_VERBOSE
-    #define LOG_DE(op, d) printf("%s: %d\n", op, d);
-    #define LOG_EX(op, x) printf("%s: %x\n", op, x);
+    #define LOG_DE(op, d)  printf("%s: %d\n", op, d);
+    #define LOG_EX(op, x)  printf("%s: %x\n", op, x);
     #define LOG_STR(op, s) printf("%s: %d\n", op, s);
 #else
     #define LOG_DE(op, d)
@@ -80,7 +80,7 @@
 
 #ifdef LOADER_VERBOSE
     #define LOG_LOAD()                                                                                                 \
-        printf("Loaded Segment number %d, with addr %x and size %x in %p\n", i + 1, addr, memsz, __vmem.m + addr);
+        printf("Loaded Segment number %d, with addr %x and size %x in %p\n", i + 1, addr, memsz, MAP_ADDR(addr));
 #else
     #define LOG_LOAD()
 #endif
