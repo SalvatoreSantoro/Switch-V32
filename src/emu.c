@@ -7,6 +7,7 @@
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 #include <sys/stat.h>
 #include <sys/time.h>
 #include <time.h>
@@ -127,10 +128,30 @@ void emu_std(const char *stdin_name, const char *stdout_name, const char *stderr
         EMU_CRASH("CAN'T SET STDERR");
 }
 
-void emu_args(int elf_argc, va_list ap) {
+void emu_args(const char *elf_args) {
     const char *str;
+    char *tmp_str;
+    char *token;
+    unsigned int elf_argc = 0;
     size_t str_size = 0;
     size_t str_size_inc = 0;
+    size_t tmp_str_sz;
+
+    tmp_str_sz = strlen(elf_args);
+    if (tmp_str_sz >= PAGE_SIZE)
+        EMU_CRASH("ELF ARGUMENT TOO BIG");
+
+    // create temp string for tokenizer
+    tmp_str = malloc(tmp_str_sz + 1);
+    memcpy(tmp_str, elf_args, tmp_str_sz);
+    tmp_str[tmp_str_sz] = '\0';
+
+    // tokenize to count argc
+    token = strtok(tmp_str, " ");
+    while (token != NULL) {
+        elf_argc += 1;
+        token = strtok(NULL, " ");
+    }
 
     // the layout is |STACK_BASE|ARGC|ARGV[0]|ARGV[1]|...|ARGV[ARGC-1]|NULL|STR0|STR1|...|STR_ARGC-1|
     mem_ww(STACK_BASE, elf_argc);
@@ -138,16 +159,17 @@ void emu_args(int elf_argc, va_list ap) {
     uint32_t arg_str_start = STACK_BASE + 4 + ((elf_argc + 1) * 4);
     uint32_t arg_ptr_start = STACK_BASE + 4;
 
-    for (int i = 0; i < elf_argc; i++) {
-        str = va_arg(ap, const char *);
+    str = tmp_str;
+    for (unsigned int i = 0; i < elf_argc; i++) {
         str_size = strlen(str) + 1; // keep in mind the '\0'
         mem_wb_ptr_s(arg_str_start + str_size_inc, str, str_size);
         mem_ww(arg_ptr_start + (i * 4), arg_str_start + str_size_inc);
         str_size_inc += str_size;
+        str += str_size;
     }
 
     mem_ww(arg_ptr_start + (elf_argc * 4), 0);
-    va_end(ap);
+    free(tmp_str);
 }
 
 void emu_system_call(VCore *core) {

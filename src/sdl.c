@@ -13,6 +13,12 @@
 #include <string.h>
 #include <unistd.h>
 
+#define SDL_CRASH(str)                                                                                                 \
+    do {                                                                                                               \
+        fprintf(stderr, "ERROR FROM SDL: %s\n", str);                                                                  \
+        exit(EXIT_FAILURE);                                                                                            \
+    } while (0)
+
 static SDL_Window *s_win;
 static SDL_Renderer *s_ren;
 static SDL_Texture *s_texture;
@@ -27,15 +33,11 @@ static size_t s_event_buff_size_mask = 0;
 
 void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
     // little optimization if size is power of 2
-    if ((ev_buff_sz & (ev_buff_sz - 1)) != 0) {
-        fprintf(stderr, "SDL Event buffer size must be power of 2\n");
-        exit(EXIT_FAILURE);
-    }
+    if ((ev_buff_sz & (ev_buff_sz - 1)) != 0)
+        SDL_CRASH("SDL Event buffer size must be power of 2\n");
 
-    if (SDL_Init(SDL_INIT_VIDEO) != 0) {
-        fprintf(stderr, "SDL_Init Error: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
-    }
+    if (SDL_Init(SDL_INIT_VIDEO) != 0)
+        SDL_CRASH(SDL_GetError());
 
     s_win = SDL_CreateWindow(win_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ctx.sdl_upscale * w,
                              ctx.sdl_upscale * h, 0);
@@ -65,7 +67,7 @@ void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
     // warp mouse for FPS
     if (SDL_SetRelativeMouseMode(SDL_TRUE) != 0) {
         fprintf(stderr, "SDL_SetRelativeMouseMode Error: %s\n", SDL_GetError());
-        exit(EXIT_FAILURE);
+        goto ren_destroy;
     }
 
     s_width = w;
@@ -132,7 +134,7 @@ int sdl_pull_events(SDL_Event *events, int *head, int tail) {
     int idx = *head;
     size_t i = 0;
 
-    while ((SDL_PollEvent(&e)) && (((idx + 1) & s_event_buff_size_mask) != tail)) {
+    while ((SDL_PollEvent(&e)) && ((int) ((idx + 1) & s_event_buff_size_mask) != tail)) {
         if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP || e.type == SDL_MOUSEMOTION ||
             e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
             events[idx] = e;

@@ -16,7 +16,9 @@ int main(int argc, char *argv[]) {
     ctx_init(argc, argv);
 
     // IMPORTANT: RIGHT NOW WE'RE ASSUMING ARGC, ARGV FITS INTO 1 PAGE (4096 BYTES)
-    emu_args(ctx.elf_argc, ctx.elf_argvs);
+    // the layout is |STACK_BASE|ARGC|ARGV[0]|ARGV[1]|...|ARGV[ARGC-1]|NULL|STR0|STR1|...|STR_ARGC-1|
+    emu_args(ctx.elf_args);
+
     emu_std(ctx.elf_stdin, ctx.elf_stdout, ctx.elf_stderr);
 
     ld_elf(ctx.elf_name, &core);

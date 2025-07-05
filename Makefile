@@ -1,4 +1,3 @@
-
 ### VARIABLES & FLAGS
 
 # useful: -Wpadded
@@ -9,7 +8,7 @@ CC:=gcc
 CFLAGS:= -O2 -Wall -Wextra -lSDL2 -I/usr/include/SDL2 #-Werror
 
 ### DIRECTORIES
-SRC_DIR:=srv32
+SRC_DIR:=src
 BUILD_DIR:=build
 
 SRCS := $(wildcard $(SRC_DIR)/*.c)

@@ -3,7 +3,6 @@
 #include "macros.h"
 #include "memory.h"
 #include <assert.h>
-#include <bits/types/struct_timeval.h>
 #include <elf.h>
 #include <errno.h>
 #include <fcntl.h>
