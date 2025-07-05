@@ -1,26 +1,17 @@
-#ifndef _MEM32_H
-#define _MEM32_H
+#ifndef _SV32_MEM_H
+#define _SV32_MEM_H
 
-#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
+#include "defs.h"
 
 #define TYPE_b uint8_t
 #define TYPE_h uint16_t
 #define TYPE_w uint32_t
 
-#define PAGE_SIZE 4096
-
-// 2^28
-#define MEM_SIZE (268435456)
-
 struct Memory {
     uint8_t m[MEM_SIZE];
 };
-
-// end of memory, leaving 1 page under empty (argc, argv, env)
-#define STACK_BASE (MEM_SIZE - PAGE_SIZE)
-#define BRK_LIMIT ((uintptr_t)g_mem.m + (MEM_SIZE >> 4))
 
 // map address in the virtualized code to the correct memory address
 #define MAP_ADDR(addr) ((void*) (g_mem.m + addr))

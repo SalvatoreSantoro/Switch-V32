@@ -1,7 +1,6 @@
-#ifndef _RV32_ARGS_H
-#define _RV32_ARGS_H
+#ifndef _SV32_ARGS_H
+#define _SV32_ARGS_H
 
-#include "memory.h"
 #include "defs.h"
 
 typedef struct {

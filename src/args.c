@@ -1,9 +1,6 @@
 #include "args.h"
-#include <bits/getopt_core.h>
-#include <linux/limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 #include <unistd.h>
 
 #define CTX_CRASH(str)                                                                                                 \

@@ -1,5 +1,5 @@
-#ifndef _RV32_SDL_H
-#define _RV32_SDL_H
+#ifndef _SV32_SDL_H
+#define _SV32_SDL_H
 
 #include "SDL_events.h"
 #include <stddef.h>

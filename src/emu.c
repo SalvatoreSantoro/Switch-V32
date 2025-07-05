@@ -246,7 +246,7 @@ void emu_system_call(VCore *core) {
 
     case BRK:
         LOG_EX("BRK", MAP_ADDR(core->regs[A0]));
-        if ((uintptr_t) (MAP_ADDR(core->regs[A0])) >= BRK_LIMIT) {
+        if ((MAP_ADDR(core->regs[A0]) >= MAP_ADDR(BRK_LIMIT))) {
             fprintf(stderr, "THE PROCESS TRIED ALLOCATING TOO MUCH HEAP MEMORY\n");
             core->regs[A0] = -1;
             break;

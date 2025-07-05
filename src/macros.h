@@ -1,5 +1,5 @@
-#ifndef _RISCV32_MACROS_H
-#define _RISCV32_MACROS_H
+#ifndef _SV32_MACROS_H
+#define _SV32_MACROS_H
 
 // #define ALL_VERBOSE
 // #define SYS_VERBOSE

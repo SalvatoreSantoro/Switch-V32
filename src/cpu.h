@@ -1,5 +1,5 @@
-#ifndef _RISCV32_CPU_H
-#define _RISCV32_CPU_H
+#ifndef _SV32_CPU_H
+#define _SV32_CPU_H
 
 #include <stdint.h>
 // Register list using X-Macro pattern
