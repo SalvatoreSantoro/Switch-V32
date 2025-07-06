@@ -15,4 +15,8 @@
 #define STACK_BASE (MEM_SIZE - PAGE_SIZE)
 #define BRK_LIMIT (MEM_SIZE >> 4)
 
+// GDB STUB
+#define STUB_PORT 1234
+#define STUB_READ_SIZE 128
+
 #endif

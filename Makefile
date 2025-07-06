@@ -19,7 +19,7 @@ OBJS = $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.o, $(SRCS))
 all: $(BUILD_DIR)/$(NAME)
 
 $(BUILD_DIR)/$(NAME): $(OBJS)
-	$(CC) $(CFLAGS) $(OBJS) -o $(BUILD_DIR)/$(NAME)
+	$(CC) $(CFLAGS)  $(OBJS) -o $(BUILD_DIR)/$(NAME)
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
 	$(CC) $(CFLAGS) -c $< -o $@

@@ -95,6 +95,6 @@ void vcore_s_type(VCore *core, uint32_t ins);
 
 void vcore_a_type(VCore *core, uint32_t ins);
 
-void vcore_ecall(VCore *core);
+void vcore_e_type(VCore *core, uint32_t ins);
 
 #endif

@@ -1,6 +1,7 @@
 #include "args.h"
 #include "cpu.h"
 #include "emu.h"
+#include "gdb.h"
 #include "loader.h"
 #include "memory.h"
 #include <stdint.h>
@@ -15,7 +16,6 @@ int main(int argc, char *argv[]) {
     // initialize global context
     ctx_init(argc, argv);
 
-    // IMPORTANT: RIGHT NOW WE'RE ASSUMING ARGC, ARGV FITS INTO 1 PAGE (4096 BYTES)
     // the layout is |STACK_BASE|ARGC|ARGV[0]|ARGV[1]|...|ARGV[ARGC-1]|NULL|STR0|STR1|...|STR_ARGC-1|
     emu_args(ctx.elf_args);
 
@@ -23,7 +23,12 @@ int main(int argc, char *argv[]) {
 
     ld_elf(ctx.elf_name, &core);
 
-    //if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
+    if (ctx.debug) {
+        gdb_stub_init();
+        gdb_handle_cmds();
+    }
+
+    // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
     while (1) {
         core.regs[ZERO] = 0;
         ins = mem_rw(core.pc);
@@ -67,7 +72,7 @@ int main(int argc, char *argv[]) {
                 vcore_a_type(&core, ins);
                 break;
             case ENV_TYPE:
-                emu_system_call(&core);
+                vcore_e_type(&core, ins);
                 break;
             default:
                 fprintf(stderr, "%x BADOPCODE at %x\n", ins, core.pc);

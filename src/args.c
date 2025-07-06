@@ -15,7 +15,8 @@ Args_Context ctx = {
     .elf_stdout = NULL,
     .elf_stderr = NULL,
     .elf_args = NULL,
-    .sdl_upscale = 1
+    .sdl_upscale = 1,
+    .debug = 0,
 };
 // clang-format on
 
@@ -32,7 +33,7 @@ void ctx_init(int argc, char *argv[]) {
     int opt;
     int i = 0;
     unsigned int upscale;
-    while ((opt = getopt(argc, argv, "u:i:o:e:f:h")) != -1) {
+    while ((opt = getopt(argc, argv, "u:i:o:e:f:dh")) != -1) {
         switch (opt) {
         case 'u':
             upscale = atoi(optarg);
@@ -57,6 +58,9 @@ void ctx_init(int argc, char *argv[]) {
             if (i == PATH_MAX)
                 CTX_CRASH("File path name is too big.");
             ctx.elf_name[i] = '\0';
+            break;
+        case 'd':
+            ctx.debug = 1;
             break;
         case 'h':
             print_usage();

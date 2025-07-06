@@ -10,6 +10,7 @@ typedef struct {
     const char *elf_stderr;
     const char *elf_args;
     unsigned int sdl_upscale;
+    int debug;
 } Args_Context;
 
 extern Args_Context ctx;

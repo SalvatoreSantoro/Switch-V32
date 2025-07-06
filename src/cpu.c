@@ -1,4 +1,6 @@
 #include "cpu.h"
+#include "gdb.h"
+#include "emu.h"
 #include "macros.h"
 #include "memory.h"
 #include <stdint.h>
@@ -35,7 +37,6 @@
 #define J_IMM(x)                                                                                                       \
     (((((x) >> 21) & 0b1111111111) << 1) | ((((x) >> 20) & 0b1) << 11) | ((((x) >> 12) & 0b11111111) << 12) |          \
      (((int32_t) (x) >> 11) & 0xFFF00000))
-
 
 #define U_IMM(x) (x & (U_IMM_MASK))
 #define S_IMM(x) ((RD(x)) | ((int32_t) (x & IM2_F7_MASK) >> 20))
@@ -96,6 +97,10 @@
 #define AXOR (0x042)
 #define AMAX (0x142)
 #define AMIN (0x102)
+
+// E Type
+#define ECALL  (0x0)
+#define EBREAK (0x1)
 
 const char *re_na(int reg_num) {
     switch (reg_num) {
@@ -340,7 +345,7 @@ void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LH", imm);
         break;
     case LW:
-        //printf("ADDR: %x\n", __vmem.m + rs1 + imm);
+        // printf("ADDR: %x\n", __vmem.m + rs1 + imm);
         *rd = (uint32_t) mem_rw(rs1 + imm);
         LOG_I("LW", imm);
         break;
@@ -442,6 +447,21 @@ void vcore_a_type(VCore *core, uint32_t ins) {
         break;
     default:
         fprintf(stderr, "%x A-Type BADCODE\n", ins);
+        exit(EXIT_FAILURE);
+    }
+}
+
+void vcore_e_type(VCore *core, uint32_t ins) {
+    int32_t imm = I_IMM(ins);
+    switch (imm) {
+    case ECALL:
+        emu_system_call(core);
+        break;
+    case EBREAK:
+        gdb_breakpoint();
+        break;
+    default:
+        fprintf(stderr, "%x E-Type BADCODE\n", ins);
         exit(EXIT_FAILURE);
     }
 }
