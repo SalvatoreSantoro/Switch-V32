@@ -25,7 +25,7 @@ int main(int argc, char *argv[]) {
 
     if (ctx.debug) {
         gdb_stub_init();
-        gdb_handle_cmds();
+        gdb_stub_handle_cmds();
     }
 
     // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()

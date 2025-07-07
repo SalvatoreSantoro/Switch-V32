@@ -8,9 +8,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-// The stub ignores the checksum cause the communication is on TCP, so
-// the checks are redundant
-
 #define GDB_CRASH(str)                                                                                                 \
     do {                                                                                                               \
         fprintf(stderr, "The GDB stub crashed: %s\n", str);                                                            \
@@ -65,12 +62,26 @@ typedef enum {
     DATA_END,
 } Pars_Data_State;
 
-// DATA
+typedef enum {
+    REQ_EMPTY,
+    REQ_QUESTION,
+    REQ_g,
+    REQ_G,
+    REQ_m,
+    REQ_M
+} Request_Type;
+
+typedef enum {
+    CHECK_DIGIT_0,
+    CHECK_DIGIT_1,
+} Pars_Checksum_State;
 
 typedef struct {
     size_t pars_idx;
     Pars_State state;
     Pars_Data_State data_state;
+    Pars_Checksum_State checksum_state;
+    Request_Type request;
 } Parser;
 
 // STUB
@@ -145,6 +156,8 @@ void gdb_stub_handle_cmds(void) {
         if (parser.state == PARSE_FINISHED) {
             // don't reset the write in case need retransmition
             //(-)
+            printf("REQEST: %s\n", read_buffer.data);
+            printf("RESPONSE: %s\n", write_buffer.data);
             gdb_stub_resp();
             gdb_buff_reset(&read_buffer);
             gdb_parser_reset();
@@ -169,7 +182,8 @@ void gdb_stub_reset(void) {
 static uint8_t gdb_parser_checksum(Buffer *buff) {
     size_t i = buff->start_pkt_data;
     int sum = 0;
-    while (i != buff->end_pkt_data) {
+
+    while (i < buff->end_pkt_data) {
         sum += (int) buff->data[i];
         i += 1;
     }
@@ -190,6 +204,7 @@ static void gdb_parser_build(int args_num, ...) {
 
     for (int i = 0; i < args_num; i++) {
         const char *param = va_arg(args, const char *);
+        printf("PARAM: %s\n", param);
         while (*param != '\0') {
             gdb_buff_write(&write_buffer, *param);
             param += 1;
@@ -197,8 +212,8 @@ static void gdb_parser_build(int args_num, ...) {
     }
 
     // end data and place end placeholder (used by checksum)
-    gdb_buff_write(&write_buffer, '#');
     write_buffer.end_pkt_data = write_buffer.filled;
+    gdb_buff_write(&write_buffer, '#');
 
     // Place checksum
     checksum = gdb_parser_checksum(&write_buffer);
@@ -212,46 +227,71 @@ static void parser_reset(char c) {
     if (c == '+')
         parser.state = PARSE_START;
     if (c == '-')
+        // skip everything and just send the same message
+        // again
         parser.state = PARSE_FINISHED;
 }
 
 static void parser_start(char c) {
     if (c == '$')
         parser.state = PARSE_DATA;
-    else
+    else if (server.ack_enabled == 1)
         parser.state = PARSE_ERROR;
 }
 
 static void parser_data(char c) {
-    // keep track of the starting of data (used by gdb_parser_checksum)
-    if (parser.data_state == DATA_START)
+    if (parser.data_state == DATA_START) {
+        // keep track of the starting of data (used by gdb_parser_checksum)
         read_buffer.start_pkt_data = parser.pars_idx;
-    // keep track of the ending of data (used by gdb_parser_checksum)
-    if (parser.data_state == DATA_END)
+        switch (c) {
+        case '?':
+            parser.request = REQ_QUESTION;
+            break;
+        case 'g':
+            parser.request = REQ_g;
+            break;
+        case 'G':
+            parser.request = REQ_G;
+            break;
+        case '#':
+            parser.data_state = DATA_END;
+            break;
+        // if unsupported just skip to write resp, the request is already initialized to
+        // REQ_EMPTY sending empty string to gdb
+        default:
+            parser.state = PARSE_WRITE_RESP;
+            break;
+        }
+    }
+    if (parser.data_state == DATA_END) {
+        // keep track of the ending of data (used by gdb_parser_checksum)
         read_buffer.end_pkt_data = parser.pars_idx;
+        parser.state = PARSE_END;
+    }
 }
 
+// refactor extracting the state as another Parser variable
 static void parser_end(char c) {
-    static int checksum_digit_idx = 0;
     static char checksum[3];
+    checksum[2] = '\0';
+
     uint8_t value;
-
+    switch (parser.checksum_state) {
     // passing first digit of checksum
-    if (checksum_digit_idx == 0) {
+    case CHECK_DIGIT_0:
         checksum[0] = c;
-        checksum_digit_idx = 1;
-    }
-
-    if (checksum_digit_idx == 1) {
-        // reset
-        checksum_digit_idx = 0;
+        parser.checksum_state = CHECK_DIGIT_1;
+        break;
+    case CHECK_DIGIT_1:
         checksum[1] = c;
-        checksum[2] = '\0';
-        uint8_t value = atoi(checksum);
-        if (value != gdb_parser_checksum(&read_buffer))
+        value = atoi(checksum);
+        if ((server.ack_enabled == 1) && (value != gdb_parser_checksum(&read_buffer)))
             parser.state = PARSE_ERROR;
         else
             parser.state = PARSE_WRITE_RESP;
+        // reset
+        parser.checksum_state = CHECK_DIGIT_0;
+        break;
     }
 }
 
@@ -264,8 +304,28 @@ static void parser_error() {
 static void parser_write_resp() {
     parser.state = PARSE_FINISHED;
     gdb_buff_reset(&write_buffer);
-    // switch based on data parsed
-    gdb_parser_build(int args_num, ...)
+    if (server.ack_enabled == 1)
+        gdb_buff_write(&write_buffer, '+');
+    switch (parser.request) {
+    case REQ_QUESTION:
+        gdb_parser_build(1, halted_resp[server.state]);
+        break;
+    case REQ_g:
+        gdb_parser_build(1, "g");
+        break;
+    case REQ_G:
+        gdb_parser_build(1, "G");
+        break;
+    case REQ_m:
+        gdb_parser_build(1, "m");
+        break;
+    case REQ_M:
+        gdb_parser_build(1, "M");
+        break;
+    case REQ_EMPTY:
+        gdb_parser_build(1, "");
+        break;
+    }
 }
 
 static void gdb_parser_pckt(void) {
@@ -275,7 +335,7 @@ static void gdb_parser_pckt(void) {
         switch (parser.state) {
         case PARSE_RESET:
             // just skip the ack
-            if (server.ack_enabled == 1)
+            if (server.ack_enabled != 1)
                 parser.state = PARSE_START;
             else
                 parser_reset(c);
@@ -306,6 +366,8 @@ static void gdb_parser_pckt(void) {
 static void gdb_parser_reset() {
     parser.state = PARSE_RESET;
     parser.data_state = DATA_START;
+    parser.request = REQ_EMPTY;
+    parser.checksum_state = CHECK_DIGIT_0;
     parser.pars_idx = 0;
 }
 
