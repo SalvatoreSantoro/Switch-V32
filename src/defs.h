@@ -17,6 +17,6 @@
 
 // GDB STUB
 #define STUB_PORT 1234
-#define STUB_READ_SIZE 128
+#define STUB_READ_SIZE 256
 
 #endif
