@@ -24,12 +24,6 @@ typedef enum {
     STUB_BRKPT = 2
 } Stub_State;
 
-enum {
-    ACK,
-    NACK,
-    ACK_DISABLED,
-};
-
 static const char *halted_resp[] = {
     "",
     "S05",
@@ -43,7 +37,7 @@ typedef struct {
     // gdb client address
     struct sockaddr_in address;
     socklen_t addrlen;
-    int ack;
+    int ack_enabled;
 } GDB_Stub;
 
 // BUFFERS
@@ -62,12 +56,21 @@ typedef enum {
     PARSE_DATA = 2,
     PARSE_END = 3,
     PARSE_ERROR = 4,
-    PARSE_FINISHED = 5
+    PARSE_WRITE_RESP = 5,
+    PARSE_FINISHED = 6
 } Pars_State;
+
+typedef enum {
+    DATA_START,
+    DATA_END,
+} Pars_Data_State;
+
+// DATA
 
 typedef struct {
     size_t pars_idx;
     Pars_State state;
+    Pars_Data_State data_state;
 } Parser;
 
 // STUB
@@ -117,6 +120,7 @@ void gdb_stub_init(void) {
     server.gdb_socket = accept(server.server_fd, (struct sockaddr *) &server.address, &server.addrlen);
     printf("GDB connected.\n");
     server.state = STUB_CONNECTED;
+    server.ack_enabled = 1;
 }
 
 void gdb_stub_handle_cmds(void) {
@@ -134,6 +138,9 @@ void gdb_stub_handle_cmds(void) {
         if (rd_bytes <= 0)
             GDB_CRASH("Socket read error or connection closed");
         read_buffer.filled += rd_bytes;
+        // the parser will keep track of the parsed index
+        // to resume the parsing were it left in the previous
+        // iteration
         gdb_parser_pckt();
         if (parser.state == PARSE_FINISHED) {
             // don't reset the write in case need retransmition
@@ -150,7 +157,7 @@ static void gdb_stub_resp(void) {
 }
 
 void gdb_stub_reset(void) {
-    server.ack = ACK;
+    server.ack_enabled = 1;
     close(server.server_fd);
     close(server.gdb_socket);
     gdb_buff_reset(&read_buffer);
@@ -175,24 +182,7 @@ static void gdb_parser_build(int args_num, ...) {
     uint8_t checksum;
     char str_checksum[3];
 
-    // reset the buffer
-    gdb_buff_reset(&write_buffer);
-
     va_start(args, args_num);
-
-    // check ack status
-    switch (server.ack) {
-    case ACK:
-        gdb_buff_write(&write_buffer, '+');
-        break;
-    case NACK:
-        gdb_buff_write(&write_buffer, '-');
-        va_end(args);
-        return;
-        break;
-    case ACK_DISABLED:
-        break;
-    }
 
     // start data and place start placeholder (used by checksum)
     gdb_buff_write(&write_buffer, '$');
@@ -232,9 +222,13 @@ static void parser_start(char c) {
         parser.state = PARSE_ERROR;
 }
 
-static void parser_data() {
-    // set the start idx
-    // when finished set end idx
+static void parser_data(char c) {
+    // keep track of the starting of data (used by gdb_parser_checksum)
+    if (parser.data_state == DATA_START)
+        read_buffer.start_pkt_data = parser.pars_idx;
+    // keep track of the ending of data (used by gdb_parser_checksum)
+    if (parser.data_state == DATA_END)
+        read_buffer.end_pkt_data = parser.pars_idx;
 }
 
 static void parser_end(char c) {
@@ -256,15 +250,22 @@ static void parser_end(char c) {
         uint8_t value = atoi(checksum);
         if (value != gdb_parser_checksum(&read_buffer))
             parser.state = PARSE_ERROR;
+        else
+            parser.state = PARSE_WRITE_RESP;
     }
 }
 
 static void parser_error() {
-    server.ack = NACK;
+    parser.state = PARSE_FINISHED;
+    gdb_buff_reset(&write_buffer);
+    gdb_buff_write(&write_buffer, '-');
 }
 
-static void parser_finished() {
+static void parser_write_resp() {
     parser.state = PARSE_FINISHED;
+    gdb_buff_reset(&write_buffer);
+    // switch based on data parsed
+    gdb_parser_build(int args_num, ...)
 }
 
 static void gdb_parser_pckt(void) {
@@ -274,20 +275,28 @@ static void gdb_parser_pckt(void) {
         switch (parser.state) {
         case PARSE_RESET:
             // just skip the ack
-            if (server.ack == ACK_DISABLED)
+            if (server.ack_enabled == 1)
                 parser.state = PARSE_START;
             else
                 parser_reset(c);
             break;
         case PARSE_START:
+            parser_start(c);
             break;
         case PARSE_DATA:
+            parser_data(c);
             break;
         case PARSE_END:
+            parser_end(c);
             break;
         case PARSE_ERROR:
+            parser_error();
+            break;
+        case PARSE_WRITE_RESP:
+            parser_write_resp();
             break;
         case PARSE_FINISHED:
+            return;
             break;
         }
         parser.pars_idx += 1;
@@ -296,6 +305,7 @@ static void gdb_parser_pckt(void) {
 
 static void gdb_parser_reset() {
     parser.state = PARSE_RESET;
+    parser.data_state = DATA_START;
     parser.pars_idx = 0;
 }
 
