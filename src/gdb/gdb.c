@@ -59,6 +59,7 @@ typedef enum {
 
 typedef enum {
     DATA_START,
+
     DATA_END,
 } Pars_Data_State;
 
@@ -68,7 +69,8 @@ typedef enum {
     REQ_g,
     REQ_G,
     REQ_m,
-    REQ_M
+    REQ_M,
+    REQ_q
 } Request_Type;
 
 typedef enum {
@@ -204,7 +206,6 @@ static void gdb_parser_build(int args_num, ...) {
 
     for (int i = 0; i < args_num; i++) {
         const char *param = va_arg(args, const char *);
-        printf("PARAM: %s\n", param);
         while (*param != '\0') {
             gdb_buff_write(&write_buffer, *param);
             param += 1;
@@ -252,6 +253,10 @@ static void parser_data(char c) {
             break;
         case 'G':
             parser.request = REQ_G;
+            break;
+        // ignoring everything at the moment
+        case 'q':
+            parser.request = REQ_q;
             break;
         case '#':
             parser.data_state = DATA_END;
@@ -321,6 +326,9 @@ static void parser_write_resp() {
         break;
     case REQ_M:
         gdb_parser_build(1, "M");
+        break;
+    case REQ_q:
+        gdb_parser_build(1, "stubfeature:vContSupported+");
         break;
     case REQ_EMPTY:
         gdb_parser_build(1, "");
