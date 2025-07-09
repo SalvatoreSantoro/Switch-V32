@@ -2,6 +2,7 @@
 #define _GDB_PARSER_H
 
 #include "buffer.h"
+#include "data.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -10,8 +11,14 @@ typedef enum {
     PARSE_START,
     PARSE_SKIP,
     PARSE_CHECKSUM_DIGIT_0,
-    PARSE_CHECKSUM_DIGIT_1
+    PARSE_CHECKSUM_DIGIT_1,
+    PARSE_FINISHED
 } pars_state;
+
+typedef enum {
+    DATA_RESET,
+    DATA_WRITE_PARAM1,
+} pars_data_state;
 
 typedef enum {
     PARSING_HAS_FINISHED,
@@ -22,6 +29,7 @@ typedef enum {
 
 typedef struct {
     pars_state state;
+    pars_data_state data_state;
     size_t parse_idx;
     bool ack_activated;
     PKT_Data *pkt_data;
@@ -34,11 +42,12 @@ void gdb_parser_destroy(Parser *parser);
 
 pars_ret gdb_parser_pkt(Parser *parser);
 
-void gdb_parser_data(Parser *parser);
+PKT_Data *gdb_parser_data(Parser *parser);
 
 #define gdb_parser_reset(parser)                                                                                       \
     do {                                                                                                               \
         parser->state = PARSE_RESET;                                                                                   \
+        parser->data_state = DATA_RESET;                                                                               \
         parser->parse_idx = 0;                                                                                         \
         gdb_pkt_data_reset(parser->pkt_data);                                                                          \
     } while (0)

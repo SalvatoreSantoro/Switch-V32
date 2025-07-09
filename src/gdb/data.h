@@ -4,8 +4,8 @@
 #include <stddef.h>
 
 typedef struct {
-    char *key;
-    char *value; // Empty string for key-only params
+    char *param1;
+    char *param2; // Empty string for key-only/value params
 } Data_Param;
 
 typedef struct {
@@ -28,6 +28,6 @@ void gdb_pkt_data_destroy(PKT_Data *pkt_data);
 
 void gdb_pkt_data_reset(PKT_Data *pkt_data);
 
-data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *key, char *value);
+data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *param1, char *param2);
 
 #endif

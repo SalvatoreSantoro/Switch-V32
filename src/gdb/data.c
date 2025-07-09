@@ -1,4 +1,5 @@
 #include "data.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 
@@ -50,23 +51,32 @@ void gdb_pkt_data_reset(PKT_Data *pkt_data) {
     pkt_data->params_filled = 0;
 }
 
-data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *key, char *value) {
+data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *param1, char *param2) {
     if ((pkt_data->params_filled + 1) > pkt_data->params_sz) {
         if (gdb_pkt_data_param_expand(pkt_data) == DATA_OOM)
             return DATA_OOM;
     }
-    pkt_data->params[pkt_data->params_filled].key = key;
-    pkt_data->params[pkt_data->params_filled].value = value;
+    pkt_data->params[pkt_data->params_filled].param1 = param1;
+    pkt_data->params[pkt_data->params_filled].param2 = param2;
 
     pkt_data->params_filled += 1;
 
     return DATA_OK;
 }
 
-Data_Param *gdb_pkt_data_find(PKT_Data *pkt_data, const char *key) {
+Data_Param *gdb_pkt_data_find(PKT_Data *pkt_data, const char *param1) {
     for (size_t i = 0; i < pkt_data->params_filled; i++) {
-        if (strcmp(pkt_data->params[i].key, key) == 0)
+        if (strcmp(pkt_data->params[i].param1, param1) == 0)
             return &pkt_data->params[i];
     }
     return NULL;
+}
+
+void gdb_pkt_data_print(PKT_Data *pkt_data) {
+    printf("COMMAND %s\n", pkt_data->command);
+    for (size_t i = 0; i < pkt_data->params_filled; i++) {
+        printf("PARAM1: %s\n", pkt_data->params[i].param1);
+        if (pkt_data->params[i].param1 != NULL)
+            printf("PARAM2: %s\n", pkt_data->params[i].param2);
+    }
 }

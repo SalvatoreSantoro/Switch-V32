@@ -1,5 +1,4 @@
 #include "gdb.h"
-#include "defs.h"
 #include <netinet/in.h>
 #include <stdarg.h>
 #include <stddef.h>
@@ -14,7 +13,7 @@
         exit(EXIT_FAILURE);                                                                                            \
     } while (0)
 
-// STUB
+
 typedef enum {
     STUB_RESET = 0,
     STUB_CONNECTED = 1,
@@ -40,25 +39,6 @@ typedef struct {
 
 static GDB_Stub server = {.state = STUB_RESET};
 
-void gdb_stub_init(void);
-void gdb_stub_handle_cmds(void);
-static void gdb_stub_resp(void);
-void gdb_stub_reset(void);
-
-// PARSER
-static Parser parser;
-
-static void gdb_parser_build(int args_num, ...);
-static void gdb_parser_pckt(void);
-static void gdb_parser_reset(void);
-
-// BUFFERS
-static Buffer read_buffer;
-static Buffer write_buffer;
-
-static void gdb_buff_expand(Buffer *buff);
-static void gdb_buff_reset(Buffer *buff);
-static void gdb_buff_write(Buffer *buff, unsigned char c);
 
 // STUB
 void gdb_stub_init(int port) {

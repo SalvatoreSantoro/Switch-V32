@@ -54,7 +54,8 @@ buff_ret gdb_buff_append(PKT_Buffer *buff, const unsigned char *data, size_t dat
 }
 
 unsigned char *gdb_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled) {
-    *buff_filled = buff->filled;
+    if (buff_filled != NULL)
+        *buff_filled = buff->filled;
     return buff->data;
 }
 

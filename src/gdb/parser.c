@@ -1,6 +1,7 @@
 #include "parser.h"
 #include "buffer.h"
 #include "data.h"
+#include <assert.h>
 #include <stdlib.h>
 
 #define DEF_PARAM_SIZE 2
@@ -80,11 +81,68 @@ pars_ret gdb_parser_pkt(Parser *parser) {
             value = atoi(checksum);
             if (value != gdb_buff_checksum(parser->buff))
                 return PARSING_GOT_ERROR;
-            else
+            else {
+                parser->state = PARSE_FINISHED;
                 return PARSING_HAS_FINISHED;
+            }
+            break;
+        case PARSE_FINISHED:
+            // should never happen
+            assert(0 && "PARSE_FINISHED ERROR");
             break;
         }
     }
 
     return PARSING_INCOMPLETE;
+}
+
+PKT_Data *gdb_parser_data(Parser *parser) {
+    // check if the parser hasn't finished parsing packet structure
+    // and initializing all the resources that this function assumes
+    // to use
+    if (parser->state != PARSE_FINISHED)
+        return NULL;
+
+    size_t idx;
+    size_t end;
+    unsigned char *data;
+    char *prev_param;
+
+    idx = gdb_buff_get_start_pkt_data(parser->buff);
+    end = gdb_buff_get_end_pkt_data(parser->buff);
+
+    data = gdb_buff_read_prep(parser->buff, NULL);
+
+    // command is always the first string
+    parser->pkt_data->command = (char *) data;
+
+    while (idx != end) {
+
+        switch (data[idx]) {
+        case ',':
+        case ';':
+        case ':':
+            data[idx] = '\0'; // make the string so far an actual C string
+            if (parser->data_state == DATA_WRITE_PARAM1) {
+                gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
+                parser->data_state = DATA_RESET;
+            } else // DATA_RESET
+                parser->data_state = DATA_WRITE_PARAM1;
+
+            prev_param = (char *) data + idx + 1;
+            break;
+        case '=':
+            data[idx] = '\0';
+            gdb_pkt_data_append_par(parser->pkt_data, prev_param, (char *) (data + idx + 1));
+            parser->data_state = DATA_RESET;
+            break;
+        }
+
+        idx++;
+    }
+
+    data[idx] = '\0';
+    if(parser->data_state == DATA_WRITE_PARAM1)
+                gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
+    return parser->pkt_data;
 }
