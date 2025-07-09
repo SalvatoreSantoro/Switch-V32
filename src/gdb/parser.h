@@ -17,14 +17,14 @@ typedef enum {
     PARSING_HAS_FINISHED,
     PARSING_INCOMPLETE,
     PARSING_GOT_ERROR,
-    PARSING_GOT_NACK //resend the last message
+    PARSING_GOT_NACK // resend the last message
 } pars_ret;
-
 
 typedef struct {
     pars_state state;
     size_t parse_idx;
     bool ack_activated;
+    PKT_Data *pkt_data;
     PKT_Buffer *buff;
 } Parser;
 
@@ -40,6 +40,7 @@ void gdb_parser_data(Parser *parser);
     do {                                                                                                               \
         parser->state = PARSE_RESET;                                                                                   \
         parser->parse_idx = 0;                                                                                         \
+        gdb_pkt_data_reset(parser->pkt_data);                                                                          \
     } while (0)
 
 #endif

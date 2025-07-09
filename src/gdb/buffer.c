@@ -34,10 +34,10 @@ void gdb_buff_destroy(PKT_Buffer *buff) {
 
 buff_ret gdb_buff_expand(PKT_Buffer *buff) {
     unsigned char *tmp_data;
-    buff->data_size *= 2;
-    tmp_data = realloc(buff->data, buff->data_size);
+    tmp_data = realloc(buff->data, buff->data_size * 2);
     if (tmp_data == NULL)
         return BUFF_OOM;
+    buff->data_size *= 2;
     buff->data = tmp_data;
     return BUFF_OK;
 }
@@ -101,4 +101,3 @@ uint8_t gdb_buff_checksum(PKT_Buffer *buff) {
     // modulo 256
     return (uint8_t) (sum & 255);
 }
-

@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include "data.h"
 
 typedef struct {
     size_t start_pkt_data;

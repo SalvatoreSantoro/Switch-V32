@@ -1,0 +1,72 @@
+#include "data.h"
+#include <stdlib.h>
+#include <string.h>
+
+PKT_Data *gdb_pkt_data_create(size_t params_sz) {
+    PKT_Data *pkt_data;
+
+    pkt_data = malloc(sizeof(PKT_Data));
+
+    if (pkt_data == NULL)
+        return NULL;
+
+    pkt_data->params = malloc(params_sz);
+    if (pkt_data->params == NULL) {
+        free(pkt_data);
+        return NULL;
+    }
+
+    pkt_data->params_sz = params_sz;
+    gdb_pkt_data_reset(pkt_data);
+
+    return pkt_data;
+}
+
+void gdb_pkt_data_destroy(PKT_Data *pkt_data) {
+    if (pkt_data->params != NULL)
+        free(pkt_data->params);
+    if (pkt_data != NULL)
+        free(pkt_data);
+    pkt_data = NULL;
+}
+
+static data_ret gdb_pkt_data_param_expand(PKT_Data *pkt_data) {
+    Data_Param *tmp_par;
+
+    tmp_par = realloc(pkt_data->params, pkt_data->params_sz * 2);
+    if (tmp_par == NULL)
+        return DATA_OOM;
+
+    pkt_data->params = tmp_par;
+    pkt_data->params_sz *= 2;
+
+    return DATA_OK;
+}
+
+void gdb_pkt_data_reset(PKT_Data *pkt_data) {
+    pkt_data->command = NULL;
+    pkt_data->end_pkt_data = 0;
+    pkt_data->start_pkt_data = 0;
+    pkt_data->params_filled = 0;
+}
+
+data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *key, char *value) {
+    if ((pkt_data->params_filled + 1) > pkt_data->params_sz) {
+        if (gdb_pkt_data_param_expand(pkt_data) == DATA_OOM)
+            return DATA_OOM;
+    }
+    pkt_data->params[pkt_data->params_filled].key = key;
+    pkt_data->params[pkt_data->params_filled].value = value;
+
+    pkt_data->params_filled += 1;
+
+    return DATA_OK;
+}
+
+Data_Param *gdb_pkt_data_find(PKT_Data *pkt_data, const char *key) {
+    for (size_t i = 0; i < pkt_data->params_filled; i++) {
+        if (strcmp(pkt_data->params[i].key, key) == 0)
+            return &pkt_data->params[i];
+    }
+    return NULL;
+}

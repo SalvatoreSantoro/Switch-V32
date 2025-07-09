@@ -1,16 +1,26 @@
 #include "parser.h"
 #include "buffer.h"
+#include "data.h"
 #include <stdlib.h>
+
+#define DEF_PARAM_SIZE 2
 
 Parser *gdb_parser_create(PKT_Buffer *buff) {
     Parser *parser;
+    PKT_Data *pkt_data;
 
     if (buff == NULL)
         return NULL;
 
-    parser = malloc(sizeof(Parser));
-    if (parser == NULL)
+    pkt_data = gdb_pkt_data_create(DEF_PARAM_SIZE);
+    if (pkt_data == NULL)
         return NULL;
+
+    parser = malloc(sizeof(Parser));
+    if (parser == NULL) {
+        gdb_pkt_data_destroy(pkt_data);
+        return NULL;
+    }
 
     gdb_parser_reset(parser);
     parser->ack_activated = true;
@@ -19,6 +29,7 @@ Parser *gdb_parser_create(PKT_Buffer *buff) {
 }
 
 void gdb_parser_destroy(Parser *parser) {
+    gdb_pkt_data_destroy(parser->pkt_data);
     free(parser);
 }
 
