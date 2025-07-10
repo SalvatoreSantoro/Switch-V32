@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
@@ -89,6 +90,14 @@ buff_ret gdb_buff_to_socket(PKT_Buffer *buff, int fd) {
         tot_wt_bytes += wt_bytes;
     }
     return BUFF_OK;
+}
+
+
+void gdb_buff_print_content(PKT_Buffer *buff, const char* str){
+    printf("%s", str);
+    for(size_t i=0; i < buff->filled; i++)
+        putchar(buff->data[i]);
+    putchar('\n');
 }
 
 uint8_t gdb_buff_checksum(PKT_Buffer *buff) {

@@ -12,6 +12,8 @@ typedef enum {
     PARSE_SKIP,
     PARSE_CHECKSUM_DIGIT_0,
     PARSE_CHECKSUM_DIGIT_1,
+    PARSE_NACK,
+    PARSE_ERROR,
     PARSE_FINISHED
 } pars_state;
 
@@ -20,18 +22,11 @@ typedef enum {
     DATA_WRITE_PARAM1,
 } pars_data_state;
 
-typedef enum {
-    PARSING_HAS_FINISHED,
-    PARSING_INCOMPLETE,
-    PARSING_GOT_ERROR,
-    PARSING_GOT_NACK // resend the last message
-} pars_ret;
 
 typedef struct {
     pars_state state;
     pars_data_state data_state;
     size_t parse_idx;
-    bool ack_activated;
     PKT_Data *pkt_data;
     PKT_Buffer *buff;
 } Parser;
@@ -40,7 +35,7 @@ Parser *gdb_parser_create(PKT_Buffer *buff);
 
 void gdb_parser_destroy(Parser *parser);
 
-pars_ret gdb_parser_pkt(Parser *parser);
+pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled);
 
 PKT_Data *gdb_parser_data(Parser *parser);
 

@@ -1,9 +1,9 @@
 #ifndef _GDB_BUFF_H
 #define _GDB_BUFF_H
 
+#include "data.h"
 #include <stddef.h>
 #include <stdint.h>
-#include "data.h"
 
 typedef struct {
     size_t start_pkt_data;
@@ -35,6 +35,8 @@ unsigned char *gdb_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled);
 buff_ret gdb_buff_from_socket(PKT_Buffer *buff, int fd);
 
 buff_ret gdb_buff_to_socket(PKT_Buffer *buff, int fd);
+
+void gdb_buff_print_content(PKT_Buffer *buff, const char* str);
 
 uint8_t gdb_buff_checksum(PKT_Buffer *buff);
 

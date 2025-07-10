@@ -1,5 +1,4 @@
 #include "cpu.h"
-#include "gdb.h"
 #include "emu.h"
 #include "macros.h"
 #include "memory.h"
@@ -458,7 +457,7 @@ void vcore_e_type(VCore *core, uint32_t ins) {
         emu_system_call(core);
         break;
     case EBREAK:
-        gdb_breakpoint();
+        //gdb_breakpoint();
         break;
     default:
         fprintf(stderr, "%x E-Type BADCODE\n", ins);

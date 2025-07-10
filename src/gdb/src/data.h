@@ -9,8 +9,6 @@ typedef struct {
 } Data_Param;
 
 typedef struct {
-    size_t start_pkt_data;
-    size_t end_pkt_data;
     size_t params_sz;
     size_t params_filled;
     char *command;
@@ -29,5 +27,7 @@ void gdb_pkt_data_destroy(PKT_Data *pkt_data);
 void gdb_pkt_data_reset(PKT_Data *pkt_data);
 
 data_ret gdb_pkt_data_append_par(PKT_Data *pkt_data, char *param1, char *param2);
+
+void gdb_pkt_data_print(PKT_Data *pkt_data);
 
 #endif

@@ -11,7 +11,7 @@ PKT_Data *gdb_pkt_data_create(size_t params_sz) {
     if (pkt_data == NULL)
         return NULL;
 
-    pkt_data->params = malloc(params_sz);
+    pkt_data->params = malloc(sizeof(Data_Param) * params_sz);
     if (pkt_data->params == NULL) {
         free(pkt_data);
         return NULL;
@@ -34,7 +34,7 @@ void gdb_pkt_data_destroy(PKT_Data *pkt_data) {
 static data_ret gdb_pkt_data_param_expand(PKT_Data *pkt_data) {
     Data_Param *tmp_par;
 
-    tmp_par = realloc(pkt_data->params, pkt_data->params_sz * 2);
+    tmp_par = realloc(pkt_data->params, sizeof(Data_Param) * pkt_data->params_sz * 2);
     if (tmp_par == NULL)
         return DATA_OOM;
 
@@ -46,8 +46,6 @@ static data_ret gdb_pkt_data_param_expand(PKT_Data *pkt_data) {
 
 void gdb_pkt_data_reset(PKT_Data *pkt_data) {
     pkt_data->command = NULL;
-    pkt_data->end_pkt_data = 0;
-    pkt_data->start_pkt_data = 0;
     pkt_data->params_filled = 0;
 }
 
@@ -73,10 +71,12 @@ Data_Param *gdb_pkt_data_find(PKT_Data *pkt_data, const char *param1) {
 }
 
 void gdb_pkt_data_print(PKT_Data *pkt_data) {
+    printf("PARAM SIZE: %ld\n", pkt_data->params_sz);
+    printf("PARAM FILL: %ld\n", pkt_data->params_filled);
     printf("COMMAND %s\n", pkt_data->command);
     for (size_t i = 0; i < pkt_data->params_filled; i++) {
         printf("PARAM1: %s\n", pkt_data->params[i].param1);
-        if (pkt_data->params[i].param1 != NULL)
+        if (pkt_data->params[i].param2 != NULL)
             printf("PARAM2: %s\n", pkt_data->params[i].param2);
     }
 }
