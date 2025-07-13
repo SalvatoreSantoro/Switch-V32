@@ -43,7 +43,7 @@ buff_ret gdb_buff_expand(PKT_Buffer *buff) {
     return BUFF_OK;
 }
 
-buff_ret gdb_buff_append(PKT_Buffer *buff, const unsigned char *data, size_t data_size) {
+buff_ret gdb_buff_append(PKT_Buffer *buff, const char *data, size_t data_size) {
     while ((buff->filled + data_size) > buff->data_size) {
         if (gdb_buff_expand(buff) == BUFF_OOM)
             return BUFF_OOM;

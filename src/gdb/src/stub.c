@@ -1,5 +1,6 @@
 #include "stub.h"
 #include "buffer.h"
+#include "builder.h"
 #include "data.h"
 #include "parser.h"
 #include <netinet/in.h>
@@ -26,6 +27,7 @@ typedef struct {
     PKT_Buffer *input_buffer;
     PKT_Buffer *output_buffer;
     Parser *parser;
+    Builder builder;
 } GDB_Stub;
 
 static GDB_Stub server = {.state = STUB_RESET};
@@ -48,6 +50,9 @@ stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
     server.parser = gdb_parser_create(server.input_buffer);
     if (server.parser == NULL)
         goto parser_err;
+
+    // builder on the output
+    gdb_builder_init(&server.builder, server.output_buffer);
 
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;
@@ -109,9 +114,11 @@ stub_ret gdb_stub_handle_cmds(void) {
         if (p_state == PARSE_ERROR) {
             // reset output in case last time it was "PARSING_GOT_NACK"
             gdb_buff_reset(server.output_buffer);
-            // pass pkt data to builder insert (-) in output buff
-            // respond
-            gdb_buff_to_socket(server.output_buffer, server.gdb_socket);
+
+            gdb_buff_append(server.output_buffer, "-", 1);
+
+            if (gdb_buff_to_socket(server.output_buffer, server.gdb_socket) == BUFF_FD_ERR)
+                return STUB_SOCKET;
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);
@@ -120,7 +127,8 @@ stub_ret gdb_stub_handle_cmds(void) {
 
         if (p_state == PARSE_NACK) {
             // resend
-            gdb_buff_to_socket(server.output_buffer, server.gdb_socket);
+            if (gdb_buff_to_socket(server.output_buffer, server.gdb_socket) == BUFF_FD_ERR)
+                return STUB_SOCKET;
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);
@@ -131,12 +139,15 @@ stub_ret gdb_stub_handle_cmds(void) {
             // reset output in case last time it was "PARSING_GOT_NACK"
 
             pkt_data = gdb_parser_data(server.parser);
-            gdb_pkt_data_print(server.parser->pkt_data);
+            // gdb_pkt_data_print(server.parser->pkt_data);
 
             gdb_buff_reset(server.output_buffer);
-            // pass pkt data to builder to build response in output buff
-            // respond
-            gdb_buff_to_socket(server.output_buffer, server.gdb_socket);
+
+            gdb_builder_build_resp(&server.builder, pkt_data, server.ack_enabled);
+            gdb_buff_print_content(server.output_buffer, "WRITE: ");
+
+            if (gdb_buff_to_socket(server.output_buffer, server.gdb_socket) == BUFF_FD_ERR)
+                return STUB_SOCKET;
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);

@@ -63,7 +63,7 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
             // printf("START %c\n", data[idx]);
             if (data[idx] == '$') {
                 // first data byte
-                gdb_buff_set_start_pkt_data(parser->buff, idx + 1);
+                parser->buff->start_pkt_data = idx + 1;
                 parser->state = PARSE_SKIP;
             } else
                 parser->state = PARSE_ERROR;
@@ -72,7 +72,7 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
         case PARSE_SKIP:
             if (data[idx] == '#') { // last data byte
                 // printf("SKIP %c\n", data[idx]);
-                gdb_buff_set_end_pkt_data(parser->buff, idx);
+                parser->buff->end_pkt_data = idx;
                 if (ack_enabled)
                     parser->state = PARSE_CHECKSUM_DIGIT_0;
                 else
@@ -119,8 +119,8 @@ PKT_Data *gdb_parser_data(Parser *parser) {
     unsigned char *data;
     char *prev_param = NULL;
 
-    idx = gdb_buff_get_start_pkt_data(parser->buff);
-    end = gdb_buff_get_end_pkt_data(parser->buff);
+    idx = parser->buff->start_pkt_data;
+    end = parser->buff->end_pkt_data;
 
     data = gdb_buff_read_prep(parser->buff, NULL);
 

@@ -1,7 +1,6 @@
 #ifndef _GDB_BUFF_H
 #define _GDB_BUFF_H
 
-#include "data.h"
 #include <stddef.h>
 #include <stdint.h>
 
@@ -28,7 +27,7 @@ void gdb_buff_destroy(PKT_Buffer *buff);
 buff_ret gdb_buff_expand(PKT_Buffer *buff);
 
 // returns -1 on error, 0 otherwise
-buff_ret gdb_buff_append(PKT_Buffer *buff, const unsigned char *data, size_t data_size);
+buff_ret gdb_buff_append(PKT_Buffer *buff, const char *data, size_t data_size);
 
 unsigned char *gdb_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled);
 
@@ -47,12 +46,5 @@ uint8_t gdb_buff_checksum(PKT_Buffer *buff);
         buff->start_pkt_data = 0;                                                                                      \
     } while (0)
 
-#define gdb_buff_get_start_pkt_data(buff) (buff->start_pkt_data)
-
-#define gdb_buff_set_start_pkt_data(buff, idx) (buff->start_pkt_data = idx)
-
-#define gdb_buff_get_end_pkt_data(buff) (buff->end_pkt_data)
-
-#define gdb_buff_set_end_pkt_data(buff, idx) (buff->end_pkt_data = idx)
 
 #endif
