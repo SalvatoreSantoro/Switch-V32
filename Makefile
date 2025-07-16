@@ -3,7 +3,7 @@ NAME = SV32
 
 DOOM_DIR = doom_riscv/src/riscv
 DOOM = doom-riscv.elf
-CC = gcc
+CC = gcc -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
 CFLAGS = -O2 -Wall -Wextra -Werror -lSDL2 -I/usr/include/SDL2 
 CROSS ?=
 
@@ -40,6 +40,7 @@ valgrind: $(BUILD_DIR)/$(NAME)
 	git submodule update --init --recursive
 	$(MAKE) -C $(DOOM_DIR) CROSS="$(CROSS)"
 	valgrind --tool=memcheck --leak-check=full --track-origins=yes -s $(BUILD_DIR)/$(NAME) -f "$(DOOM_DIR)/$(DOOM)" -u 4 -o /dev/null -e /dev/null -d
+
 
 
 ### CREATE BUILD DIRECTORY IF NOT EXISTS

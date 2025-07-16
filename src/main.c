@@ -1,14 +1,17 @@
 #include "args.h"
+#include "builder.h"
 #include "cpu.h"
 #include "defs.h"
 #include "emu.h"
-#include "stub.h"
 #include "loader.h"
 #include "memory.h"
+#include "stub.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+
+#define CALLBACKS_SIZE 1
 
 int main(int argc, char *argv[]) {
     VCore core = {0};
@@ -25,7 +28,14 @@ int main(int argc, char *argv[]) {
     ld_elf(ctx.elf_name, &core);
 
     if (ctx.debug) {
-        gdb_stub_init(STUB_PORT, STUB_BUFF_SIZE, STUB_READ_SIZE);
+        Callback_ctx callbacks[CALLBACKS_SIZE];
+        callbacks[0].callbck.fun = vcore_regs_dump_callback;
+        callbacks[0].callbck.arg = &core;
+        callbacks[0].idx = REGS_DUMP_CALLBACK;
+        /* callbacks[1].callbck.fun = vcore_reg_dump_callback; */
+        /* callbacks[1].callbck.arg = &core; */
+        /* callbacks[1].idx = REG_DUMP_CALLBACK; */
+        gdb_stub_init(STUB_PORT, STUB_BUFF_SIZE, STUB_READ_SIZE, callbacks, CALLBACKS_SIZE);
         printf("Running GDB STUB on port: %d\n", STUB_PORT);
         gdb_stub_handle_cmds();
     }

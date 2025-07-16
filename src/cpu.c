@@ -139,7 +139,7 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("AND");
         break;
     case SLL:
-        *rd = rs1 << rs2;
+        *rd = (uint32_t) rs1 << rs2;
         LOG_R("SLL");
         break;
     case SRL:
@@ -208,7 +208,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
     int func = R_FUNC(ins);
     int32_t imm;
     // need to be unsigned
-    uint32_t shift_imm = RS2(ins);
+    uint32_t shift_imm = (uint32_t) RS2(ins);
 
     if (func == SRA) {
         *rd = (int32_t) rs1 >> shift_imm;
@@ -222,7 +222,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
         return;
     }
     if (func == SLL) {
-        *rd = rs1 << shift_imm;
+        *rd = (uint32_t) rs1 << shift_imm;
         LOG_I("SLL", shift_imm);
         return;
     }
@@ -457,10 +457,46 @@ void vcore_e_type(VCore *core, uint32_t ins) {
         emu_system_call(core);
         break;
     case EBREAK:
-        //gdb_breakpoint();
+        // gdb_breakpoint();
         break;
     default:
         fprintf(stderr, "%x E-Type BADCODE\n", ins);
         exit(EXIT_FAILURE);
     }
 }
+
+
+char *vcore_regs_dump_callback(void *core) {
+    VCore *c = core;
+    size_t str_len = (REG_NUMS + 1) * 8 + 1; // 32 regs + pc, 8 hex chars each, plus null terminator
+    char *result = malloc(str_len);
+    char *ptr = result;
+
+    for (size_t i = 0; i < REG_NUMS; i++) {
+        uint32_t val = c->regs[i];
+        // little endian mess
+        // send in "target byte order"
+        sprintf(ptr, "%02X%02X%02X%02X",
+                val & 0xFF,
+                (val >> 8) & 0xFF,
+                (val >> 16) & 0xFF,
+                (val >> 24) & 0xFF);
+        ptr += 8;
+    }
+
+    // Append PC
+    uint32_t pc = c->pc;
+    sprintf(ptr, "%02X%02X%02X%02X",
+            pc & 0xFF,
+            (pc >> 8) & 0xFF,
+            (pc >> 16) & 0xFF,
+            (pc >> 24) & 0xFF);
+    ptr += 8;
+    *ptr = '\0'; // Null-terminate
+
+    return result;
+}
+
+
+/* char *vcore_reg_dump_callback(void *core) { */
+/* } */

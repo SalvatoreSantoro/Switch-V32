@@ -49,18 +49,21 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
 
         switch (parser->state) {
         case PARSE_RESET:
-            // printf("RESET %c\n", data[idx]);
             if (ack_enabled) {
                 if (data[idx] == '+')
                     parser->state = PARSE_START;
                 if (data[idx] == '-')
                     parser->state = PARSE_NACK;
-            } else
+            } else {
                 parser->state = PARSE_START;
+                // in case ack is disabled but still recived ack
+                // need to don't skip iteration
+                if (data[idx] != '+')
+                    continue;
+            }
             break;
 
         case PARSE_START:
-            // printf("START %c\n", data[idx]);
             if (data[idx] == '$') {
                 // first data byte
                 parser->buff->start_pkt_data = idx + 1;
@@ -71,7 +74,6 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
 
         case PARSE_SKIP:
             if (data[idx] == '#') { // last data byte
-                // printf("SKIP %c\n", data[idx]);
                 parser->buff->end_pkt_data = idx;
                 if (ack_enabled)
                     parser->state = PARSE_CHECKSUM_DIGIT_0;

@@ -43,6 +43,10 @@ buff_ret gdb_buff_expand(PKT_Buffer *buff) {
     return BUFF_OK;
 }
 
+buff_ret gdb_buff_append_str(PKT_Buffer *buff, const char *str) {
+    return gdb_buff_append(buff, str, strlen(str));
+}
+
 buff_ret gdb_buff_append(PKT_Buffer *buff, const char *data, size_t data_size) {
     while ((buff->filled + data_size) > buff->data_size) {
         if (gdb_buff_expand(buff) == BUFF_OOM)
@@ -79,23 +83,25 @@ buff_ret gdb_buff_from_socket(PKT_Buffer *buff, int fd) {
 buff_ret gdb_buff_to_socket(PKT_Buffer *buff, int fd) {
     ssize_t wt_bytes = 0;
     size_t tot_wt_bytes = 0;
-    size_t wt_size;
+    size_t bytes_to_wt;
+    size_t left_to_wt;
 
-    wt_size = buff->filled < buff->socket_io_size ? buff->filled : buff->socket_io_size;
+    bytes_to_wt = buff->filled;
+    left_to_wt = bytes_to_wt;
 
-    while (tot_wt_bytes != wt_size) {
-        wt_bytes = write(fd, buff->data, wt_size);
+    while (tot_wt_bytes != bytes_to_wt) {
+        wt_bytes = write(fd, buff->data + tot_wt_bytes, left_to_wt);
         if (wt_bytes == -1)
             return BUFF_FD_ERR;
+        left_to_wt -= wt_bytes;
         tot_wt_bytes += wt_bytes;
     }
     return BUFF_OK;
 }
 
-
-void gdb_buff_print_content(PKT_Buffer *buff, const char* str){
+void gdb_buff_print_content(PKT_Buffer *buff, const char *str) {
     printf("%s", str);
-    for(size_t i=0; i < buff->filled; i++)
+    for (size_t i = 0; i < buff->filled; i++)
         putchar(buff->data[i]);
     putchar('\n');
 }

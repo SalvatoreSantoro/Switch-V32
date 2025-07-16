@@ -97,4 +97,8 @@ void vcore_a_type(VCore *core, uint32_t ins);
 
 void vcore_e_type(VCore *core, uint32_t ins);
 
+char *vcore_reg_dump_callback(void *core);
+
+char *vcore_regs_dump_callback(void *core);
+
 #endif
