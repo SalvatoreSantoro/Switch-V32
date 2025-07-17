@@ -7,6 +7,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+
+VCore core={0};
 // Base Integer
 
 // Masks
@@ -495,8 +497,5 @@ char *vcore_regs_dump_callback(void *core) {
     *ptr = '\0'; // Null-terminate
 
     return result;
-}
+};
 
-
-/* char *vcore_reg_dump_callback(void *core) { */
-/* } */

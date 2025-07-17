@@ -32,18 +32,11 @@ typedef struct {
 
 static GDB_Stub server = {.state = STUB_RESET};
 
-static char *no_ack_callbk(void *param) {
-    server.ack_enabled = false;
-    return NULL;
-};
-
 // STUB
-stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size, Callback_ctx *callbcks,
-                       size_t callbcks_sz) {
+stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
     int opt = 1;
     struct sockaddr_in address;
     stub_ret ret = STUB_OOM;
-    Callback_ctx ctx = {.callbck.fun = no_ack_callbk, .callbck.arg = NULL, .idx = NOACK_CALLBACK};
 
     server.input_buffer = gdb_buff_create(buffers_size, socket_io_size);
     if (server.input_buffer == NULL)
@@ -61,12 +54,8 @@ stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size, Cal
     // builder on the output
     gdb_builder_init(&server.builder, server.output_buffer);
 
-    // register all callbacks
-
-    gdb_builder_register_callbk(&server.builder, &ctx);
-    for (size_t i = 0; i < callbcks_sz; i++) {
-        gdb_builder_register_callbk(&server.builder, callbcks + i);
-    }
+    // register builder callbacks
+    gdb_builder_register_callbacks(&server.builder);
 
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;

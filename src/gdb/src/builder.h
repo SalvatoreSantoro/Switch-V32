@@ -28,6 +28,6 @@ void gdb_builder_reset(Builder *build);
 
 void gdb_builder_build_resp(Builder *builder, PKT_Data *pkt_data, bool ack_enabled);
 
-void gdb_builder_register_callbk(Builder *builder, Callback *ctx);
+void gdb_builder_register_callbacks(Builder* builder);
 
 #endif

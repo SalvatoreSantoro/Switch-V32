@@ -32,10 +32,11 @@ void gdb_builder_init(Builder *builder, PKT_Buffer *buff) {
     builder->vcont = "vCont;c;s";
 }
 
-void gdb_builder_register_callbk(Builder *builder, Callback_ctx *ctx) {
-    builder->callbacks[ctx->idx].fun = ctx->callbck.fun;
-    printf("PLEASE: %p\n", ctx->callbck.fun);
-    builder->callbacks[ctx->idx].arg = ctx->callbck.arg;
+void gdb_builder_register_callbacks(Builder *builder) {
+    for (const Callback_Registration *reg = &__start_sad_callbacks; reg < &__stop_sad_callbacks; ++reg) {
+        builder->callbacks[reg->type].fun = reg->cbk.fun;
+        builder->callbacks[reg->type].arg = reg->cbk.arg;
+    }
 }
 
 static int strIdx(const char *str, const char c) {
@@ -51,17 +52,11 @@ static int strIdx(const char *str, const char c) {
 #define build_unsupported(b) (gdb_buff_append_str(b, ""))
 
 static void build_p(Builder *builder, PKT_Data *pkt_data) {
+    // unimplemented
 }
 
 static void build_g(Builder *builder, PKT_Data *pkt_data) {
-    Callback *ctx;
-    char *str;
-    ctx = &builder->callbacks[REGS_DUMP_CALLBACK];
-    str = ctx->fun(ctx->arg);
-    if (str != NULL) {
-        gdb_buff_append_str(builder->buffer, str);
-        free(str);
-    }
+    // unimplemented
 };
 
 static void build_qst_mrk(Builder *builder, PKT_Data *pkt_data) {
@@ -77,10 +72,7 @@ static void build_Q(Builder *builder, PKT_Data *pkt_data) {
     Callback *ctx;
 
     if (strcmp(pkt_data->command + 1, "StartNoAckMode") == 0) {
-        gdb_buff_append_str(builder->buffer, "OK");
-        // deactivate ack
-        ctx = builder->callbacks + NOACK_CALLBACK;
-        ctx->fun(ctx->arg);
+        // unimplemented
     } else
         build_unsupported(builder->buffer);
 }
@@ -91,6 +83,8 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
 }
 
 static void build_q(Builder *builder, PKT_Data *pkt_data) {
+    builder->callbacks[REGS_CBK].fun(builder->callbacks[REGS_CBK].arg, (void *) &gas);
+
     if (strcmp(pkt_data->command + 1, "Supported") == 0)
         gdb_buff_append_str(builder->buffer, builder->supported);
     else

@@ -101,4 +101,6 @@ char *vcore_reg_dump_callback(void *core);
 
 char *vcore_regs_dump_callback(void *core);
 
+extern VCore core;
+
 #endif
