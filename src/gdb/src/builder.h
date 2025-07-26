@@ -16,7 +16,7 @@ struct Builder {
     unsigned int command_idx;
     PKT_Buffer *buffer;
     char *commands;
-    Builder_Fun builders[NUM_COMMANDS];
+    Builder_Fun supported_builders[NUM_COMMANDS];
     Callback callbacks[NUM_CBKS];
     char *supported;
     char *vcont;

@@ -15,6 +15,8 @@ static void build_qst_mrk(Builder *builder, PKT_Data *pkt_data);
 static void build_g(Builder *builder, PKT_Data *pkt_data);
 static void build_p(Builder *builder, PKT_Data *pkt_data);
 
+REGS_CBK_t gas = {0};
+
 // SAME ORDER AS THE CHARS IN THE "BUILDER->COMMANDS" STRING
 // IMPORTANT, CHAR INDEX USED TO DISPATCH CORRECT FUNCTION
 // OF THE ARRAY
@@ -39,15 +41,7 @@ void gdb_builder_register_callbacks(Builder *builder) {
     }
 }
 
-static int strIdx(const char *str, const char c) {
-    int idx = 0;
-    while (*(str + idx) != '\0') {
-        if (str[idx] == c)
-            return idx;
-        idx += 1;
-    }
-    return -1;
-}
+
 
 #define build_unsupported(b) (gdb_buff_append_str(b, ""))
 

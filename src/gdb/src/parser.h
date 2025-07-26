@@ -3,6 +3,7 @@
 
 #include "buffer.h"
 #include "data.h"
+#include "supported.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -22,29 +23,24 @@ typedef enum {
     DATA_WRITE_PARAM1,
 } pars_data_state;
 
+typedef struct Parser Parser;
 
-typedef struct {
+typedef void (*Parser_Fun)(Parser *);
+
+struct Parser {
+    Parser_Fun supported_parsers[COMMANDS_COUNT];
     pars_state state;
     pars_data_state data_state;
     size_t parse_idx;
-    PKT_Data *pkt_data;
     PKT_Buffer *buff;
-} Parser;
+};
 
-Parser *gdb_parser_create(PKT_Buffer *buff);
+void gdb_parser_init(Parser *parser, PKT_Buffer *buff);
 
-void gdb_parser_destroy(Parser *parser);
+void gdb_parser_reset(Parser* parser);
 
 pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled);
 
 PKT_Data *gdb_parser_data(Parser *parser);
-
-#define gdb_parser_reset(parser)                                                                                       \
-    do {                                                                                                               \
-        parser->state = PARSE_RESET;                                                                                   \
-        parser->data_state = DATA_RESET;                                                                               \
-        parser->parse_idx = 0;                                                                                         \
-        gdb_pkt_data_reset(parser->pkt_data);                                                                          \
-    } while (0)
 
 #endif

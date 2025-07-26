@@ -26,7 +26,7 @@ typedef struct {
     int ack_enabled;
     PKT_Buffer *input_buffer;
     PKT_Buffer *output_buffer;
-    Parser *parser;
+    Parser parser;
     Builder builder;
 } GDB_Stub;
 
@@ -47,9 +47,7 @@ stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
         goto output_err;
 
     // parser on the input
-    server.parser = gdb_parser_create(server.input_buffer);
-    if (server.parser == NULL)
-        goto parser_err;
+    gdb_parser_init(&server.parser, server.input_buffer);
 
     // builder on the output
     gdb_builder_init(&server.builder, server.output_buffer);
@@ -87,8 +85,6 @@ close_socket:
     close(server.server_fd);
 socket_err:
     ret = STUB_SOCKET;
-    gdb_parser_destroy(server.parser);
-parser_err:
     gdb_buff_destroy(server.output_buffer);
 output_err:
     gdb_buff_destroy(server.input_buffer);
@@ -111,7 +107,7 @@ stub_ret gdb_stub_handle_cmds(void) {
         // parse data just read in the input_buffer
         // the parser could be parsing an incomplete packet (without the ending "#")
         // so in case  gdb_parser_pkt returns PARSING_INCOMPLETE the stub does nothing
-        p_state = gdb_parser_pkt(server.parser, server.ack_enabled);
+        p_state = gdb_parser_pkt(&server.parser, server.ack_enabled);
         gdb_buff_print_content(server.input_buffer, "READ: ");
 
         if (p_state == PARSE_ERROR) {
@@ -125,7 +121,7 @@ stub_ret gdb_stub_handle_cmds(void) {
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);
-            gdb_parser_reset(server.parser);
+            gdb_parser_reset(&server.parser);
         }
 
         if (p_state == PARSE_NACK) {
@@ -135,13 +131,13 @@ stub_ret gdb_stub_handle_cmds(void) {
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);
-            gdb_parser_reset(server.parser);
+            gdb_parser_reset(&server.parser);
         }
 
         if (p_state == PARSE_FINISHED) {
             // reset output in case last time it was "PARSING_GOT_NACK"
 
-            pkt_data = gdb_parser_data(server.parser);
+            pkt_data = gdb_parser_data(&server.parser);
             // gdb_pkt_data_print(server.parser->pkt_data);
 
             gdb_buff_reset(server.output_buffer);
@@ -154,7 +150,7 @@ stub_ret gdb_stub_handle_cmds(void) {
 
             // reset everything for next iteration
             gdb_buff_reset(server.input_buffer);
-            gdb_parser_reset(server.parser);
+            gdb_parser_reset(&server.parser);
         }
     }
 }
@@ -169,5 +165,6 @@ void gdb_stub_reset(void) {
     close(server.gdb_socket);
     gdb_buff_destroy(server.input_buffer);
     gdb_buff_destroy(server.output_buffer);
-    gdb_parser_destroy(server.parser);
+    gdb_parser_reset(&server.parser);
+    gdb_builder_reset(&server.builder);
 }

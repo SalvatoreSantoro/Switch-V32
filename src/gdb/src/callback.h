@@ -30,6 +30,7 @@
     };                                                                                                               \
     REGISTER_CALLBACK_SECTION(name, user_dt, type)                                                                   \
     void name##_impl(__typeof__(user_dt) user_data, type##_t * handler_data)
+
 // clang-format on
 typedef enum {
     NOACK_CBK = 0,
@@ -42,8 +43,7 @@ typedef struct {
     int a;
 } REGS_CBK_t;
 
-REGS_CBK_t gas;
-
+extern REGS_CBK_t gas;
 
 typedef void (*Callback_Fun)(void *, void *);
 

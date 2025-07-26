@@ -1,40 +1,36 @@
 #include "parser.h"
 #include "buffer.h"
 #include "data.h"
+#include "supported.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-#define DEF_PARAM_SIZE 2
+// SAD_EXTEND START "Add new Parser function"
+static void parse_q(Parser *parser);
+static void parse_Q(Parser *parser);
+static void parse_qst_mrk(Parser *parser);
+static void parse_m(Parser *parser);
+static void parse_M(Parser *parser);
+// SAD_EXTEND END
 
-Parser *gdb_parser_create(PKT_Buffer *buff) {
-    Parser *parser;
-    PKT_Data *pkt_data;
-
-    if (buff == NULL)
-        return NULL;
-
-    pkt_data = gdb_pkt_data_create(DEF_PARAM_SIZE);
-    if (pkt_data == NULL)
-        return NULL;
-
-    parser = malloc(sizeof(Parser));
-    if (parser == NULL) {
-        gdb_pkt_data_destroy(pkt_data);
-        return NULL;
-    }
-
-    parser->pkt_data = pkt_data;
+void gdb_parser_init(Parser *parser, PKT_Buffer *buff) {
     parser->buff = buff;
+    // SAD_EXTEND START "Init new Parser function"
+    parser->supported_parsers[COMMAND_q] = parse_q;
+    parser->supported_parsers[COMMAND_Q] = parse_Q;
+    parser->supported_parsers[COMMAND_QSTMRK] = parse_qst_mrk;
+    parser->supported_parsers[COMMAND_m] = parse_m;
+    parser->supported_parsers[COMMAND_M] = parse_M;
+    // SAD_EXTEND END
 
     gdb_parser_reset(parser);
-
-    return parser;
 }
 
-void gdb_parser_destroy(Parser *parser) {
-    gdb_pkt_data_destroy(parser->pkt_data);
-    free(parser);
+void gdb_parser_reset(Parser *parser) {
+    parser->state = PARSE_RESET;
+    parser->data_state = DATA_RESET;
+    parser->parse_idx = 0;
 }
 
 pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
@@ -115,48 +111,11 @@ PKT_Data *gdb_parser_data(Parser *parser) {
     // to use
     if (parser->state != PARSE_FINISHED)
         return NULL;
+    CMD_Type cmd;
 
-    size_t idx;
-    size_t end;
-    unsigned char *data;
-    char *prev_param = NULL;
-
-    idx = parser->buff->start_pkt_data;
-    end = parser->buff->end_pkt_data;
-
-    data = gdb_buff_read_prep(parser->buff, NULL);
-
-    // command always starts as first byte of data
-    parser->pkt_data->command = (char *) (data + idx);
-
-    while (idx != end) {
-
-        switch (data[idx]) {
-        case ',':
-        case ';':
-        case ':':
-            data[idx] = '\0'; // make the string so far an actual C string
-            if (parser->data_state == DATA_WRITE_PARAM1) {
-                gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
-                prev_param = (char *) data + idx + 1;
-            } else { // DATA_RESET
-                parser->data_state = DATA_WRITE_PARAM1;
-                prev_param = (char *) data + idx + 1;
-            }
-
-            break;
-        case '=':
-            data[idx] = '\0';
-            gdb_pkt_data_append_par(parser->pkt_data, prev_param, (char *) (data + idx + 1));
-            parser->data_state = DATA_RESET;
-            break;
-        }
-
-        idx++;
-    }
-
-    data[idx] = '\0';
-    if (parser->data_state == DATA_WRITE_PARAM1)
-        gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
-    return parser->pkt_data;
+    // dispatch to correct parsing function using first char of message
+    cmd = supported_idx(parser->buff->start_pkt_data);
+    if (cmd == COMMAND_UNSUPPORTED)
+        return NULL;
+    parser->supported_parsers[cmd](parser);
 }

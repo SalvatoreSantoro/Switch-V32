@@ -1,5 +1,6 @@
 SECTIONS
 {
+
   /* Tell the linker to insert the section but keep everything else default */
   .sad_callbacks : ALIGN(16) {
     __start_sad_callbacks = .;
@@ -7,4 +8,5 @@ SECTIONS
     __stop_sad_callbacks = .;
   }
 }
-INSERT AFTER .data;
+/* Make it not writable */
+INSERT AFTER .rodata;
