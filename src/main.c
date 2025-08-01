@@ -1,4 +1,5 @@
 #include "args.h"
+#include "callback.h"
 #include "cpu.h"
 #include "defs.h"
 #include "emu.h"

@@ -1,43 +1,37 @@
 #include "parser.h"
 #include "buffer.h"
 #include "data.h"
-#include "supported.h"
 #include <assert.h>
+#include "defs.h"
 #include <stdio.h>
 #include <stdlib.h>
 
-// SAD_EXTEND START "Add new Parser function"
-static void parse_q(Parser *parser);
-static void parse_Q(Parser *parser);
-static void parse_qst_mrk(Parser *parser);
-static void parse_m(Parser *parser);
-static void parse_M(Parser *parser);
-// SAD_EXTEND END
 
 void gdb_parser_init(Parser *parser, PKT_Buffer *buff) {
-    parser->buff = buff;
-    // SAD_EXTEND START "Init new Parser function"
-    parser->supported_parsers[COMMAND_q] = parse_q;
-    parser->supported_parsers[COMMAND_Q] = parse_Q;
-    parser->supported_parsers[COMMAND_QSTMRK] = parse_qst_mrk;
-    parser->supported_parsers[COMMAND_m] = parse_m;
-    parser->supported_parsers[COMMAND_M] = parse_M;
-    // SAD_EXTEND END
-
+    // unchecked for convenience
+    parser->pkt_data = gdb_pkt_data_create(DEFAULT_PAR_SIZE);
+    parser->pkt_buff = buff;
     gdb_parser_reset(parser);
 }
 
 void gdb_parser_reset(Parser *parser) {
+    gdb_pkt_data_reset(parser->pkt_data);
+    gdb_buff_reset(parser->pkt_buff);
     parser->state = PARSE_RESET;
     parser->data_state = DATA_RESET;
     parser->parse_idx = 0;
+}
+
+void gdb_parser_deinit(Parser *parser) {
+    gdb_parser_reset(parser);
+    gdb_pkt_data_destroy(parser->pkt_data);
 }
 
 pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
     uint8_t value;
     size_t buff_filled;
     char checksum[3];
-    unsigned char *data = gdb_buff_read_prep(parser->buff, &buff_filled);
+    unsigned char *data = gdb_buff_read_prep(parser->pkt_buff, &buff_filled);
     checksum[2] = '\0';
 
     while (parser->parse_idx < buff_filled) {
@@ -62,7 +56,7 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
         case PARSE_START:
             if (data[idx] == '$') {
                 // first data byte
-                parser->buff->start_pkt_data = idx + 1;
+                parser->pkt_buff->start_pkt_data = idx + 1;
                 parser->state = PARSE_SKIP;
             } else
                 parser->state = PARSE_ERROR;
@@ -70,7 +64,7 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
 
         case PARSE_SKIP:
             if (data[idx] == '#') { // last data byte
-                parser->buff->end_pkt_data = idx;
+                parser->pkt_buff->end_pkt_data = idx;
                 if (ack_enabled)
                     parser->state = PARSE_CHECKSUM_DIGIT_0;
                 else
@@ -88,7 +82,7 @@ pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled) {
             // printf("CHEK2 %c\n", data[idx]);
             checksum[1] = data[idx];
             value = strtol(checksum, NULL, 16);
-            if (value != gdb_buff_checksum(parser->buff))
+            if (value != gdb_buff_checksum(parser->pkt_buff))
                 parser->state = PARSE_ERROR;
             else
                 parser->state = PARSE_FINISHED;
@@ -111,11 +105,49 @@ PKT_Data *gdb_parser_data(Parser *parser) {
     // to use
     if (parser->state != PARSE_FINISHED)
         return NULL;
-    CMD_Type cmd;
 
-    // dispatch to correct parsing function using first char of message
-    cmd = supported_idx(parser->buff->start_pkt_data);
-    if (cmd == COMMAND_UNSUPPORTED)
-        return NULL;
-    parser->supported_parsers[cmd](parser);
+    size_t idx;
+    size_t end;
+    unsigned char *data;
+    char *prev_param = NULL;
+
+    idx = parser->pkt_buff->start_pkt_data;
+    end = parser->pkt_buff->end_pkt_data;
+
+    data = gdb_buff_read_prep(parser->pkt_buff, NULL);
+
+    // command always starts as first byte of data
+    parser->pkt_data->command = (char *) (data + idx);
+
+    while (idx != end) {
+
+        switch (data[idx]) {
+        case ',':
+        case ';':
+        case ':':
+            data[idx] = '\0'; // make the string so far an actual C string
+            if (parser->data_state == DATA_WRITE_PARAM1) {
+                gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
+                prev_param = (char *) data + idx + 1;
+            } else { // DATA_RESET
+                parser->data_state = DATA_WRITE_PARAM1;
+                prev_param = (char *) data + idx + 1;
+            }
+
+            break;
+        case '=':
+            data[idx] = '\0';
+            gdb_pkt_data_append_par(parser->pkt_data, prev_param, (char *) (data + idx + 1));
+            parser->data_state = DATA_RESET;
+            break;
+        }
+
+        idx++;
+    }
+
+    data[idx] = '\0';
+    if (parser->data_state == DATA_WRITE_PARAM1)
+        gdb_pkt_data_append_par(parser->pkt_data, prev_param, NULL);
+
+    return parser->pkt_data;
 }

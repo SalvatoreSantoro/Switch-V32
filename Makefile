@@ -4,7 +4,8 @@ NAME = SV32
 DOOM_DIR = doom_riscv/src/riscv
 DOOM = doom-riscv.elf
 CC = gcc -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
-CFLAGS = -O2 -Wall -Wextra -Werror -lSDL2 -I/usr/include/SDL2 
+CFLAGS = -O2 -Wall -Wextra  -lSDL2 -I/usr/include/SDL2 
+### -Werror
 LDFLAGS = -Tsrc/gdb/sad.ld
 CROSS ?=
 

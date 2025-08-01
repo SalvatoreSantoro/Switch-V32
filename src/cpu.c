@@ -466,36 +466,3 @@ void vcore_e_type(VCore *core, uint32_t ins) {
         exit(EXIT_FAILURE);
     }
 }
-
-
-char *vcore_regs_dump_callback(void *core) {
-    VCore *c = core;
-    size_t str_len = (REG_NUMS + 1) * 8 + 1; // 32 regs + pc, 8 hex chars each, plus null terminator
-    char *result = malloc(str_len);
-    char *ptr = result;
-
-    for (size_t i = 0; i < REG_NUMS; i++) {
-        uint32_t val = c->regs[i];
-        // little endian mess
-        // send in "target byte order"
-        sprintf(ptr, "%02X%02X%02X%02X",
-                val & 0xFF,
-                (val >> 8) & 0xFF,
-                (val >> 16) & 0xFF,
-                (val >> 24) & 0xFF);
-        ptr += 8;
-    }
-
-    // Append PC
-    uint32_t pc = c->pc;
-    sprintf(ptr, "%02X%02X%02X%02X",
-            pc & 0xFF,
-            (pc >> 8) & 0xFF,
-            (pc >> 16) & 0xFF,
-            (pc >> 24) & 0xFF);
-    ptr += 8;
-    *ptr = '\0'; // Null-terminate
-
-    return result;
-};
-

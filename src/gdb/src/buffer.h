@@ -5,6 +5,7 @@
 #include <stdint.h>
 
 typedef struct {
+    size_t initial_size;
     size_t start_pkt_data;
     size_t end_pkt_data;
     size_t socket_io_size;
@@ -35,18 +36,14 @@ buff_ret gdb_buff_from_socket(PKT_Buffer *buff, int fd);
 
 buff_ret gdb_buff_to_socket(PKT_Buffer *buff, int fd);
 
-void gdb_buff_print_content(PKT_Buffer *buff, const char* str);
+void gdb_buff_print_content(PKT_Buffer *buff, const char *str);
 
-buff_ret gdb_buff_append_str(PKT_Buffer* buff, const char*str);
+buff_ret gdb_buff_append_str(PKT_Buffer *buff, const char *str);
 
 uint8_t gdb_buff_checksum(PKT_Buffer *buff);
 
-#define gdb_buff_reset(buff)                                                                                           \
-    do {                                                                                                               \
-        buff->filled = 0;                                                                                              \
-        buff->end_pkt_data = 0;                                                                                        \
-        buff->start_pkt_data = 0;                                                                                      \
-    } while (0)
+buff_ret gdb_buff_append_bytes(PKT_Buffer *buff, unsigned char *data, size_t data_len);
 
+void gdb_buff_reset(PKT_Buffer *buff);
 
 #endif

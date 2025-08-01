@@ -1,4 +1,5 @@
 #include "buffer.h"
+#include "defs.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,6 +22,7 @@ PKT_Buffer *gdb_buff_create(size_t initial_size, size_t socket_io_size) {
         return NULL;
     }
 
+    buff->initial_size = initial_size;
     buff->socket_io_size = socket_io_size;
     buff->data_size = initial_size;
     buff->data = data;
@@ -31,6 +33,16 @@ PKT_Buffer *gdb_buff_create(size_t initial_size, size_t socket_io_size) {
 void gdb_buff_destroy(PKT_Buffer *buff) {
     free(buff->data);
     free(buff);
+};
+
+void gdb_buff_reset(PKT_Buffer *buff) {
+    if (buff->data_size >= MAX_BUFF_DATA_SIZE) {
+        free(buff->data);
+        buff->data = malloc(buff->initial_size);
+    }
+    buff->filled = 0;
+    buff->end_pkt_data = 0;
+    buff->start_pkt_data = 0;
 }
 
 buff_ret gdb_buff_expand(PKT_Buffer *buff) {
@@ -116,4 +128,13 @@ uint8_t gdb_buff_checksum(PKT_Buffer *buff) {
     }
     // modulo 256
     return (uint8_t) (sum & 255);
+}
+
+buff_ret gdb_buff_append_bytes(PKT_Buffer *buff, unsigned char *data, size_t data_len) {
+    // format each byte as 2 hex chars
+    char tmp_buff[2 * data_len + 1];
+    for (size_t i = 0; i < data_len; i++) {
+        sprintf(tmp_buff + (2 * i), "%02x", *(data + i));
+    }
+    return gdb_buff_append_str(buff, tmp_buff);
 }

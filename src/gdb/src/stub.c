@@ -52,9 +52,6 @@ stub_ret gdb_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
     // builder on the output
     gdb_builder_init(&server.builder, server.output_buffer);
 
-    // register builder callbacks
-    gdb_builder_register_callbacks(&server.builder);
-
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;
 
@@ -120,7 +117,6 @@ stub_ret gdb_stub_handle_cmds(void) {
                 return STUB_SOCKET;
 
             // reset everything for next iteration
-            gdb_buff_reset(server.input_buffer);
             gdb_parser_reset(&server.parser);
         }
 
@@ -130,7 +126,6 @@ stub_ret gdb_stub_handle_cmds(void) {
                 return STUB_SOCKET;
 
             // reset everything for next iteration
-            gdb_buff_reset(server.input_buffer);
             gdb_parser_reset(&server.parser);
         }
 
@@ -149,7 +144,6 @@ stub_ret gdb_stub_handle_cmds(void) {
                 return STUB_SOCKET;
 
             // reset everything for next iteration
-            gdb_buff_reset(server.input_buffer);
             gdb_parser_reset(&server.parser);
         }
     }
@@ -165,6 +159,6 @@ void gdb_stub_reset(void) {
     close(server.gdb_socket);
     gdb_buff_destroy(server.input_buffer);
     gdb_buff_destroy(server.output_buffer);
-    gdb_parser_reset(&server.parser);
-    gdb_builder_reset(&server.builder);
+    gdb_parser_deinit(&server.parser);
+    gdb_builder_deinit(&server.builder);
 }

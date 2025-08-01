@@ -14,14 +14,16 @@
 // user data MUST be a global variable
 
 // clang-format off
+#include "buffer.h"
+#include <stdint.h>
+#include "defs.h"
 #define REGISTER_CALLBACK_SECTION(cb_fun, cb_arg, cb_type)                                 \
     static const Callback_Registration __cb_reg_##cb_fun                                   \
     __attribute__((used, section(".sad_callbacks"))) = {                                   \
         .type = cb_type,                                                                   \
         .cbk.fun = cb_fun,                                                                 \
-        .cbk.arg = (void *) cb_arg                                                         \
+        .cbk.user_data = (void *) cb_arg                                                         \
     };
-
 
 #define DEFINE_CALLBACK(name, user_dt, type)                                                                         \
     void name##_impl(__typeof__(user_dt) user_data, type##_t * handler_data);                                        \
@@ -32,24 +34,41 @@
     void name##_impl(__typeof__(user_dt) user_data, type##_t * handler_data)
 
 // clang-format on
-typedef enum {
-    NOACK_CBK = 0,
-    REGS_CBK,
-    REG_CBK,
-    NUM_CBKS
-} callbk_type;
 
-typedef struct {
-    int a;
-} REGS_CBK_t;
+// HANDLERS
+#define HANDL_FIELD(type, name) type name;
+#define HANDL_GENERATOR(name, ...)                                                                                     \
+    typedef struct {                                                                                                   \
+        __VA_ARGS__                                                                                                    \
+        PKT_Buffer *output;                                                                                            \
+    } name##_t;
 
-extern REGS_CBK_t gas;
+// SAD_EXTEND START "Add new CALLBACK here"
+#define CALLBACKS_GENERATOR                                                                                            \
+    X(READ_REGS_CBK)                                                                                                   \
+    X(WRITE_REGS_CBK, HANDL_FIELD(uint32_t, regs[NUM_REGS]))                                                           \
+    X(READ_MEM_CBK, HANDL_FIELD(uint64_t, addr) HANDL_FIELD(size_t, length))                                           \
+    X(WRITE_MEM_CBK, HANDL_FIELD(uint64_t, addr) HANDL_FIELD(size_t, length) HANDL_FIELD(unsigned char *, data))       \
+// SAD_EXTEND END
+
+// generate handlers
+#define X(name, ...) HANDL_GENERATOR(name, __VA_ARGS__)
+CALLBACKS_GENERATOR
+#undef X
 
 typedef void (*Callback_Fun)(void *, void *);
 
+typedef enum {
+#define X(name, ...) name,
+    CALLBACKS_GENERATOR
+#undef X
+        NUM_CBKS
+} callbk_type;
+
 typedef struct {
     Callback_Fun fun;
-    void *arg;
+    void *user_data;
+    void *handler_data;
 } Callback;
 
 typedef struct {
@@ -57,9 +76,16 @@ typedef struct {
     callbk_type type;
 } Callback_Registration;
 
+typedef enum {
+    CBKS_OOM,
+    CBKS_OK
+} cbks_ret;
 
-// linker symbols (check sad.ld file)
-extern const Callback_Registration __start_sad_callbacks;
-extern const Callback_Registration __stop_sad_callbacks;
+// output buffer is used from all the handlers
+cbks_ret gdb_callbacks_init(Callback *cbks, PKT_Buffer *output);
+
+void gdb_callbacks_deinit(Callback *cbks);
+
+void gdb_callbacks_dispatch(Callback *cbks, callbk_type type);
 
 #endif

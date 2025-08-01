@@ -3,7 +3,6 @@
 
 #include "buffer.h"
 #include "data.h"
-#include "supported.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -25,17 +24,17 @@ typedef enum {
 
 typedef struct Parser Parser;
 
-typedef void (*Parser_Fun)(Parser *);
-
 struct Parser {
-    Parser_Fun supported_parsers[COMMANDS_COUNT];
     pars_state state;
     pars_data_state data_state;
     size_t parse_idx;
-    PKT_Buffer *buff;
+    PKT_Data *pkt_data;
+    PKT_Buffer *pkt_buff;
 };
 
 void gdb_parser_init(Parser *parser, PKT_Buffer *buff);
+
+void gdb_parser_deinit(Parser* parser);
 
 void gdb_parser_reset(Parser* parser);
 

@@ -2,6 +2,7 @@
 #define _GDB_STUB_H
 
 #include "builder.h"
+#include "buffer.h"
 #include "callback.h"
 #include <stddef.h>
 
