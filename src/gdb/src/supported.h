@@ -1,5 +1,5 @@
-#ifndef _GDB_SUPPORTED_H
-#define _GDB_SUPPORTED_H
+#ifndef SUPPORTED_H
+#define SUPPORTED_H
 
 // SAD_EXTEND START "Add new command macro"
 #define SUPPORTED_CMDS                                                                                                 \
@@ -11,6 +11,7 @@
     X(G, 'G')                                                                                                          \
     X(g, 'g')                                                                                                          \
     X(v, 'v')                                                                                                          \
+    X(Z, 'Z')                                                                                                          \
     X(unsupported, '0') // assmuning '0' isn't a valid command
 // SAD_EXTEND END
 

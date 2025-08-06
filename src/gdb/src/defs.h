@@ -1,7 +1,9 @@
-#ifndef _GDB_DEFS_H
-#define _GDB_DEFS_H
+#ifndef DEFS_H
+#define DEFS_H
 #include <stdlib.h>
 
+// types
+#define byte unsigned char
 
 #define DEFAULT_PAR_SIZE 2
 
@@ -10,7 +12,7 @@
 #define MAX_BUFF_DATA_SIZE 4096
 
 #define NUM_REGS      33
-#define REGS_STR_SIZE (NUM_REGS * 8)
+//#define REGS_STR_SIZE (NUM_REGS * 8)
 #define PC_STR_SIZE   (8)
 
 #define SAD_ASSERT(exp, str)                                                                                           \

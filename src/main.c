@@ -28,9 +28,9 @@ int main(int argc, char *argv[]) {
     ld_elf(ctx.elf_name, &core);
 
     if (ctx.debug) {
-        gdb_stub_init(STUB_PORT, STUB_BUFF_SIZE, STUB_READ_SIZE);
+        sad_stub_init(STUB_PORT, STUB_BUFF_SIZE, STUB_READ_SIZE);
         printf("Running GDB STUB on port: %d\n", STUB_PORT);
-        gdb_stub_handle_cmds();
+        sad_stub_handle_cmds();
     }
 
     // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()

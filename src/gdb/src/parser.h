@@ -1,8 +1,8 @@
-#ifndef _GDB_PARSER_H
-#define _GDB_PARSER_H
+#ifndef PARSER_H
+#define PARSER_H
 
-#include "buffer.h"
 #include "data.h"
+#include "pkt_buffer.h"
 #include <stdbool.h>
 #include <stddef.h>
 
@@ -32,14 +32,14 @@ struct Parser {
     PKT_Buffer *pkt_buff;
 };
 
-void gdb_parser_init(Parser *parser, PKT_Buffer *buff);
+void sad_parser_init(Parser *parser, PKT_Buffer *buff);
 
-void gdb_parser_deinit(Parser* parser);
+void sad_parser_deinit(Parser *parser);
 
-void gdb_parser_reset(Parser* parser);
+void sad_parser_reset(Parser *parser);
 
-pars_state gdb_parser_pkt(Parser *parser, bool ack_enabled);
+pars_state sad_parser_pkt(Parser *parser, bool ack_enabled);
 
-PKT_Data *gdb_parser_data(Parser *parser);
+PKT_Data *sad_parser_data(Parser *parser);
 
 #endif

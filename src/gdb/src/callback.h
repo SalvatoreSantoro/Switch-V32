@@ -1,5 +1,5 @@
-#ifndef _GDB_CALLBACK_H
-#define _GDB_CALLBACK_H
+#ifndef CALLBACK_H
+#define CALLBACK_H
 
 // every callback type should be associated (if needed) to a type
 // called in the same way but with _t like "REGS_CBK_t"
@@ -17,21 +17,20 @@
 #include "buffer.h"
 #include <stdint.h>
 #include "defs.h"
-#define REGISTER_CALLBACK_SECTION(cb_fun, cb_arg, cb_type)                                 \
+#define REGISTER_CALLBACK_SECTION(cb_fun, cb_type)                                         \
     static const Callback_Registration __cb_reg_##cb_fun                                   \
     __attribute__((used, section(".sad_callbacks"))) = {                                   \
         .type = cb_type,                                                                   \
         .cbk.fun = cb_fun,                                                                 \
-        .cbk.user_data = (void *) cb_arg                                                         \
     };
 
-#define DEFINE_CALLBACK(name, user_dt, type)                                                                         \
-    void name##_impl(__typeof__(user_dt) user_data, type##_t * handler_data);                                        \
-    inline static void name(void *user_data, void *raw_input) {                                                      \
-        name##_impl((__typeof__(user_dt)) user_data, (type##_t *)raw_input);                                         \
-    };                                                                                                               \
-    REGISTER_CALLBACK_SECTION(name, user_dt, type)                                                                   \
-    void name##_impl(__typeof__(user_dt) user_data, type##_t * handler_data)
+#define DEFINE_CALLBACK(name, type)                                                        \
+    void name##_impl(type##_t * handler_data);                                             \
+    inline static void name(void *raw_input) {                                             \
+        name##_impl((type##_t *)raw_input);                                                \
+    };                                                                                     \
+    REGISTER_CALLBACK_SECTION(name, type)                                                  \
+    void name##_impl(type##_t * handler_data)
 
 // clang-format on
 
@@ -39,8 +38,8 @@
 #define HANDL_FIELD(type, name) type name;
 #define HANDL_GENERATOR(name, ...)                                                                                     \
     typedef struct {                                                                                                   \
+        Buffer *output;                                                                                                \
         __VA_ARGS__                                                                                                    \
-        PKT_Buffer *output;                                                                                            \
     } name##_t;
 
 // SAD_EXTEND START "Add new CALLBACK here"
@@ -48,7 +47,7 @@
     X(READ_REGS_CBK)                                                                                                   \
     X(WRITE_REGS_CBK, HANDL_FIELD(uint32_t, regs[NUM_REGS]))                                                           \
     X(READ_MEM_CBK, HANDL_FIELD(uint64_t, addr) HANDL_FIELD(size_t, length))                                           \
-    X(WRITE_MEM_CBK, HANDL_FIELD(uint64_t, addr) HANDL_FIELD(size_t, length) HANDL_FIELD(unsigned char *, data))       \
+    X(WRITE_MEM_CBK, HANDL_FIELD(uint64_t, addr) HANDL_FIELD(size_t, length) HANDL_FIELD(byte *, data))                \
 // SAD_EXTEND END
 
 // generate handlers
@@ -56,7 +55,7 @@
 CALLBACKS_GENERATOR
 #undef X
 
-typedef void (*Callback_Fun)(void *, void *);
+typedef void (*Callback_Fun)(void *);
 
 typedef enum {
 #define X(name, ...) name,
@@ -67,13 +66,16 @@ typedef enum {
 
 typedef struct {
     Callback_Fun fun;
-    void *user_data;
     void *handler_data;
 } Callback;
 
 typedef struct {
     Callback cbk;
     callbk_type type;
+    // alignment reasons
+    // if the SAD ASSERT on the callbacks triggers
+    // maybe there is something wrong with paddings of these sctruct
+    byte padding[8];
 } Callback_Registration;
 
 typedef enum {
@@ -82,10 +84,11 @@ typedef enum {
 } cbks_ret;
 
 // output buffer is used from all the handlers
-cbks_ret gdb_callbacks_init(Callback *cbks, PKT_Buffer *output);
+cbks_ret sad_callbacks_init(Callback *cbks);
 
-void gdb_callbacks_deinit(Callback *cbks);
+void sad_callbacks_deinit(Callback *cbks);
 
-void gdb_callbacks_dispatch(Callback *cbks, callbk_type type);
+void sad_callbacks_dispatch(Callback *cbks, callbk_type type);
 
+void sad_callbacks_reset(Callback *cbks);
 #endif
