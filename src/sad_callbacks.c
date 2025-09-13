@@ -13,7 +13,7 @@ DEFINE_CALLBACK(regs_read_callback, READ_REGS_CBK) {
     sad_buff_append(handler_data->output, (byte *) &core.pc, 4);
 }
 
-DEFINE_CALLBACK(regs_write_callbac, WRITE_REGS_CBK) {
+DEFINE_CALLBACK(regs_write_callback, WRITE_REGS_CBK) {
     int i = 0;
     for (i = 0; i < REG_NUMS; i++)
         core.regs[i] = handler_data->regs[i];

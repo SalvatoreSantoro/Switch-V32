@@ -72,9 +72,9 @@ typedef struct {
 typedef struct {
     Callback cbk;
     callbk_type type;
-    // alignment reasons
+    // alignment reasons ( it's an ugly hack for now :( )
     // if the SAD ASSERT on the callbacks triggers
-    // maybe there is something wrong with paddings of these sctruct
+    // maybe there is something wrong with paddings of these struct
     byte padding[8];
 } Callback_Registration;
 
@@ -84,6 +84,9 @@ typedef enum {
 } cbks_ret;
 
 // output buffer is used from all the handlers
+// also every request of a type is served using the same "physical" handler of that type
+// this is THREAD UNSAFE, we're assuming the stub only processes 1 request at a time
+
 cbks_ret sad_callbacks_init(Callback *cbks);
 
 void sad_callbacks_deinit(Callback *cbks);

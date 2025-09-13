@@ -12,6 +12,7 @@
     X(g, 'g')                                                                                                          \
     X(v, 'v')                                                                                                          \
     X(Z, 'Z')                                                                                                          \
+    X(T, 'T')                                                                                                          \
     X(unsupported, '0') // assmuning '0' isn't a valid command
 // SAD_EXTEND END
 

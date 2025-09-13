@@ -1,3 +1,4 @@
+#define _GNU_SOURCE /* See feature_test_macros(7) */
 #include "stub.h"
 #include "data.h"
 #include "parser.h"
@@ -7,6 +8,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
 
 typedef enum {

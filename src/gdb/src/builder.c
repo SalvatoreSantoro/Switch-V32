@@ -21,6 +21,16 @@
 SUPPORTED_CMDS
 #undef X
 
+static void build_from_handler(PKT_Buffer *pkt_buffer, Buffer *buffer) {
+    util_ret ret;
+    char result_chars[2 * buffer->filled];
+    ret = sad_bytes_to_hex_chars(result_chars, buffer->data, 2 * buffer->filled, buffer->filled);
+    if (ret != UTIL_OK)
+        sad_pkt_buff_append_str(pkt_buffer, "E");
+    else
+        sad_pkt_buff_append(pkt_buffer, (byte *) result_chars, 2 * buffer->filled);
+}
+
 void sad_builder_init(Builder *builder, PKT_Buffer *pkt_buff) {
     builder->pkt_buffer = pkt_buff;
 #define X(s, ch) builder->supported_builders[COMMAND_##s] = build_##s;
@@ -42,17 +52,7 @@ static void build_unsupported(Builder *builder, PKT_Data *pkt_data) {
 static void build_g(Builder *builder, PKT_Data *pkt_data) {
     READ_REGS_CBK_t *handler = GET_HANDL(builder->cbks, READ_REGS_CBK);
     sad_callbacks_dispatch(builder->cbks, READ_REGS_CBK);
-
-    /* make it a function */
-    util_ret ret;
-    char result_chars[2 * handler->output->filled];
-    ret = sad_bytes_to_hex_chars(result_chars, handler->output->data, 2 * handler->output->filled,
-                                 handler->output->filled);
-    if (ret != UTIL_OK)
-        sad_pkt_buff_append_str(builder->pkt_buffer, "E");
-    else
-        sad_pkt_buff_append(builder->pkt_buffer, (byte *) result_chars, 2 * handler->output->filled);
-    /* end */
+    build_from_handler(builder->pkt_buffer, handler->output);
 };
 
 static void build_G(Builder *builder, PKT_Data *pkt_data) {
@@ -87,18 +87,8 @@ static void build_m(Builder *builder, PKT_Data *pkt_data) {
     handler->length = strtol(length, NULL, 16);
 
     sad_callbacks_dispatch(builder->cbks, READ_MEM_CBK);
-    sad_buff_print_content(handler->output, "CONTENT\n");
 
-    /* make it a function */
-    util_ret ret;
-    char result_chars[2 * handler->output->filled];
-    ret = sad_bytes_to_hex_chars(result_chars, handler->output->data, 2 * handler->output->filled,
-                                 handler->output->filled);
-    if (ret != UTIL_OK)
-        sad_pkt_buff_append_str(builder->pkt_buffer, "E");
-    else
-        sad_pkt_buff_append(builder->pkt_buffer, (byte *) result_chars, 2 * handler->output->filled);
-    /* end */
+    build_from_handler(builder->pkt_buffer, handler->output);
 };
 
 static void build_M(Builder *builder, PKT_Data *pkt_data) {
@@ -140,12 +130,13 @@ static void build_Q(Builder *builder, PKT_Data *pkt_data) {
 
 static void build_q(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "qSupported") == 0) {
-        //;vCont+
-
-        sad_pkt_buff_append_str(builder->pkt_buffer, "swbreak+");
+        sad_pkt_buff_append_str(builder->pkt_buffer, "swbreak+;vCont+");
     }
     if (strcmp(pkt_data->command, "qfThreadInfo") == 0) {
-        sad_pkt_buff_append_str(builder->pkt_buffer, "0l");
+        sad_pkt_buff_append_str(builder->pkt_buffer, "m0,1,2");
+    }
+    if (strcmp(pkt_data->command, "qsThreadInfo") == 0) {
+        sad_pkt_buff_append_str(builder->pkt_buffer, "l");
     }
     if (strcmp(pkt_data->command, "qC") == 0) {
         sad_pkt_buff_append_str(builder->pkt_buffer, "0");
@@ -158,13 +149,18 @@ static void build_q(Builder *builder, PKT_Data *pkt_data) {
 
 static void build_v(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "vCont?") == 0) {
-        // sad_buff_append_str(builder->pkt_buffer, "s");
-        build_unsupported(builder, pkt_data);
+        sad_pkt_buff_append_str(builder->pkt_buffer, "s");
+        //build_unsupported(builder, pkt_data);
     } else if (strcmp(pkt_data->command, "vCont") == 0) {
-        sad_pkt_buff_append_str(builder->pkt_buffer, "E");
+        // 
     } else
         build_unsupported(builder, pkt_data);
 }
+
+static void build_T(Builder* builder, PKT_Data* pkt_data){
+    sad_pkt_buff_append_str(builder->pkt_buffer, "OK");
+}
+
 
 static void build_Z(Builder *builder, PKT_Data *pkt_data) {
     // format: Z type,addr,kind
@@ -205,6 +201,7 @@ static void build_Z(Builder *builder, PKT_Data *pkt_data) {
     w_handler->data = (unsigned char *) &tmp_data;
 
     sad_callbacks_dispatch(builder->cbks, WRITE_MEM_CBK);
+    sad_pkt_buff_append_str(builder->pkt_buffer, "OK");
 }
 
 // SAD_EXTEND END

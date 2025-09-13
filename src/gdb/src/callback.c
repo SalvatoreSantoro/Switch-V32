@@ -66,6 +66,7 @@ void sad_callbacks_dispatch(Callback *cbks, callbk_type type) {
 }
 
 void sad_callbacks_reset(Callback *cbks) {
+    // all handlers have the same output pointer, just take one
     if (((READ_REGS_CBK_t *) cbks->handler_data)->output != NULL)
         sad_buff_reset(((READ_REGS_CBK_t *) cbks->handler_data)->output);
 }
