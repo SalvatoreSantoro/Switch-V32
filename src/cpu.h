@@ -2,6 +2,7 @@
 #define _SV32_CPU_H
 
 #include <stdint.h>
+#include <sys/types.h>
 // Register list using X-Macro pattern
 #define REG_LIST                                                                                                       \
     X(ZERO, 0) /* x0 */                                                                                                \
@@ -79,11 +80,11 @@ void vcore_r_type(VCore *core, uint32_t ins);
 
 void vcore_ir_type(VCore *core, uint32_t ins);
 
-void vcore_b_type(VCore *core, uint32_t ins);
+uint32_t vcore_b_type(VCore *core, uint32_t ins);
 
-void vcore_j_type(VCore *core, uint32_t ins);
+uint32_t vcore_j_type(VCore *core, uint32_t ins);
 
-void vcore_ij_type(VCore *core, uint32_t ins);
+uint32_t vcore_ij_type(VCore *core, uint32_t ins);
 
 void vcore_lui_type(VCore *core, uint32_t ins);
 
@@ -96,6 +97,10 @@ void vcore_s_type(VCore *core, uint32_t ins);
 void vcore_a_type(VCore *core, uint32_t ins);
 
 void vcore_e_type(VCore *core, uint32_t ins);
+
+void vcore_run(VCore *core);
+
+void vcore_step(VCore *core);
 
 extern VCore core;
 

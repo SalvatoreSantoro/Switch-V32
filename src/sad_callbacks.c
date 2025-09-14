@@ -1,32 +1,34 @@
-#include "buffer.h"
-#include "callback.h"
+#include "sad_callbacks.h"
 #include "cpu.h"
-#include "defs.h"
 #include "memory.h"
-#include "stub.h"
-#include <stdint.h>
-#include <stdio.h>
+#include <string.h>
 
-DEFINE_CALLBACK(regs_read_callback, READ_REGS_CBK) {
-    // append converting to little endian
-    sad_buff_append(handler_data->output, (byte *) &core.regs, REG_NUMS * 4);
-    sad_buff_append(handler_data->output, (byte *) &core.pc, 4);
+// core_id unused for now
+void read_regs(byte *output, size_t output_sz, int core_id) {
+    size_t regs_size = output_sz - 4; // don't count PC
+    // copy all regs
+    memcpy(output, core.regs, regs_size);
+    // copy PC
+    memcpy(output + regs_size, &core.pc, 4);
 }
 
-DEFINE_CALLBACK(regs_write_callback, WRITE_REGS_CBK) {
-    int i = 0;
-    for (i = 0; i < REG_NUMS; i++)
-        core.regs[i] = handler_data->regs[i];
-
-    core.pc = handler_data->regs[i];
+// core_id unused for now
+void write_regs(const byte *input, size_t input_sz, int core_id) {
+    size_t regs_size = input_sz - 4; // don't count PC
+    // copy all regs
+    memcpy(core.regs, input, regs_size);
+    // copy PC
+    memcpy(&core.pc, input + regs_size, 4);
 }
 
-DEFINE_CALLBACK(mem_read_callback, READ_MEM_CBK) {
-    byte data[handler_data->length];
-    mem_rb_ptr_s(handler_data->addr, data, handler_data->length);
-    sad_buff_append(handler_data->output, data, handler_data->length);
+void read_mem(byte *output, size_t output_sz, uint32_t addr) {
+    mem_rb_ptr_s(addr, output, output_sz);
 }
 
-DEFINE_CALLBACK(mem_write_callback, WRITE_MEM_CBK) {
-    mem_wb_ptr_s(handler_data->addr, handler_data->data, handler_data->length);
+void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
+    mem_wb_ptr_s(addr, input, input_sz);
+}
+
+void core_step(int core_id){
+    vcore_step(&core);
 }

@@ -1,8 +1,9 @@
-#define _GNU_SOURCE /* See feature_test_macros(7) */
 #include "stub.h"
+#include "builder.h"
+#include "buffer.h"
 #include "data.h"
+#include "defs.h"
 #include "parser.h"
-#include "pkt_buffer.h"
 #include <netinet/in.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -34,16 +35,27 @@ typedef struct {
 static sad_Stub server = {.state = STUB_RESET};
 
 // STUB
-stub_ret sad_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
+stub_ret sad_stub_init(Stub_Conf conf) {
     int opt = 1;
     struct sockaddr_in address;
     stub_ret ret = STUB_OOM;
 
-    server.input_buffer = sad_pkt_buff_create(buffers_size, socket_io_size);
+    // set to default
+    size_t buff_size = conf.buffers_size > 0 ? conf.buffers_size : DEFAULT_BUFF_SIZE;
+    size_t socket_io_size = conf.socket_io_size > 0 ? conf.socket_io_size : DEFAULT_SOCKET_IO_SIZE;
+    int port = conf.port > 0 ? conf.port : DEFAULT_PORT;
+
+    if (conf.sys_conf.arch != RV32)
+        return STUB_ARCH;
+
+    if ((conf.sys_conf.smp <= 0) || (conf.sys_conf.smp > MAX_SMP))
+        return STUB_SMP;
+
+    server.input_buffer = sad_buff_create(buff_size, socket_io_size);
     if (server.input_buffer == NULL)
         goto input_err;
 
-    server.output_buffer = sad_pkt_buff_create(buffers_size, socket_io_size);
+    server.output_buffer = sad_buff_create(buff_size, socket_io_size);
     if (server.output_buffer == NULL)
         goto output_err;
 
@@ -51,7 +63,7 @@ stub_ret sad_stub_init(int port, size_t buffers_size, size_t socket_io_size) {
     sad_parser_init(&server.parser, server.input_buffer);
 
     // builder on the output
-    sad_builder_init(&server.builder, server.output_buffer);
+    sad_builder_init(&server.builder, server.output_buffer, conf.sys_ops, conf.sys_conf);
 
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;
@@ -83,53 +95,51 @@ close_socket:
     close(server.server_fd);
 socket_err:
     ret = STUB_SOCKET;
-    sad_pkt_buff_destroy(server.output_buffer);
+    sad_buff_destroy(server.output_buffer);
 output_err:
-    sad_pkt_buff_destroy(server.input_buffer);
+    sad_buff_destroy(server.input_buffer);
 input_err:
     return ret;
 }
 
 stub_ret sad_stub_handle_cmds(void) {
-    pkt_buff_ret b_ret;
+    buff_ret b_ret;
     pars_state p_state;
     PKT_Data *pkt_data;
 
     while (1) {
-        b_ret = sad_pkt_buff_from_socket(server.input_buffer, server.sad_socket);
-        if (b_ret == PKT_BUFF_OOM)
+        b_ret = sad_buff_from_socket(server.input_buffer, server.sad_socket);
+        if (b_ret == BUFF_OOM)
             return STUB_OOM;
-        if (b_ret == PKT_BUFF_FD_ERR)
+        if (b_ret == BUFF_FD_ERR)
             return STUB_SOCKET;
 
         // parse data just read in the input_buffer
         // the parser could be parsing an incomplete packet (without the ending "#")
         // so in case  sad_parser_pkt returns PARSING_INCOMPLETE the stub does nothing
         p_state = sad_parser_pkt(&server.parser, server.ack_enabled);
-        sad_pkt_buff_print_content(server.input_buffer, "READ: ");
+        sad_buff_print_content(server.input_buffer, "READ: ");
 
         if (p_state == PARSE_ERROR) {
             // reset output in case last time it was "PARSING_GOT_NACK"
-            sad_pkt_buff_reset(server.output_buffer);
+            sad_buff_reset(server.output_buffer);
 
-            sad_pkt_buff_append_str(server.output_buffer, "-");
+            sad_buff_append_str(server.output_buffer, "-");
 
-            if (sad_pkt_buff_to_socket(server.output_buffer, server.sad_socket) == PKT_BUFF_FD_ERR)
+            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
             sad_parser_reset(&server.parser);
-            sad_builder_reset(&server.builder);
         }
 
         if (p_state == PARSE_NACK) {
             // resend
-            if (sad_pkt_buff_to_socket(server.output_buffer, server.sad_socket) == PKT_BUFF_FD_ERR)
+            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
             sad_parser_reset(&server.parser);
-            sad_builder_reset(&server.builder);
         }
 
         if (p_state == PARSE_FINISHED) {
@@ -138,17 +148,16 @@ stub_ret sad_stub_handle_cmds(void) {
             pkt_data = sad_parser_data(&server.parser);
             // sad_pkt_data_print(server.parser->pkt_data);
 
-            sad_pkt_buff_reset(server.output_buffer);
+            sad_buff_reset(server.output_buffer);
 
             sad_builder_build_resp(&server.builder, pkt_data, server.ack_enabled);
-            sad_pkt_buff_print_content(server.output_buffer, "WRITE: ");
+            sad_buff_print_content(server.output_buffer, "WRITE: ");
 
-            if (sad_pkt_buff_to_socket(server.output_buffer, server.sad_socket) == PKT_BUFF_FD_ERR)
+            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
             sad_parser_reset(&server.parser);
-            sad_builder_reset(&server.builder);
         }
     }
 }
@@ -161,8 +170,7 @@ void sad_stub_reset(void) {
     server.ack_enabled = 1;
     close(server.server_fd);
     close(server.sad_socket);
-    sad_pkt_buff_destroy(server.input_buffer);
-    sad_pkt_buff_destroy(server.output_buffer);
+    sad_buff_destroy(server.input_buffer);
+    sad_buff_destroy(server.output_buffer);
     sad_parser_deinit(&server.parser);
-    sad_builder_deinit(&server.builder);
 }

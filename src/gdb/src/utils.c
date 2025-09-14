@@ -55,11 +55,17 @@ util_ret sad_hex_str_to_bytes(byte *dest, const char *src, size_t dest_size) {
 }
 
 util_ret sad_bytes_to_hex_chars(char *dest, const byte *src, size_t dest_size, size_t src_size) {
+    const char hex[] = "0123456789abcdef";
+
     if (dest_size < (2 * src_size))
         return UTIL_SIZE_ERROR;
+
     // 2 chars for every byte
     for (size_t i = 0; i < src_size; i++) {
-        sprintf(dest + (2 * i), "%02x", *(src + i));
+        unsigned v = src[i];
+        dest[2 * i] = hex[v >> 4];
+        dest[2 * i + 1] = hex[v & 0xF];
     }
+
     return UTIL_OK;
 }

@@ -2,7 +2,7 @@
 #define PARSER_H
 
 #include "data.h"
-#include "pkt_buffer.h"
+#include "buffer.h"
 #include <stdbool.h>
 #include <stddef.h>
 

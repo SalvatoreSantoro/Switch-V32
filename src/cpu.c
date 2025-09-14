@@ -7,8 +7,7 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-
-VCore core={0};
+VCore core = {0};
 // Base Integer
 
 // Masks
@@ -114,6 +113,57 @@ const char *re_na(int reg_num) {
         return "UNKNOWN_REG";
     }
 }
+
+#define INSTR_SWITCH                                                                                                   \
+    do {                                                                                                               \
+        if (IS_COMPRESSED(ins)) {                                                                                      \
+            pc_next = core->pc + 2;                                                                                    \
+            printf("Compressed unimplemented\n");                                                                      \
+            exit(EXIT_FAILURE);                                                                                        \
+        } else {                                                                                                       \
+            pc_next = core->pc + 4;                                                                                    \
+            switch (OPCODE_TYPE(ins)) {                                                                                \
+            case R_TYPE:                                                                                               \
+                vcore_r_type(core, ins);                                                                               \
+                break;                                                                                                 \
+            case IR_TYPE:                                                                                              \
+                vcore_ir_type(core, ins);                                                                              \
+                break;                                                                                                 \
+            case IL_TYPE:                                                                                              \
+                vcore_il_type(core, ins);                                                                              \
+                break;                                                                                                 \
+            case S_TYPE:                                                                                               \
+                vcore_s_type(core, ins);                                                                               \
+                break;                                                                                                 \
+            case B_TYPE:                                                                                               \
+                pc_next = vcore_b_type(core, ins);                                                                     \
+                break;                                                                                                 \
+            case J_TYPE:                                                                                               \
+                pc_next = vcore_j_type(core, ins);                                                                     \
+                break;                                                                                                 \
+            case IJ_TYPE:                                                                                              \
+                pc_next = vcore_ij_type(core, ins);                                                                    \
+                break;                                                                                                 \
+            case LUI:                                                                                                  \
+                vcore_lui_type(core, ins);                                                                             \
+                break;                                                                                                 \
+            case AUIPC:                                                                                                \
+                vcore_auipc_type(core, ins);                                                                           \
+                break;                                                                                                 \
+            case A_TYPE:                                                                                               \
+                vcore_a_type(core, ins);                                                                               \
+                break;                                                                                                 \
+            case ENV_TYPE:                                                                                             \
+                vcore_e_type(core, ins);                                                                               \
+                break;                                                                                                 \
+            default:                                                                                                   \
+                fprintf(stderr, "%x BADOPCODE at %x\n", ins, core->pc);                                                \
+                exit(EXIT_FAILURE);                                                                                    \
+                break;                                                                                                 \
+            }                                                                                                          \
+            core->pc = pc_next;                                                                                        \
+        }                                                                                                              \
+    } while (0);
 
 void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
@@ -263,7 +313,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
     }
 }
 
-void vcore_b_type(VCore *core, uint32_t ins) {
+uint32_t vcore_b_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     int32_t inc = 4;
     int32_t imm = B_IMM(ins);
@@ -302,19 +352,19 @@ void vcore_b_type(VCore *core, uint32_t ins) {
         fprintf(stderr, "%x B-Type BADCODE\n", ins);
         exit(EXIT_FAILURE);
     }
-    core->pc += inc;
+    return core->pc + inc;
 }
 
-inline void vcore_j_type(VCore *core, uint32_t ins) {
-    core->regs[RD(ins)] = core->pc + 4;
-    core->pc += J_IMM(ins);
+inline uint32_t vcore_j_type(VCore *core, uint32_t ins) {
     LOG_J();
+    core->regs[RD(ins)] = core->pc + 4;
+    return core->pc + J_IMM(ins);
 }
 
-inline void vcore_ij_type(VCore *core, uint32_t ins) {
-    core->regs[RD(ins)] = core->pc + 4;
-    core->pc = core->regs[RS1(ins)] + I_IMM(ins);
+inline uint32_t vcore_ij_type(VCore *core, uint32_t ins) {
     LOG_IJ();
+    core->regs[RD(ins)] = core->pc + 4;
+    return core->regs[RS1(ins)] + I_IMM(ins);
 }
 
 inline void vcore_lui_type(VCore *core, uint32_t ins) {
@@ -465,4 +515,24 @@ void vcore_e_type(VCore *core, uint32_t ins) {
         fprintf(stderr, "%x E-Type BADCODE\n", ins);
         exit(EXIT_FAILURE);
     }
+}
+
+void vcore_run(VCore *core) {
+    uint32_t ins;
+    uint32_t pc_next;
+
+    while (1) {
+        // reset ZERO reg at every iteration
+        core->regs[ZERO] = 0;
+        ins = mem_rw(core->pc);
+        INSTR_SWITCH
+    }
+}
+
+void vcore_step(VCore *core) {
+    uint32_t ins;
+    uint32_t pc_next;
+
+    ins = mem_rw(core->pc);
+    INSTR_SWITCH
 }

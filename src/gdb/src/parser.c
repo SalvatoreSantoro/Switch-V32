@@ -16,7 +16,7 @@ void sad_parser_init(Parser *parser, PKT_Buffer *buff) {
 
 void sad_parser_reset(Parser *parser) {
     sad_pkt_data_reset(parser->pkt_data);
-    sad_pkt_buff_reset(parser->pkt_buff);
+    sad_buff_reset(parser->pkt_buff);
     parser->state = PARSE_RESET;
     parser->data_state = DATA_RESET;
     parser->parse_idx = 0;
@@ -31,7 +31,7 @@ pars_state sad_parser_pkt(Parser *parser, bool ack_enabled) {
     uint8_t value;
     size_t buff_filled;
     char checksum[3];
-    unsigned char *data = sad_buff_read_prep(&parser->pkt_buff->buff, &buff_filled);
+    unsigned char *data = sad_buff_read_prep(parser->pkt_buff, &buff_filled);
     checksum[2] = '\0';
 
     while (parser->parse_idx < buff_filled) {
@@ -82,7 +82,7 @@ pars_state sad_parser_pkt(Parser *parser, bool ack_enabled) {
             // printf("CHEK2 %c\n", data[idx]);
             checksum[1] = data[idx];
             value = strtol(checksum, NULL, 16);
-            if (value != sad_pkt_buff_checksum(parser->pkt_buff))
+            if (value != sad_buff_checksum(parser->pkt_buff))
                 parser->state = PARSE_ERROR;
             else
                 parser->state = PARSE_FINISHED;
@@ -114,7 +114,7 @@ PKT_Data *sad_parser_data(Parser *parser) {
     idx = parser->pkt_buff->start_pkt_data;
     end = parser->pkt_buff->end_pkt_data;
 
-    data = sad_buff_read_prep(&parser->pkt_buff->buff, NULL);
+    data = sad_buff_read_prep(parser->pkt_buff, NULL);
 
     // command always starts as first byte of data
     parser->pkt_data->command = (char *) (data + idx);

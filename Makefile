@@ -6,7 +6,6 @@ DOOM = doom-riscv.elf
 CC = gcc -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
 CFLAGS = -O2 -Wall -Wextra  -lSDL2 -I/usr/include/SDL2 
 ### -Werror
-LDFLAGS = -Tsrc/gdb/sad.ld
 CROSS ?=
 
 ### DIRECTORIES
@@ -25,10 +24,10 @@ GDB_INCLUDE := -I$(GDB_DIR)/src
 all: $(BUILD_DIR)/$(NAME)
 
 $(BUILD_DIR)/$(NAME): $(OBJS) $(GDB_LIB)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(GDB_INCLUDE) $(OBJS) $(GDB_LIB) -o $@
+	$(CC) $(CFLAGS) $(GDB_INCLUDE) $(OBJS) $(GDB_LIB) -o $@
 
 $(BUILD_DIR)/%.o: $(SRC_DIR)/%.c | $(BUILD_DIR)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(GDB_INCLUDE) -c $< -o $@
+	$(CC) $(CFLAGS) $(GDB_INCLUDE) -c $< -o $@
 
 $(GDB_LIB):
 	$(MAKE) -C $(GDB_DIR) EXTRA_CFLAGS="$(CFLAGS)"

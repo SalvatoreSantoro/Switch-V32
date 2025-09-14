@@ -1,14 +1,14 @@
 #ifndef UTILS_H
 #define UTILS_H
 
-#include "defs.h"
+#include "stub.h"
 #include <stddef.h>
 
-typedef enum{
+typedef enum {
     UTIL_SIZE_ERROR,
     UTIL_NO_HEX,
     UTIL_OK
-}util_ret;
+} util_ret;
 
 util_ret sad_hex_chars_to_bytes(byte *dest, const char *src, size_t dest_size, size_t src_size);
 
