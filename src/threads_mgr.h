@@ -33,8 +33,17 @@ typedef struct {
 #define GET_HALT(i) threads_mgr.halt_cond[i]
 #define GET_THREAD_ID(i) threads_mgr.threads_cores[i].thread_id
 
+
 void threads_mgr_init();
 
 void threads_mgr_run();
+
+void threads_mgr_halt_all();
+
+void threads_mgr_continue_all();
+
+void threads_mgr_continue_core(int core_idx);
+
+void threads_mgr_step_core(int core_idx);
 
 #endif

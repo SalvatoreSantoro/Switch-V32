@@ -19,9 +19,10 @@ void *debug_thread_fun(void *args) {
         .sys_ops.write_regs = write_regs,
         .sys_ops.read_mem = read_mem,
         .sys_ops.write_mem = write_mem,
-        .sys_ops.core_step = core_step,
-        /* .sys_ops.core_run = core_run, */
-        /* .sys_ops.core_halt = core_halt, */
+        .sys_ops.core_continue = threads_mgr_continue_core,
+		.sys_ops.cores_continue = threads_mgr_continue_all,
+        .sys_ops.cores_halt = threads_mgr_halt_all,
+		.sys_ops.core_step = threads_mgr_step_core,
         .port = STUB_PORT,
         .buffers_size = STUB_BUFF_SIZE,
         .socket_io_size = STUB_READ_SIZE,
@@ -62,12 +63,4 @@ void read_mem(byte *output, size_t output_sz, uint32_t addr) {
 
 void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
     mem_wb_ptr_s(addr, input, input_sz);
-}
-
-// core_id unused for now
-void core_step(int core_id) {
-    // need to dispatch this to correct ID when multicore is implemented
-	VCore* core = &GET_CORE(core_id);
-
-    vcore_step(core);
 }

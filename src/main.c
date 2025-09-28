@@ -39,7 +39,6 @@ int main(int argc, char *argv[]) {
     ld_elf();
 
 //#endif
-	printf("PC: %x", GET_CORE(0).pc);
 
     // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
 	threads_mgr_run();
