@@ -10,6 +10,7 @@
 // 2^28
 #define MEM_SIZE 268435456
 #define PAGE_SIZE 4096
+#define DCACHE_LINE_SIZE 64
 
 // end of memory, leaving 1 page under empty (argc, argv, env)
 #define STACK_BASE (MEM_SIZE - PAGE_SIZE)

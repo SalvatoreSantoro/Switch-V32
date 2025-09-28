@@ -20,12 +20,12 @@ typedef enum {
 
 typedef struct {
     void (*read_regs)(byte *output, size_t output_sz, int core_id);
-    void (*read_reg)(void);
     void (*write_regs)(const byte *input, size_t input_sz, int core_id);
-    void (*write_reg)(void);
     void (*read_mem)(byte *output, size_t output_sz, uint32_t addr);
     void (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
     void (*core_step)(int core_id);
+    void (*core_run)(int core_id);
+    void (*core_halt)(int core_id);
 } Sys_Ops;
 
 typedef struct {

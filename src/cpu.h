@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <sys/types.h>
+#include <stdbool.h>
 // Register list using X-Macro pattern
 #define REG_LIST                                                                                                       \
     X(ZERO, 0) /* x0 */                                                                                                \
@@ -101,7 +102,5 @@ void vcore_e_type(VCore *core, uint32_t ins);
 void vcore_run(VCore *core);
 
 void vcore_step(VCore *core);
-
-extern VCore core;
 
 #endif

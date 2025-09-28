@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+extern Args_Context ctx;
+
 #define CTX_CRASH(str)                                                                                                 \
     do {                                                                                                               \
         fprintf(stderr, "ERROR PARSING PARAMETERS: %s\n", str);                                                        \
@@ -10,14 +12,7 @@
     } while (0)
 
 // clang-format off
-Args_Context ctx = {
-    .elf_stdin = NULL, 
-    .elf_stdout = NULL,
-    .elf_stderr = NULL,
-    .elf_args = NULL,
-    .sdl_upscale = 1,
-    .debug = 0,
-};
+
 // clang-format on
 
 static void print_usage(void) {
@@ -25,6 +20,8 @@ static void print_usage(void) {
     printf("  -i              Specify ELF stdin\n");
     printf("  -o              Specify ELF stdout\n");
     printf("  -e              Specify ELF stderr\n");
+    printf("  -d              Activate debug\n");
+    printf("  -c              Number of cores (IGNORED IN USER MODE)\n");
     printf("  -f              Specify ELF file name (if need to specify args place them\
 \n                          in \"\" for example \"file -a 1 -b 2\")\n");
 }
@@ -33,7 +30,7 @@ void ctx_init(int argc, char *argv[]) {
     int opt;
     int i = 0;
     unsigned int upscale;
-    while ((opt = getopt(argc, argv, "u:i:o:e:f:dh")) != -1) {
+    while ((opt = getopt(argc, argv, "u:i:o:e:f:c:dh")) != -1) {
         switch (opt) {
         case 'u':
             upscale = atoi(optarg);
@@ -59,8 +56,13 @@ void ctx_init(int argc, char *argv[]) {
                 CTX_CRASH("File path name is too big.");
             ctx.elf_name[i] = '\0';
             break;
+        case 'c':
+#ifdef SYSTEM
+            ctx.cores = atoi(optarg);
+#endif
+            break;
         case 'd':
-            ctx.debug = 1;
+            ctx.debug = true;
             break;
         case 'h':
             print_usage();

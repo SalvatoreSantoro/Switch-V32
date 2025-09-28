@@ -3,6 +3,6 @@
 
 #include "cpu.h"
 
-void ld_elf(const char *file_named, VCore *core);
+void ld_elf(const char *file_named);
 
 #endif

@@ -2,6 +2,7 @@
 #define _SV32_ARGS_H
 
 #include "defs.h"
+#include <stdbool.h>
 
 typedef struct {
     char elf_name[PATH_MAX];
@@ -10,7 +11,8 @@ typedef struct {
     const char *elf_stderr;
     const char *elf_args;
     unsigned int sdl_upscale;
-    int debug;
+    int cores;
+	bool debug;
 } Args_Context;
 
 extern Args_Context ctx;

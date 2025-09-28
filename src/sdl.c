@@ -122,8 +122,7 @@ void sdl_shutdown(void) {
     SDL_DestroyWindow(s_win);
     SDL_Quit();
 
-    // kill the whole application
-    kill(getpid(), SIGKILL); // Send SIGTERM to itself
+	exit(0);
 }
 
 // the application need to pass a pointer to SDL_Event array, pointer to head and value of tail

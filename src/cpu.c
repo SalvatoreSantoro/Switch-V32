@@ -7,7 +7,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-VCore core = {0};
 // Base Integer
 
 // Masks
@@ -519,7 +518,7 @@ void vcore_e_type(VCore *core, uint32_t ins) {
 
 void vcore_run(VCore *core) {
     uint32_t ins;
-    uint32_t pc_next;
+    uint32_t pc_next; // used inside INSTR_SWITCH macro
 
     while (1) {
         // reset ZERO reg at every iteration
@@ -529,10 +528,12 @@ void vcore_run(VCore *core) {
     }
 }
 
+
 void vcore_step(VCore *core) {
     uint32_t ins;
-    uint32_t pc_next;
+    uint32_t pc_next; // used inside INSTR_SWITCH macro
 
+    core->regs[ZERO] = 0;
     ins = mem_rw(core->pc);
     INSTR_SWITCH
 }

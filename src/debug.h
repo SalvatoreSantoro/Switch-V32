@@ -1,5 +1,5 @@
-#ifndef SAD_CALLBACKS_H
-#define SAD_CALLBACKS_H
+#ifndef DEBUG_H
+#define DEBUG_H
 
 #include "stub.h"
 
@@ -13,4 +13,6 @@ void write_mem(const byte *input, size_t input_sz, uint32_t addr);
 
 void core_step(int core_id);
 
-#endif // !SAD_CALLBACKS_H
+void *debug_thread_fun(void *args);
+
+#endif // !DEBUG_H
