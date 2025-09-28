@@ -31,14 +31,15 @@ int main(int argc, char *argv[]) {
 
 //#ifdef USER
 
-    emu_args(ctx.elf_args);
+    emu_args();
 
-    emu_std(ctx.elf_stdin, ctx.elf_stdout, ctx.elf_stderr);
+    emu_std();
 
 	// core 0 is always allocated in USER mode
-    ld_elf(ctx.elf_name);
+    ld_elf();
 
 //#endif
+	printf("PC: %x", GET_CORE(0).pc);
 
     // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
 	threads_mgr_run();

@@ -3,8 +3,11 @@
 #include "cpu.h"
 #include "memory.h"
 #include "stub.h"
+#include "threads_mgr.h"
+#include <stdio.h>
 #include <string.h>
 
+extern Threads_Mgr threads_mgr;
 
 void *debug_thread_fun(void *args) {
 
@@ -34,20 +37,23 @@ void *debug_thread_fun(void *args) {
 
 // core_id unused for now
 void read_regs(byte *output, size_t output_sz, int core_id) {
+	VCore* core = &GET_CORE(core_id);
+
     size_t regs_size = output_sz - 4; // don't count PC
     // copy all regs
-    memcpy(output, core.regs, regs_size);
+    memcpy(output, &core->regs, regs_size);
     // copy PC
-    memcpy(output + regs_size, &core.pc, 4);
+    memcpy(output + regs_size, &core->pc, 4);
 }
 
 // core_id unused for now
 void write_regs(const byte *input, size_t input_sz, int core_id) {
     size_t regs_size = input_sz - 4; // don't count PC
+	VCore* core = &GET_CORE(core_id);
     // copy all regs
-    memcpy(core.regs, input, regs_size);
+    memcpy(&core->regs, input, regs_size);
     // copy PC
-    memcpy(&core.pc, input + regs_size, 4);
+    memcpy(&core->pc, input + regs_size, 4);
 }
 
 void read_mem(byte *output, size_t output_sz, uint32_t addr) {
@@ -61,5 +67,7 @@ void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
 // core_id unused for now
 void core_step(int core_id) {
     // need to dispatch this to correct ID when multicore is implemented
-    vcore_step(&core);
+	VCore* core = &GET_CORE(core_id);
+
+    vcore_step(core);
 }

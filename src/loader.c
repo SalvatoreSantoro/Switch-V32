@@ -151,15 +151,15 @@ static void _ld_elf_seg(Elf_File *elf) {
     }
 }
 
-void ld_elf(const char *file_name) {
+void ld_elf() {
     Elf32_Sym *sym;
     Elf_File elf;
     int fd;
     struct stat fst;
-	VCore core = threads_mgr.threads_cores[0].core;
+	VCore* core = &GET_CORE(0);
 
     // load the file
-    if ((fd = open(file_name, O_RDONLY)) == -1)
+    if ((fd = open(ctx.elf_name, O_RDONLY)) == -1)
         LOADER_CRASH(strerror(errno));
 
     if (fstat(fd, &fst) == -1)
@@ -188,10 +188,10 @@ void ld_elf(const char *file_name) {
     _ld_elf_seg(&elf);
 
     // load entry point
-    core.pc = elf.header->e_entry;
+    core->pc = elf.header->e_entry;
 
     // load stack base
-    core.regs[SP] = STACK_BASE;
+    core->regs[SP] = STACK_BASE;
 
     // load GP
     sym = _ld_elf_getsym(&elf, "__global_pointer$");
@@ -199,16 +199,16 @@ void ld_elf(const char *file_name) {
     if (sym == NULL)
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __global_pointer$, relying on program init routine to set GP\n");
     else
-        core.regs[GP] = sym->st_value;
+        core->regs[GP] = sym->st_value;
 
     // load brk
     sym = _ld_elf_getsym(&elf, "__BSS_END__");
     if (sym == NULL) {
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __BSS_END__, automatically computing brk value\n");
         Elf32_Phdr last_segment = elf.programs[elf.prog_size - 1];
-        core.elf_brk = last_segment.p_vaddr + last_segment.p_memsz;
+        core->elf_brk = last_segment.p_vaddr + last_segment.p_memsz;
     } else
-        core.elf_brk = sym->st_value;
+        core->elf_brk = sym->st_value;
 
     // load errno
     // seems broken...
@@ -216,7 +216,7 @@ void ld_elf(const char *file_name) {
     if (sym == NULL)
         fprintf(stderr, "[WARNING] CAN'T FIND ERRNO\n");
     else
-        core.elf_errno = sym->st_value;
+        core->elf_errno = sym->st_value;
 
     munmap(elf.data, fst.st_size);
     close(fd);

@@ -1,4 +1,5 @@
 #include "emu.h"
+#include "args.h"
 #include "cpu.h"
 #include "macros.h"
 #include "memory.h"
@@ -93,34 +94,34 @@ static void _emu_copy_stat(struct EMU_stat *es, struct stat *fs) {
     es->st_blocks = fs->st_blocks;
 }
 
-void emu_std(const char *stdin_name, const char *stdout_name, const char *stderr_name) {
+void emu_std() {
     int ret;
     int fd;
 
-    if (stdin_name == NULL)
+    if (ctx.elf_stdin == NULL)
         ret = dup2(STDIN_FILENO, ELF_FDS_BASELINE);
     else {
-        fd = open(stdin_name, O_RDONLY);
+        fd = open(ctx.elf_stdin, O_RDONLY);
         ret = dup2(fd, ELF_FDS_BASELINE);
         close(fd);
     }
     if (ret == -1)
         EMU_CRASH("CAN'T SET STDIN");
 
-    if (stdout_name == NULL)
+    if (ctx.elf_stdout == NULL)
         dup2(STDOUT_FILENO, ELF_FDS_BASELINE + 1);
     else {
-        fd = open(stdout_name, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+        fd = open(ctx.elf_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
         ret = dup2(fd, ELF_FDS_BASELINE + 1);
         close(fd);
     }
     if (ret == -1)
         EMU_CRASH("CAN'T SET STDOUT");
 
-    if (stderr_name == NULL)
+    if (ctx.elf_stderr == NULL)
         dup2(STDERR_FILENO, ELF_FDS_BASELINE + 2);
     else {
-        fd = open(stderr_name, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+        fd = open(ctx.elf_stderr, O_WRONLY | O_TRUNC | O_CREAT, 0644);
         ret = dup2(fd, ELF_FDS_BASELINE + 2);
         close(fd);
     }
@@ -128,7 +129,7 @@ void emu_std(const char *stdin_name, const char *stdout_name, const char *stderr
         EMU_CRASH("CAN'T SET STDERR");
 }
 
-void emu_args(const char *elf_args) {
+void emu_args() {
     const char *str;
     char *tmp_str;
     char *token;
@@ -137,13 +138,13 @@ void emu_args(const char *elf_args) {
     size_t str_size_inc = 0;
     size_t tmp_str_sz;
 
-    tmp_str_sz = strlen(elf_args);
+    tmp_str_sz = strlen(ctx.elf_args);
     if (tmp_str_sz >= PAGE_SIZE)
         EMU_CRASH("ELF ARGUMENT TOO BIG");
 
     // create temp string for tokenizer
     tmp_str = malloc(tmp_str_sz + 1);
-    memcpy(tmp_str, elf_args, tmp_str_sz);
+    memcpy(tmp_str, ctx.elf_args, tmp_str_sz);
     tmp_str[tmp_str_sz] = '\0';
 
     // tokenize to count argc

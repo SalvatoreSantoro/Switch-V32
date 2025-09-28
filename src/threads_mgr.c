@@ -21,7 +21,7 @@ static int thread_init() {
 
     // find the vcore struct to use
     for (i = 1; i < ctx.cores; i++) {
-        if (pthread_equal(pthread_self(), threads_mgr.threads_cores->thread_id) != 0)
+        if (pthread_equal(pthread_self(), GET_THREAD_ID(i)) != 0)
             break;
     }
 
@@ -67,7 +67,7 @@ static void *core_thread(void *args) {
 
     int i = thread_init();
 
-    vcore_run(&threads_mgr.threads_cores[i].core);
+    vcore_run(&GET_CORE(i));
 
     return NULL;
 }
@@ -76,7 +76,7 @@ static void *debug_core_thread(void *args) {
 
     int i = thread_init();
 
-    debug_core_run(&threads_mgr.threads_cores[i].core, &threads_mgr.halt_cond[i]);
+    debug_core_run(&GET_CORE(i), &GET_HALT(i));
     return NULL;
 }
 
@@ -93,7 +93,7 @@ void threads_mgr_init() {
     threads_mgr.halt_cond = NULL;
 
     for (int i = 0; i < ctx.cores; i++)
-        memset(&threads_mgr.threads_cores[i].core, 0, sizeof(VCore));
+        memset(&GET_CORE(i), 0, sizeof(VCore));
 
     if (!ctx.debug)
         return;
@@ -105,8 +105,8 @@ void threads_mgr_init() {
 
     for (int i = 0; i < ctx.cores; i++) {
         threads_mgr.halt_cond->halted = true;
-        pthread_mutex_init(&threads_mgr.halt_cond[i].mutex, NULL);
-        ret = pthread_cond_init(&threads_mgr.halt_cond[i].cond, NULL);
+        pthread_mutex_init(&GET_HALT(i).mutex, NULL);
+        ret = pthread_cond_init(&GET_HALT(i).cond, NULL);
         if (ret != 0)
             THREADS_CRASH("PTHREAD COND INIT");
     }
@@ -117,7 +117,7 @@ void threads_mgr_run() {
     if (ctx.debug) {
         // from 1 because the main thread is already core 0
         for (int i = 1; i < ctx.cores; i++) {
-            ret = pthread_create(&threads_mgr.threads_cores[i].thread_id, NULL, debug_core_thread, NULL);
+            ret = pthread_create(&GET_THREAD_ID(i), NULL, debug_core_thread, NULL);
             if (ret != 0)
                 THREADS_CRASH("PTHREAD CREATE")
         }
@@ -129,17 +129,17 @@ void threads_mgr_run() {
 
     } else {
         for (int i = 1; i < ctx.cores; i++) {
-            ret = pthread_create(&threads_mgr.threads_cores[i].thread_id, NULL, core_thread, NULL);
+            ret = pthread_create(&GET_THREAD_ID(i), NULL, core_thread, NULL);
             if (ret != 0)
                 THREADS_CRASH("PTHREAD CREATE")
         }
     }
 
-    // run the cores
+    // run the cores except core 0 that is the actual thread
     __atomic_clear(&threads_mgr.atomic_stop_all, __ATOMIC_RELEASE);
 
     if (ctx.debug)
-        vcore_run(&threads_mgr.threads_cores[0].core);
+        debug_core_run(&GET_CORE(0), &GET_HALT(0));
     else
-        debug_core_run(&threads_mgr.threads_cores[0].core);
+        vcore_run(&GET_CORE(0));
 }
