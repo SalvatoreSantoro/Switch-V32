@@ -15,6 +15,7 @@ typedef struct {
 	//the cores clearing atomic_stop_all, so the cores resume execution
 	//but suddenly (eventually) stop on this halted variable
     bool halted;
+	bool finished_step;
 } Halt_Cond;
 
 typedef struct{

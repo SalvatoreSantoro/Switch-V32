@@ -35,7 +35,7 @@ $(GDB_LIB):
 doom: $(BUILD_DIR)/$(NAME)
 	git submodule update --init --recursive
 	$(MAKE) -C $(DOOM_DIR) CROSS="$(CROSS)"
-	$(BUILD_DIR)/$(NAME) -f "$(DOOM_DIR)/$(DOOM)" -u 4 -o /dev/null -e /dev/null -d
+	$(BUILD_DIR)/$(NAME) -f "$(DOOM_DIR)/$(DOOM)" -u 4 -o /dev/null -e /dev/null -d -c 1
 
 valgrind: $(BUILD_DIR)/$(NAME)
 	git submodule update --init --recursive

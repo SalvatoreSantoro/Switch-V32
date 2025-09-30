@@ -5,6 +5,8 @@
 
 extern Args_Context ctx;
 
+#define SYSTEM 0
+
 #define CTX_CRASH(str)                                                                                                 \
     do {                                                                                                               \
         fprintf(stderr, "ERROR PARSING PARAMETERS: %s\n", str);                                                        \

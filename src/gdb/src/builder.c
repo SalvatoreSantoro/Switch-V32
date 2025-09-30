@@ -13,17 +13,20 @@
 #include <string.h>
 
 #define GET_CMD_PARAM(p_d) (p_d->command + 1)
+#define GET_PARAM_1(i)     (pkt_data->params[i].param1)
+#define GET_PARAM_2(i)     (pkt_data->params[i].param2)
 
 // define builder functions
 #define X(s, ch) static void build_##s(Builder *builder, PKT_Data *pkt_data);
 SUPPORTED_CMDS
 #undef X
 
-void sad_builder_init(Builder *builder, PKT_Buffer *output_buffer, Sys_Ops sys_ops, Sys_Conf sys_conf) {
+void sad_builder_init(Builder *builder, PKT_Buffer *output_buffer, Sys_Ops sys_ops, Sys_Conf sys_conf, Set_Ack ack_f) {
     builder->pkt_buffer = output_buffer;
     builder->sys_ops = sys_ops;
     builder->sys_conf = sys_conf;
     builder->selected_core = 0;
+    builder->ack_f = ack_f;
     if (sys_conf.arch == RV32) {
         builder->cached_regs_bytes = sys_conf.regs_num * 4;
         builder->cached_regs_str_bytes = (builder->cached_regs_bytes * 2);
@@ -74,7 +77,7 @@ static void build_m(Builder *builder, PKT_Data *pkt_data) {
     // format: m addr,length
 
     const char *addr_str = GET_CMD_PARAM(pkt_data);
-    const char *length_str = pkt_data->params[0].param1;
+    const char *length_str = GET_PARAM_1(0);
     size_t length = strtol(length_str, NULL, 16);
     uint32_t addr = strtol(addr_str, NULL, 16);
 
@@ -93,8 +96,8 @@ static void build_M(Builder *builder, PKT_Data *pkt_data) {
     // formt: M addr,length:XX
 
     const char *addr_str = GET_CMD_PARAM(pkt_data);
-    const char *length_str = pkt_data->params[0].param1;
-    const char *data_str = pkt_data->params[1].param1;
+    const char *length_str = GET_PARAM_1(0);
+    const char *data_str = GET_PARAM_1(1);
 
     util_ret ret;
 
@@ -118,29 +121,40 @@ static void build_qstmrk(Builder *builder, PKT_Data *pkt_data) {
 
 static void build_Q(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "QStartNoAckMode") == 0) {
-        // unimplemented
+        builder->ack_f(false);
+        sad_buff_append_str(builder->pkt_buffer, "OK");
     } else
         build_unsupported(builder, pkt_data);
 }
 
 static void build_q(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "qSupported") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "swbreak+;vCont+");
+        sad_buff_append_str(builder->pkt_buffer, "swbreak+;vCont+;QStartNoAckMode+");
     }
     if (strcmp(pkt_data->command, "qfThreadInfo") == 0) {
         char core_id_str[4];
-
+        int i;
         sad_buff_append_str(builder->pkt_buffer, "m");
-        for (int i = 0; i < builder->sys_conf.smp; i++) {
+        for (i = 0; i < builder->sys_conf.smp - 1; i++) {
             sprintf(core_id_str, "%d,", i);
             sad_buff_append_str(builder->pkt_buffer, core_id_str);
         }
+        sprintf(core_id_str, "%d", i);
+        sad_buff_append_str(builder->pkt_buffer, core_id_str);
     }
     if (strcmp(pkt_data->command, "qsThreadInfo") == 0) {
         sad_buff_append_str(builder->pkt_buffer, "l");
     }
+
+    if (strcmp(pkt_data->command, "qThreadExtraInfo") == 0) {
+        const char *thread_id_str = GET_PARAM_1(0);
+        sad_buff_append_str(builder->pkt_buffer, thread_id_str);
+    }
+
     if (strcmp(pkt_data->command, "qC") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "0");
+        char response[10];
+        sprintf(response, "QC%d", builder->selected_core);
+        sad_buff_append_str(builder->pkt_buffer, response);
     }
     if (strcmp(pkt_data->command, "qSymbol") == 0) {
         sad_buff_append_str(builder->pkt_buffer, "OK");
@@ -151,8 +165,38 @@ static void build_q(Builder *builder, PKT_Data *pkt_data) {
 static void build_v(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "vCont?") == 0) {
         sad_buff_append_str(builder->pkt_buffer, "s;c");
+
     } else if (strcmp(pkt_data->command, "vCont") == 0) {
-        builder->sys_ops.core_step(builder->selected_core);
+        int fill = pkt_data->params_filled;
+
+        if (fill >= 1) {
+            const char *thread_id_str = GET_PARAM_1(0);
+            int thread_id = strtol(thread_id_str, NULL, 16);
+            switch (GET_PARAM_1(0)[0]) {
+            case 'c':
+                // this is the case of continue all so or just "c" or "c:-1"
+                if ((fill == 1) || ((fill >= 2) && (thread_id == -1)))
+                    builder->sys_ops.cores_continue();
+                else
+                    builder->sys_ops.core_continue(thread_id);
+                break;
+            case 's':
+                if (thread_id == -1) {
+                    sad_buff_append_str(builder->pkt_buffer, "E");
+                    return;
+                }
+                builder->sys_ops.core_step(thread_id);
+                break;
+            default:
+                build_unsupported(builder, pkt_data);
+                break;
+            }
+
+        } else {
+            sad_buff_append_str(builder->pkt_buffer, "E");
+            return;
+        }
+
         sad_buff_append_str(builder->pkt_buffer, "S05");
         //
     } else
@@ -161,6 +205,21 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
 
 static void build_T(Builder *builder, PKT_Data *pkt_data) {
     sad_buff_append_str(builder->pkt_buffer, "OK");
+}
+
+static void build_H(Builder *builder, PKT_Data *pkt_data) {
+
+    if (strncmp(pkt_data->command, "Hg", 2) == 0) {
+        const char *thread_id_str = pkt_data->command + 2;
+        int thread_id = strtol(thread_id_str, NULL, 10);
+
+        if (thread_id != -1)
+            builder->selected_core = thread_id;
+
+        sad_buff_append_str(builder->pkt_buffer, "OK");
+    } else {
+        build_unsupported(builder, pkt_data);
+    }
 }
 
 static void build_Z(Builder *builder, PKT_Data *pkt_data) {

@@ -25,7 +25,7 @@ typedef struct {
     // sad client address
     struct sockaddr_in address;
     socklen_t addrlen;
-    int ack_enabled;
+    bool ack_enabled;
     PKT_Buffer *input_buffer;
     PKT_Buffer *output_buffer;
     Parser parser;
@@ -33,6 +33,10 @@ typedef struct {
 } sad_Stub;
 
 static sad_Stub server = {.state = STUB_RESET};
+
+void sad_stub_set_ack(bool val){
+	server.ack_enabled = val;
+}
 
 // STUB
 stub_ret sad_stub_init(Stub_Conf conf) {
@@ -63,7 +67,7 @@ stub_ret sad_stub_init(Stub_Conf conf) {
     sad_parser_init(&server.parser, server.input_buffer);
 
     // builder on the output
-    sad_builder_init(&server.builder, server.output_buffer, conf.sys_ops, conf.sys_conf);
+    sad_builder_init(&server.builder, server.output_buffer, conf.sys_ops, conf.sys_conf, sad_stub_set_ack);
 
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;
@@ -88,7 +92,7 @@ stub_ret sad_stub_init(Stub_Conf conf) {
         goto close_socket;
 
     server.state = STUB_CONNECTED;
-    server.ack_enabled = 1;
+    server.ack_enabled = true;
     return STUB_OK;
 
 close_socket:
@@ -167,7 +171,7 @@ void sad_stub_reset(void) {
         return;
 
     server.state = STUB_RESET;
-    server.ack_enabled = 1;
+    server.ack_enabled = true;
     close(server.server_fd);
     close(server.sad_socket);
     sad_buff_destroy(server.input_buffer);
