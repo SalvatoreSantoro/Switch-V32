@@ -162,23 +162,58 @@ static void build_q(Builder *builder, PKT_Data *pkt_data) {
         build_unsupported(builder, pkt_data);
 }
 
+// We're doing a simplification here
+// in GDB if we do:
+// 1. set scheduler-locking off (default) we're saying that when in the meantime
+//	that a thread is executing a step or a continue, other threads can execute concurrently
+// 2. set scheduler-locking on we're saying that when in the meantime
+//	that a thread is executing a step or a continue it's the only one to effectively run
+// 3. set scheduler-locking step it's just set scheduler-locking on but only in the step case
+// in the continue case it's more like set-scheduler-off
+//
+// in this implementation we're assuming that everything is like "set scheduler-locking on"
+// so only 1 thread at the time continue or steps, but eventually all thread can continue
+// togheter if specified
+// so for example if we receive "c" or "c:-1" we do continue all (like set scheduler-locking off)
+// if we receive "c:0" we do continue only of thread 0, like set scheduler-locking on
+// if we receive "s:0" we do only step of thread 0, like set scheduler-locking on
+// if we receive "s" we assume that we step the selected core
+
 static void build_v(Builder *builder, PKT_Data *pkt_data) {
+
     if (strcmp(pkt_data->command, "vCont?") == 0) {
         sad_buff_append_str(builder->pkt_buffer, "s;c");
 
     } else if (strcmp(pkt_data->command, "vCont") == 0) {
         int fill = pkt_data->params_filled;
 
-        if (fill >= 1) {
-            const char *thread_id_str = GET_PARAM_1(0);
+        if (fill == 1) {
+            switch (GET_PARAM_1(0)[0]) {
+            case 'c':
+                builder->sys_ops.cores_continue();
+                break;
+            case 's':
+                builder->sys_ops.core_step(builder->selected_core);
+                break;
+            default:
+                build_unsupported(builder, pkt_data);
+                break;
+            }
+        } else if (fill == 2) {
+            const char *thread_id_str = GET_PARAM_1(1);
             int thread_id = strtol(thread_id_str, NULL, 16);
+
             switch (GET_PARAM_1(0)[0]) {
             case 'c':
                 // this is the case of continue all so or just "c" or "c:-1"
-                if ((fill == 1) || ((fill >= 2) && (thread_id == -1)))
+                if (thread_id == -1)
                     builder->sys_ops.cores_continue();
-                else
+                else {
                     builder->sys_ops.core_continue(thread_id);
+                    while (1) {
+						printf("LOCKED\n");
+                    }
+                }
                 break;
             case 's':
                 if (thread_id == -1) {
@@ -191,7 +226,6 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
                 build_unsupported(builder, pkt_data);
                 break;
             }
-
         } else {
             sad_buff_append_str(builder->pkt_buffer, "E");
             return;

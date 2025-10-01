@@ -1,15 +1,11 @@
 #include "args.h"
-#include "cpu.h"
-#include "debug.h"
-#include "defs.h"
 #include "emu.h"
 #include "loader.h"
-#include "memory.h"
 #include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include "threads_mgr.h"
 #include <unistd.h>
+
+
 
 Args_Context ctx = {
     .elf_stdin = NULL, 
@@ -22,7 +18,6 @@ Args_Context ctx = {
 };
 
 Threads_Mgr threads_mgr;
-
 
 int main(int argc, char *argv[]) {
     // initialize global context

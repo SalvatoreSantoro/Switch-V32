@@ -6,17 +6,50 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern Threads_Mgr threads_mgr;
-
 #define THREADS_CRASH(str)                                                                                             \
     do {                                                                                                               \
         fprintf(stderr, "Threads manager crashed: %s\n", str);                                                         \
         exit(EXIT_FAILURE);                                                                                            \
-    } while (0);
+    } while (0)
+
+#define pthread_mutex_unlock_(mutex_ref)                                                                               \
+    do {                                                                                                               \
+        if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
+            THREADS_CRASH("UNLOCK FAILED");                                                                            \
+    } while (0)
+
+#define pthread_mutex_lock_(mutex_ref)                                                                                 \
+    do {                                                                                                               \
+        if (pthread_mutex_lock(mutex_ref) != 0)                                                                        \
+            THREADS_CRASH("LOCK FAILED");                                                                              \
+    } while (0)
+
+#define __WAIT_STOP_ALL__                                                                                              \
+    do {                                                                                                               \
+        while (__atomic_load_n(&threads_mgr.atomic_stop_all, __ATOMIC_ACQUIRE)) {                                      \
+        }                                                                                                              \
+    } while (0)
+
+
+#define __WAIT_STEP__(atomic_step_ref)                                                                                 \
+    do {                                                                                                               \
+        while (__atomic_load_n(atomic_step_ref, __ATOMIC_ACQUIRE)) {                                                   \
+        }                                                                                                              \
+    } while (0)
+
+#define __STOP_ALL__ __atomic_store_n(&threads_mgr.atomic_stop_all, true, __ATOMIC_RELEASE)
+
+#define __SET_STEP__(atomic_step_ref) __atomic_store_n(atomic_step_ref, true, __ATOMIC_RELEASE)
+
+#define __SIGNAL_STOP_ALL__ __atomic_clear(&threads_mgr.atomic_stop_all, __ATOMIC_RELEASE)
+
+#define __SIGNAL_STEP__(atomic_step_ref) __atomic_clear(atomic_step_ref, __ATOMIC_RELEASE)
+
+
+extern Threads_Mgr threads_mgr;
 
 static int thread_init() {
     int i;
-    bool stop = true;
 
     // find the vcore struct to use
     for (i = 1; i < ctx.cores; i++) {
@@ -24,54 +57,39 @@ static int thread_init() {
             break;
     }
 
-    while (stop)
-        __atomic_load(&threads_mgr.atomic_stop_all, &stop, __ATOMIC_ACQUIRE);
-
     return i;
 }
 
 static void debug_core_run(VCore *core, Halt_Cond *halt_cond) {
-    bool stop_all;
-    bool finished_step = true;
-
-    int ret;
 
     while (1) {
-        // check if every core has been stopped (es. breakpoint during execution)
-        stop_all = true;
 
-        while (stop_all)
-            __atomic_load(&threads_mgr.atomic_stop_all, &stop_all, __ATOMIC_ACQUIRE);
+        // Used from the debug thread to have a temporary "stop all" in order
+        // to access the "halted" condition wait and set them according to the
+        // thread to run or stop
+        // aftet that the debug thread releases all the threads that just go to sleep
+        // on the pthread_cond_wait if they are set with "halted" to true
+        __WAIT_STOP_ALL__;
 
-        // after this check someone (possibly the debugging thread) should have
-        // placed this core to block on his "halted" condition, until next continue/command
+        pthread_mutex_lock_(&halt_cond->mutex);
+        while (halt_cond->halted)
+            pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
+        pthread_mutex_unlock_(&halt_cond->mutex);
 
-		printf("PASSED_STOP_ALL\n");
-
-        ret = pthread_mutex_lock(&halt_cond->mutex);
-        if (ret != 0)
-            THREADS_CRASH("LOCK FAILED")
-
-        while (halt_cond->halted) {
-            ret = pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
-            if (ret != 0)
-                THREADS_CRASH("COND WAIT FAILED")
-        }
-
-        printf("STEPPING\n");
         vcore_step(core);
 
-        ret = pthread_mutex_unlock(&halt_cond->mutex);
-        if (ret != 0)
-            THREADS_CRASH("UNLOCK FAILED")
-
-        __atomic_store(&halt_cond->finished_step, &finished_step, __ATOMIC_RELEASE);
+        // Signal step (in order to unlock the debug thread that is waiting to tell GDB that
+        // the step command finished executing)
+        __SIGNAL_STEP__(&halt_cond->atomic_step);
     }
 }
 
 static void *core_thread_fun(void *args) {
 
     int i = thread_init();
+
+    // just used to start evey thread at the same time
+    pthread_barrier_wait(&threads_mgr.barrier);
 
     vcore_run(&GET_CORE(i));
 
@@ -88,6 +106,7 @@ static void *debug_core_thread_fun(void *args) {
 }
 
 void threads_mgr_init() {
+
     int ret;
 
     // TODO: make them aligned to 64 bytes in order to avoid
@@ -96,14 +115,16 @@ void threads_mgr_init() {
     if (threads_mgr.threads_cores == NULL)
         THREADS_CRASH("OOM");
 
-    threads_mgr.atomic_stop_all = true;
+    threads_mgr.atomic_stop_all = false;
     threads_mgr.halt_cond = NULL;
 
     for (int i = 0; i < ctx.cores; i++)
         memset(&GET_CORE(i), 0, sizeof(VCore));
 
-    if (!ctx.debug)
+    if (!ctx.debug) {
+        pthread_barrier_init(&threads_mgr.barrier, NULL, ctx.cores);
         return;
+    }
 
     // set debugging structs
     threads_mgr.halt_cond = malloc(sizeof(Halt_Cond) * ctx.cores);
@@ -112,7 +133,7 @@ void threads_mgr_init() {
 
     for (int i = 0; i < ctx.cores; i++) {
         GET_HALT(i).halted = true;
-        GET_HALT(i).finished_step = false;
+        GET_HALT(i).atomic_step = false;
         pthread_mutex_init(&GET_HALT(i).mutex, NULL);
         ret = pthread_cond_init(&GET_HALT(i).cond, NULL);
         if (ret != 0)
@@ -127,24 +148,21 @@ void threads_mgr_run() {
         for (int i = 1; i < ctx.cores; i++) {
             ret = pthread_create(&GET_THREAD_ID(i), NULL, debug_core_thread_fun, NULL);
             if (ret != 0)
-                THREADS_CRASH("PTHREAD CREATE")
+                THREADS_CRASH("PTHREAD CREATE");
         }
 
         // create debug thread
         ret = pthread_create(&threads_mgr.debug_thread, NULL, debug_thread_fun, NULL);
         if (ret != 0)
-            THREADS_CRASH("PTHREAD CREATE")
+            THREADS_CRASH("PTHREAD CREATE");
 
     } else {
         for (int i = 1; i < ctx.cores; i++) {
             ret = pthread_create(&GET_THREAD_ID(i), NULL, core_thread_fun, NULL);
             if (ret != 0)
-                THREADS_CRASH("PTHREAD CREATE")
+                THREADS_CRASH("PTHREAD CREATE");
         }
     }
-
-    // run the cores except core 0 that is the actual thread
-    __atomic_clear(&threads_mgr.atomic_stop_all, __ATOMIC_RELEASE);
 
     if (ctx.debug)
         debug_core_run(&GET_CORE(0), &GET_HALT(0));
@@ -153,9 +171,12 @@ void threads_mgr_run() {
 }
 
 void threads_mgr_halt_all() {
-    bool stop = true;
 
-    __atomic_store(&threads_mgr.atomic_stop_all, &stop, __ATOMIC_RELEASE);
+    // make threads wait here
+    __STOP_ALL__;
+
+    // activate all the "halted" variables in order to
+    // put them to sleep when releasing the STOP_ALL
 
     for (int i = 0; i < ctx.cores; i++) {
         pthread_mutex_lock(&GET_HALT(i).mutex);
@@ -163,19 +184,15 @@ void threads_mgr_halt_all() {
         pthread_mutex_unlock(&GET_HALT(i).mutex);
     }
 
-    stop = false;
-    __atomic_store(&threads_mgr.atomic_stop_all, &stop, __ATOMIC_RELEASE);
+    // put them to sleep
+    __SIGNAL_STOP_ALL__;
 }
 
 void threads_mgr_continue_core(int core_idx) {
-    int ret;
-
-    pthread_mutex_lock(&GET_HALT(core_idx).mutex);
+    pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
     GET_HALT(core_idx).halted = false;
-    ret = pthread_cond_signal(&GET_HALT(core_idx).cond);
-    if (ret != 0)
-        THREADS_CRASH("PTHREAD SIGNAL")
-    pthread_mutex_unlock(&GET_HALT(core_idx).mutex);
+    pthread_cond_signal(&GET_HALT(core_idx).cond);
+    pthread_mutex_unlock_(&GET_HALT(core_idx).mutex);
 }
 
 void threads_mgr_continue_all() {
@@ -188,30 +205,30 @@ void threads_mgr_continue_all() {
 }
 
 void threads_mgr_step_core(int core_idx) {
-    bool stop = true;
-    bool finished_step = false;
 
-    // prepare to stop after stepping
-    __atomic_store(&threads_mgr.atomic_stop_all, &stop, __ATOMIC_RELEASE);
+	// activate the step
+	__SET_STEP__(&GET_HALT(core_idx).atomic_step);
+
+    // prepare to stop the core after stepping
+    __STOP_ALL__;
 
     // release the core
     threads_mgr_continue_core(core_idx);
 
-    // now the thread should be waiting on atomic_stop_all
+    // wait to have the ok about the "step" from the core
+
+	__WAIT_STEP__(&GET_HALT(core_idx).atomic_step);
+
+	// now the thread should be waiting on atomic_stop_all
 	
-    printf("GAS\n");
-    // wait to finish the step
-    while (!finished_step)
-        __atomic_load(&GET_HALT(core_idx).finished_step, &finished_step, __ATOMIC_ACQUIRE);
-
     // prepare the halt
-    pthread_mutex_lock(&GET_HALT(core_idx).mutex);
+	// (locking the critical section at this point should be useless because
+	// the thread is already spinning on the wait condition, using it just in case)
+	
+	pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
     GET_HALT(core_idx).halted = true;
-    pthread_mutex_unlock(&GET_HALT(core_idx).mutex);
-
-    __atomic_clear(&GET_HALT(core_idx).finished_step, __ATOMIC_RELEASE);
+	pthread_mutex_unlock_(&GET_HALT(core_idx).mutex);
 
     // release the thread that will halt on "halted" condition
-    stop = false;
-    __atomic_store(&threads_mgr.atomic_stop_all, &stop, __ATOMIC_RELEASE);
+	__SIGNAL_STOP_ALL__;
 }

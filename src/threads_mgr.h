@@ -1,9 +1,13 @@
 #ifndef THREADS_MGR_H
 #define THREADS_MGR_H
 
+
+#define _XOPEN_SOURCE 600
+
 #include "args.h"
 #include "cpu.h"
 #include <pthread.h>
+
 
 typedef struct {
     pthread_mutex_t mutex;
@@ -15,7 +19,7 @@ typedef struct {
 	//the cores clearing atomic_stop_all, so the cores resume execution
 	//but suddenly (eventually) stop on this halted variable
     bool halted;
-	bool finished_step;
+	bool atomic_step; // Used to synchronize Debugger and Cores during stepping
 } Halt_Cond;
 
 typedef struct{
@@ -28,6 +32,7 @@ typedef struct {
     Halt_Cond *halt_cond; // NULL when debug isn't enabled
 	Thread* threads_cores;
 	pthread_t debug_thread;
+	pthread_barrier_t barrier; // allocated only when not using debug
 } Threads_Mgr;
 
 #define GET_CORE(i) threads_mgr.threads_cores[i].core

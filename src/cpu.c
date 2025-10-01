@@ -162,7 +162,7 @@ const char *re_na(int reg_num) {
             }                                                                                                          \
             core->pc = pc_next;                                                                                        \
         }                                                                                                              \
-    } while (0);
+    } while (0)
 
 void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
@@ -524,7 +524,7 @@ void vcore_run(VCore *core) {
         // reset ZERO reg at every iteration
         core->regs[ZERO] = 0;
         ins = mem_rw(core->pc);
-        INSTR_SWITCH
+        INSTR_SWITCH;
     }
 }
 
@@ -535,5 +535,5 @@ void vcore_step(VCore *core) {
 
     core->regs[ZERO] = 0;
     ins = mem_rw(core->pc);
-    INSTR_SWITCH
+    INSTR_SWITCH;
 }

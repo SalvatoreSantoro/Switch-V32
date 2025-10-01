@@ -1,3 +1,2 @@
-errors check
-fix "sad_callbacks" section
-remove user_data, it's useless
+Check memory boundaries at the moment if requesting a strange address
+to the vm it will surely crash
