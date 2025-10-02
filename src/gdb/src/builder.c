@@ -199,10 +199,9 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
                 build_unsupported(builder, pkt_data);
                 break;
             }
-        } else if (fill == 2) {
+        } else {
             const char *thread_id_str = GET_PARAM_1(1);
             int thread_id = strtol(thread_id_str, NULL, 16);
-
             switch (GET_PARAM_1(0)[0]) {
             case 'c':
                 // this is the case of continue all so or just "c" or "c:-1"
@@ -211,7 +210,7 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
                 else {
                     builder->sys_ops.core_continue(thread_id);
                     while (1) {
-						printf("LOCKED\n");
+                        printf("LOCKED\n");
                     }
                 }
                 break;
@@ -226,9 +225,6 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
                 build_unsupported(builder, pkt_data);
                 break;
             }
-        } else {
-            sad_buff_append_str(builder->pkt_buffer, "E");
-            return;
         }
 
         sad_buff_append_str(builder->pkt_buffer, "S05");

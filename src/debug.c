@@ -4,6 +4,7 @@
 #include "memory.h"
 #include "stub.h"
 #include "threads_mgr.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -38,6 +39,7 @@ void *debug_thread_fun(void *args) {
 
 // core_id unused for now
 void read_regs(byte *output, size_t output_sz, int core_id) {
+	assert(core_id < ctx.cores);
 	VCore* core = &GET_CORE(core_id);
 
     size_t regs_size = output_sz - 4; // don't count PC
@@ -49,6 +51,7 @@ void read_regs(byte *output, size_t output_sz, int core_id) {
 
 // core_id unused for now
 void write_regs(const byte *input, size_t input_sz, int core_id) {
+	assert(core_id < ctx.cores);
     size_t regs_size = input_sz - 4; // don't count PC
 	VCore* core = &GET_CORE(core_id);
     // copy all regs

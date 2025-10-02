@@ -1,6 +1,8 @@
 #include "threads_mgr.h"
+#include "args.h"
 #include "cpu.h"
 #include "debug.h"
+#include <assert.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -30,12 +32,12 @@
         }                                                                                                              \
     } while (0)
 
-
 #define __WAIT_STEP__(atomic_step_ref)                                                                                 \
     do {                                                                                                               \
         while (__atomic_load_n(atomic_step_ref, __ATOMIC_ACQUIRE)) {                                                   \
         }                                                                                                              \
     } while (0)
+
 
 #define __STOP_ALL__ __atomic_store_n(&threads_mgr.atomic_stop_all, true, __ATOMIC_RELEASE)
 
@@ -45,10 +47,24 @@
 
 #define __SIGNAL_STEP__(atomic_step_ref) __atomic_clear(atomic_step_ref, __ATOMIC_RELEASE)
 
+#define __BARRIER_COUNT_WAIT__ barrier_count_wait()
+
+#define __RESET_BARRIER_COUNT__ __atomic_store_n(&threads_mgr.atomic_barrier_count, ctx.cores, __ATOMIC_RELEASE)
 
 extern Threads_Mgr threads_mgr;
 
-static int thread_init() {
+void barrier_count_wait(void) {
+    if (__atomic_load_n(&threads_mgr.atomic_barrier_count, __ATOMIC_ACQUIRE) == 0)
+        return;
+
+    if (__atomic_fetch_sub(&threads_mgr.atomic_barrier_count, 1, __ATOMIC_RELAXED) == 1)
+        ;
+    else
+        while (__atomic_load_n(&threads_mgr.atomic_barrier_count, __ATOMIC_ACQUIRE) != 0)
+            ;
+}
+
+int thread_init() {
     int i;
 
     // find the vcore struct to use
@@ -72,9 +88,17 @@ static void debug_core_run(VCore *core, Halt_Cond *halt_cond) {
         __WAIT_STOP_ALL__;
 
         pthread_mutex_lock_(&halt_cond->mutex);
-        while (halt_cond->halted)
-            pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
+        while (halt_cond->halted){
+#ifdef DEBUG_THREAD_MGR
+			int idx = thread_init();
+			printf("CORE %d HALTED\n", idx);
+#endif
+			pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
+		}
         pthread_mutex_unlock_(&halt_cond->mutex);
+
+        // start the threads at the same time after a continue all
+        __BARRIER_COUNT_WAIT__;
 
         vcore_step(core);
 
@@ -89,14 +113,14 @@ static void *core_thread_fun(void *args) {
     int i = thread_init();
 
     // just used to start evey thread at the same time
-    pthread_barrier_wait(&threads_mgr.barrier);
+    __BARRIER_COUNT_WAIT__;
 
     vcore_run(&GET_CORE(i));
 
     return NULL;
 }
 
-static void *debug_core_thread_fun(void *args) {
+void *debug_core_thread_fun(void *args) {
 
     int i = thread_init();
 
@@ -116,15 +140,14 @@ void threads_mgr_init() {
         THREADS_CRASH("OOM");
 
     threads_mgr.atomic_stop_all = false;
+    threads_mgr.atomic_barrier_count = 0;
     threads_mgr.halt_cond = NULL;
 
     for (int i = 0; i < ctx.cores; i++)
         memset(&GET_CORE(i), 0, sizeof(VCore));
 
-    if (!ctx.debug) {
-        pthread_barrier_init(&threads_mgr.barrier, NULL, ctx.cores);
+    if (!ctx.debug)
         return;
-    }
 
     // set debugging structs
     threads_mgr.halt_cond = malloc(sizeof(Halt_Cond) * ctx.cores);
@@ -166,8 +189,11 @@ void threads_mgr_run() {
 
     if (ctx.debug)
         debug_core_run(&GET_CORE(0), &GET_HALT(0));
-    else
+    else {
+        // just used to start evey thread at the same time
+        __BARRIER_COUNT_WAIT__;
         vcore_run(&GET_CORE(0));
+    }
 }
 
 void threads_mgr_halt_all() {
@@ -189,6 +215,8 @@ void threads_mgr_halt_all() {
 }
 
 void threads_mgr_continue_core(int core_idx) {
+	assert(core_idx < ctx.cores);
+
     pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
     GET_HALT(core_idx).halted = false;
     pthread_cond_signal(&GET_HALT(core_idx).cond);
@@ -196,8 +224,9 @@ void threads_mgr_continue_core(int core_idx) {
 }
 
 void threads_mgr_continue_all() {
-    // at the moment the cores just start one after the other
-    // and not at the same time
+
+    // start them at the same time
+    __RESET_BARRIER_COUNT__;
 
     for (int i = 0; i < ctx.cores; i++) {
         threads_mgr_continue_core(i);
@@ -206,8 +235,9 @@ void threads_mgr_continue_all() {
 
 void threads_mgr_step_core(int core_idx) {
 
-	// activate the step
-	__SET_STEP__(&GET_HALT(core_idx).atomic_step);
+	assert(core_idx < ctx.cores);
+    // activate the step
+    __SET_STEP__(&GET_HALT(core_idx).atomic_step);
 
     // prepare to stop the core after stepping
     __STOP_ALL__;
@@ -217,18 +247,16 @@ void threads_mgr_step_core(int core_idx) {
 
     // wait to have the ok about the "step" from the core
 
-	__WAIT_STEP__(&GET_HALT(core_idx).atomic_step);
+    __WAIT_STEP__(&GET_HALT(core_idx).atomic_step);
 
-	// now the thread should be waiting on atomic_stop_all
-	
+    // now the thread should be waiting on atomic_stop_all
+
     // prepare the halt
-	// (locking the critical section at this point should be useless because
-	// the thread is already spinning on the wait condition, using it just in case)
-	
-	pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
+
+    pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
     GET_HALT(core_idx).halted = true;
-	pthread_mutex_unlock_(&GET_HALT(core_idx).mutex);
+    pthread_mutex_unlock_(&GET_HALT(core_idx).mutex);
 
     // release the thread that will halt on "halted" condition
-	__SIGNAL_STOP_ALL__;
+    __SIGNAL_STOP_ALL__;
 }

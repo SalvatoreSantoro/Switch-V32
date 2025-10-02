@@ -2,8 +2,6 @@
 #define THREADS_MGR_H
 
 
-#define _XOPEN_SOURCE 600
-
 #include "args.h"
 #include "cpu.h"
 #include <pthread.h>
@@ -29,10 +27,10 @@ typedef struct{
 
 typedef struct {
 	bool atomic_stop_all; // used by debugging thread to stop all the cores at the same time
+	int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
     Halt_Cond *halt_cond; // NULL when debug isn't enabled
 	Thread* threads_cores;
 	pthread_t debug_thread;
-	pthread_barrier_t barrier; // allocated only when not using debug
 } Threads_Mgr;
 
 #define GET_CORE(i) threads_mgr.threads_cores[i].core
@@ -51,5 +49,19 @@ void threads_mgr_continue_all();
 void threads_mgr_continue_core(int core_idx);
 
 void threads_mgr_step_core(int core_idx);
+
+
+
+// TESTING INTERFACE //
+// exposing them just to make testing easier not meant to be used
+
+
+
+
+void barrier_count_wait(void);
+
+int thread_init();
+
+void *debug_core_thread_fun(void *args);
 
 #endif
