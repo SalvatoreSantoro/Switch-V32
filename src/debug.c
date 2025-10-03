@@ -24,6 +24,7 @@ void *debug_thread_fun(void *args) {
 		.sys_ops.cores_continue = threads_mgr_continue_all,
         .sys_ops.cores_halt = threads_mgr_halt_all,
 		.sys_ops.core_step = threads_mgr_step_core,
+		.sys_ops.is_halted = threads_mgr_is_halted,
         .port = STUB_PORT,
         .buffers_size = STUB_BUFF_SIZE,
         .socket_io_size = STUB_READ_SIZE,

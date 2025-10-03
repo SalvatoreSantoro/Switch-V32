@@ -1,6 +1,7 @@
 #ifndef STUB_H
 #define STUB_H
 
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
 
@@ -27,6 +28,7 @@ typedef struct {
     void (*core_continue)(int core_id);
     void (*cores_continue)();
     void (*cores_halt)();
+    bool (*is_halted)(int);
 } Sys_Ops;
 
 typedef struct {

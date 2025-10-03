@@ -50,12 +50,11 @@ void threads_mgr_continue_core(int core_idx);
 
 void threads_mgr_step_core(int core_idx);
 
+bool threads_mgr_is_halted(int core_idx);
 
 
 // TESTING INTERFACE //
 // exposing them just to make testing easier not meant to be used
-
-
 
 
 void barrier_count_wait(void);

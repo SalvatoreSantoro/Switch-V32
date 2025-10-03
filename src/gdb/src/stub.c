@@ -1,9 +1,10 @@
 #include "stub.h"
-#include "builder.h"
 #include "buffer.h"
+#include "builder.h"
 #include "data.h"
 #include "defs.h"
 #include "parser.h"
+#include <fcntl.h>
 #include <netinet/in.h>
 #include <stdarg.h>
 #include <stdint.h>
@@ -34,8 +35,21 @@ typedef struct {
 
 static sad_Stub server = {.state = STUB_RESET};
 
-void sad_stub_set_ack(bool val){
-	server.ack_enabled = val;
+void sad_stub_set_ack(bool val) {
+    server.ack_enabled = val;
+}
+
+int sad_stub_fd_set_blocking(bool blocking) {
+    int flags = fcntl(server.server_fd, F_GETFL, 0);
+    if (flags == -1)
+        return -1;
+
+    if (blocking)
+        flags &= ~O_NONBLOCK; // clear nonblocking flag
+    else
+        flags |= O_NONBLOCK; // set nonblocking flag
+
+    return fcntl(server.server_fd, F_SETFL, flags);
 }
 
 // STUB
@@ -43,6 +57,10 @@ stub_ret sad_stub_init(Stub_Conf conf) {
     int opt = 1;
     struct sockaddr_in address;
     stub_ret ret = STUB_OOM;
+    Stub_Ops ops = {
+        .Set_Ack = sad_stub_set_ack,
+        .socket_set_blocking = sad_stub_fd_set_blocking,
+    };
 
     // set to default
     size_t buff_size = conf.buffers_size > 0 ? conf.buffers_size : DEFAULT_BUFF_SIZE;
@@ -67,7 +85,8 @@ stub_ret sad_stub_init(Stub_Conf conf) {
     sad_parser_init(&server.parser, server.input_buffer);
 
     // builder on the output
-    sad_builder_init(&server.builder, server.output_buffer, conf.sys_ops, conf.sys_conf, sad_stub_set_ack);
+    // REFACTOR THIS PLEASE, it's getting ugly
+    sad_builder_init(&server.builder, server.output_buffer, conf.sys_ops, conf.sys_conf, ops);
 
     if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
         goto socket_err;

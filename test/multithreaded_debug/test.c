@@ -12,7 +12,6 @@
 #include <string.h>
 #include <threads.h>
 
-// activate internal prints
 
 Args_Context ctx = {
     .elf_stdin = NULL,

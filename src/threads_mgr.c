@@ -2,8 +2,10 @@
 #include "args.h"
 #include "cpu.h"
 #include "debug.h"
+#include <asm-generic/errno-base.h>
 #include <assert.h>
 #include <pthread.h>
+#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -37,7 +39,6 @@
         while (__atomic_load_n(atomic_step_ref, __ATOMIC_ACQUIRE)) {                                                   \
         }                                                                                                              \
     } while (0)
-
 
 #define __STOP_ALL__ __atomic_store_n(&threads_mgr.atomic_stop_all, true, __ATOMIC_RELEASE)
 
@@ -88,13 +89,13 @@ static void debug_core_run(VCore *core, Halt_Cond *halt_cond) {
         __WAIT_STOP_ALL__;
 
         pthread_mutex_lock_(&halt_cond->mutex);
-        while (halt_cond->halted){
+        while (halt_cond->halted) {
 #ifdef DEBUG_THREAD_MGR
-			int idx = thread_init();
-			printf("CORE %d HALTED\n", idx);
+            int idx = thread_init();
+            printf("CORE %d HALTED\n", idx);
 #endif
-			pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
-		}
+            pthread_cond_wait(&halt_cond->cond, &halt_cond->mutex);
+        }
         pthread_mutex_unlock_(&halt_cond->mutex);
 
         // start the threads at the same time after a continue all
@@ -164,6 +165,22 @@ void threads_mgr_init() {
     }
 }
 
+bool threads_mgr_is_halted(int core_idx){
+	int ret;
+	bool status = false;
+
+	ret = pthread_mutex_trylock(&GET_HALT(core_idx).mutex);
+	if(ret == EBUSY){
+		sched_yield();
+	}
+	else{
+		status = GET_HALT(core_idx).halted;
+		pthread_mutex_unlock_(&GET_HALT(core_idx).mutex);
+	}
+
+	return status;
+}
+
 void threads_mgr_run() {
     int ret;
     if (ctx.debug) {
@@ -212,10 +229,14 @@ void threads_mgr_halt_all() {
 
     // put them to sleep
     __SIGNAL_STOP_ALL__;
+
+#ifdef DEBUG_THREAD_MGR
+    printf("CORES HALTED, notifying gdb\n");
+#endif
 }
 
 void threads_mgr_continue_core(int core_idx) {
-	assert(core_idx < ctx.cores);
+    assert(core_idx < ctx.cores);
 
     pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
     GET_HALT(core_idx).halted = false;
@@ -235,7 +256,7 @@ void threads_mgr_continue_all() {
 
 void threads_mgr_step_core(int core_idx) {
 
-	assert(core_idx < ctx.cores);
+    assert(core_idx < ctx.cores);
     // activate the step
     __SET_STEP__(&GET_HALT(core_idx).atomic_step);
 
@@ -248,6 +269,11 @@ void threads_mgr_step_core(int core_idx) {
     // wait to have the ok about the "step" from the core
 
     __WAIT_STEP__(&GET_HALT(core_idx).atomic_step);
+
+#ifdef DEBUG_THREAD_MGR
+    int idx = thread_init();
+    printf("CORE %d FINISHED STEPPING, notifying gdb\n", idx);
+#endif
 
     // now the thread should be waiting on atomic_stop_all
 

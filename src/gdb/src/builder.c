@@ -21,12 +21,13 @@
 SUPPORTED_CMDS
 #undef X
 
-void sad_builder_init(Builder *builder, PKT_Buffer *output_buffer, Sys_Ops sys_ops, Sys_Conf sys_conf, Set_Ack ack_f) {
+void sad_builder_init(Builder *builder, PKT_Buffer *output_buffer, Sys_Ops sys_ops, Sys_Conf sys_conf,
+                      Stub_Ops stub_ops) {
     builder->pkt_buffer = output_buffer;
     builder->sys_ops = sys_ops;
     builder->sys_conf = sys_conf;
     builder->selected_core = 0;
-    builder->ack_f = ack_f;
+    builder->stub_ops = stub_ops;
     if (sys_conf.arch == RV32) {
         builder->cached_regs_bytes = sys_conf.regs_num * 4;
         builder->cached_regs_str_bytes = (builder->cached_regs_bytes * 2);
@@ -121,7 +122,7 @@ static void build_qstmrk(Builder *builder, PKT_Data *pkt_data) {
 
 static void build_Q(Builder *builder, PKT_Data *pkt_data) {
     if (strcmp(pkt_data->command, "QStartNoAckMode") == 0) {
-        builder->ack_f(false);
+        builder->stub_ops.Set_Ack(false);
         sad_buff_append_str(builder->pkt_buffer, "OK");
     } else
         build_unsupported(builder, pkt_data);
