@@ -1,9 +1,6 @@
-#include "builder.h"
-#include "buffer.h"
-#include "data.h"
-#include "defs.h"
-#include "stub.h"
-#include "utils.h"
+#include "sad_gdb_internal.h"
+#include "supported.h"
+#include <fcntl.h>
 #include <inttypes.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -12,72 +9,115 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define GET_CMD_PARAM(p_d) (p_d->command + 1)
-#define GET_PARAM_1(i)     (pkt_data->params[i].param1)
-#define GET_PARAM_2(i)     (pkt_data->params[i].param2)
+extern SAD_Stub server;
+
+#define GET_CMD_PARAM  (server.pkt_data.command + 1)
+#define GET_PARAM_1(i) (server.pkt_data.params[i].param1)
+#define GET_PARAM_2(i) (server.pkt_data.params[i].param2)
 
 // define builder functions
-#define X(s, ch) static void build_##s(Builder *builder, PKT_Data *pkt_data);
+#define X(s, ch) static void build_##s(void);
 SUPPORTED_CMDS
 #undef X
 
-void sad_builder_init(Builder *builder, PKT_Buffer *output_buffer, Sys_Ops sys_ops, Sys_Conf sys_conf,
-                      Stub_Ops stub_ops) {
-    builder->pkt_buffer = output_buffer;
-    builder->sys_ops = sys_ops;
-    builder->sys_conf = sys_conf;
-    builder->selected_core = 0;
-    builder->stub_ops = stub_ops;
-    if (sys_conf.arch == RV32) {
-        builder->cached_regs_bytes = sys_conf.regs_num * 4;
-        builder->cached_regs_str_bytes = (builder->cached_regs_bytes * 2);
+static int fd_set_blocking(bool blocking) {
+    int flags = fcntl(server.sad_socket, F_GETFL, 0);
+
+    if (flags == -1)
+        return -1;
+
+    if (blocking)
+        flags &= ~O_NONBLOCK; // clear nonblocking flag
+    else
+        flags |= O_NONBLOCK; // set nonblocking flag
+
+    return fcntl(server.sad_socket, F_SETFL, flags);
+}
+
+static void wait_for_halt(int core_idx) {
+    // set the socket as non blocking
+    bool halted = false;
+    size_t filled;
+    unsigned char *data;
+    fd_set_blocking(false);
+
+    while (!halted) {
+        // check GDB stop message
+		//sad_buff_reset(server.input_buffer);
+        sad_buff_from_socket(server.input_buffer, server.sad_socket);
+
+        // ^C from gdb
+        data = sad_buff_read_prep(server.input_buffer, &filled);
+		sad_buff_print_content(server.input_buffer, "INPUT");
+		printf("FILLED %ld", filled);
+
+        if (data[filled] == '\x03') {
+			printf("GDB STOPPED\n");
+            server.sys_ops.cores_halt();
+            return;
+        }
+
+        // check if core halted
+        halted = server.sys_ops.is_halted(core_idx);
     }
 
-#define X(s, ch) builder->supported_builders[COMMAND_##s] = build_##s;
+    // reset to blocking socket
+    fd_set_blocking(true);
+}
+
+void sad_builder_init() {
+    server.builder.selected_core = 0;
+    if (server.sys_conf.arch == RV32) {
+        server.builder.cached_regs_bytes = server.sys_conf.regs_num * 4;
+        server.builder.cached_regs_str_bytes = (server.builder.cached_regs_bytes * 2);
+    }
+
+#define X(s, ch) server.builder.supported_builders[COMMAND_##s] = build_##s;
     SUPPORTED_CMDS
 #undef X
 }
 
 // SAD_EXTEND START "Add new response builder here"
-static void build_unsupported(Builder *builder, PKT_Data *pkt_data) {
-    sad_buff_append_str(builder->pkt_buffer, "");
+static void build_unsupported() {
+    sad_buff_append_str(server.output_buffer, "");
 }
 
-static void build_g(Builder *builder, PKT_Data *pkt_data) {
-    size_t regs_sz = builder->cached_regs_bytes;
-    size_t output_sz = builder->cached_regs_str_bytes;
+static void build_g() {
+    size_t regs_sz = server.builder.cached_regs_bytes;
+    size_t output_sz = server.builder.cached_regs_str_bytes;
     byte regs[regs_sz];
     char output[output_sz];
     // Read regs
-    builder->sys_ops.read_regs(regs, regs_sz, builder->selected_core);
+    server.sys_ops.read_regs(regs, regs_sz, server.builder.selected_core);
+    printf("BUILD_G\n");
     // Convert to string;
     sad_bytes_to_hex_chars(output, regs, output_sz, regs_sz);
     // Reply
-    sad_buff_append(builder->pkt_buffer, output, output_sz);
+    sad_buff_append(server.output_buffer, output, output_sz);
 };
 
-static void build_G(Builder *builder, PKT_Data *pkt_data) {
+static void build_G() {
     // format: G XX...
-    const char *regs_str = GET_CMD_PARAM(pkt_data);
-    size_t regs_sz = builder->cached_regs_bytes;
+    const char *regs_str = GET_CMD_PARAM;
+    size_t regs_sz = server.builder.cached_regs_bytes;
     byte regs[regs_sz];
     util_ret ret;
 
     ret = sad_hex_str_to_bytes(regs, regs_str, regs_sz);
 
     if (ret != UTIL_OK) {
-        sad_buff_append_str(builder->pkt_buffer, "E");
+        sad_buff_append_str(server.output_buffer, "E");
     } else {
-        builder->sys_ops.write_regs(regs, regs_sz, builder->selected_core);
+        server.sys_ops.write_regs(regs, regs_sz, server.builder.selected_core);
         // reply OK
-        sad_buff_append_str(builder->pkt_buffer, "OK");
+        sad_buff_append_str(server.output_buffer, "OK");
     }
 };
 
-static void build_m(Builder *builder, PKT_Data *pkt_data) {
+static void build_m() {
     // format: m addr,length
 
-    const char *addr_str = GET_CMD_PARAM(pkt_data);
+    const char *addr_str = GET_CMD_PARAM;
     const char *length_str = GET_PARAM_1(0);
     size_t length = strtol(length_str, NULL, 16);
     uint32_t addr = strtol(addr_str, NULL, 16);
@@ -87,16 +127,16 @@ static void build_m(Builder *builder, PKT_Data *pkt_data) {
 
     byte mem[length];
 
-    builder->sys_ops.read_mem(mem, length, addr);
+    server.sys_ops.read_mem(mem, length, addr);
 
     sad_bytes_to_hex_chars(output, mem, output_sz, length);
-    sad_buff_append(builder->pkt_buffer, output, output_sz);
+    sad_buff_append(server.output_buffer, output, output_sz);
 };
 
-static void build_M(Builder *builder, PKT_Data *pkt_data) {
+static void build_M() {
     // formt: M addr,length:XX
 
-    const char *addr_str = GET_CMD_PARAM(pkt_data);
+    const char *addr_str = GET_CMD_PARAM;
     const char *length_str = GET_PARAM_1(0);
     const char *data_str = GET_PARAM_1(1);
 
@@ -110,57 +150,57 @@ static void build_M(Builder *builder, PKT_Data *pkt_data) {
     // prepare data to write
     ret = sad_hex_str_to_bytes(data, data_str, length);
     if (ret != UTIL_OK)
-        sad_buff_append_str(builder->pkt_buffer, "E");
+        sad_buff_append_str(server.output_buffer, "E");
 
-    builder->sys_ops.write_mem(data, length, addr);
-    sad_buff_append_str(builder->pkt_buffer, "OK");
+    server.sys_ops.write_mem(data, length, addr);
+    sad_buff_append_str(server.output_buffer, "OK");
 };
 
-static void build_qstmrk(Builder *builder, PKT_Data *pkt_data) {
-    sad_buff_append_str(builder->pkt_buffer, "S05");
+static void build_qstmrk() {
+    sad_buff_append_str(server.output_buffer, "S05");
 }
 
-static void build_Q(Builder *builder, PKT_Data *pkt_data) {
-    if (strcmp(pkt_data->command, "QStartNoAckMode") == 0) {
-        builder->stub_ops.Set_Ack(false);
-        sad_buff_append_str(builder->pkt_buffer, "OK");
+static void build_Q() {
+    if (strcmp(server.pkt_data.command, "QStartNoAckMode") == 0) {
+        server.ack_enabled = false;
+        sad_buff_append_str(server.output_buffer, "OK");
     } else
-        build_unsupported(builder, pkt_data);
+        build_unsupported();
 }
 
-static void build_q(Builder *builder, PKT_Data *pkt_data) {
-    if (strcmp(pkt_data->command, "qSupported") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "swbreak+;vCont+;QStartNoAckMode+");
+static void build_q() {
+    if (strcmp(server.pkt_data.command, "qSupported") == 0) {
+        sad_buff_append_str(server.output_buffer, "swbreak+;vCont+;QStartNoAckMode+");
     }
-    if (strcmp(pkt_data->command, "qfThreadInfo") == 0) {
+    if (strcmp(server.pkt_data.command, "qfThreadInfo") == 0) {
         char core_id_str[4];
         int i;
-        sad_buff_append_str(builder->pkt_buffer, "m");
-        for (i = 0; i < builder->sys_conf.smp - 1; i++) {
+        sad_buff_append_str(server.output_buffer, "m");
+        for (i = 0; i < server.sys_conf.smp - 1; i++) {
             sprintf(core_id_str, "%d,", i);
-            sad_buff_append_str(builder->pkt_buffer, core_id_str);
+            sad_buff_append_str(server.output_buffer, core_id_str);
         }
         sprintf(core_id_str, "%d", i);
-        sad_buff_append_str(builder->pkt_buffer, core_id_str);
+        sad_buff_append_str(server.output_buffer, core_id_str);
     }
-    if (strcmp(pkt_data->command, "qsThreadInfo") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "l");
+    if (strcmp(server.pkt_data.command, "qsThreadInfo") == 0) {
+        sad_buff_append_str(server.output_buffer, "l");
     }
 
-    if (strcmp(pkt_data->command, "qThreadExtraInfo") == 0) {
+    if (strcmp(server.pkt_data.command, "qThreadExtraInfo") == 0) {
         const char *thread_id_str = GET_PARAM_1(0);
-        sad_buff_append_str(builder->pkt_buffer, thread_id_str);
+        sad_buff_append_str(server.output_buffer, thread_id_str);
     }
 
-    if (strcmp(pkt_data->command, "qC") == 0) {
+    if (strcmp(server.pkt_data.command, "qC") == 0) {
         char response[10];
-        sprintf(response, "QC%d", builder->selected_core);
-        sad_buff_append_str(builder->pkt_buffer, response);
+        sprintf(response, "QC%d", server.builder.selected_core);
+        sad_buff_append_str(server.output_buffer, response);
     }
-    if (strcmp(pkt_data->command, "qSymbol") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "OK");
+    if (strcmp(server.pkt_data.command, "qSymbol") == 0) {
+        sad_buff_append_str(server.output_buffer, "OK");
     } else
-        build_unsupported(builder, pkt_data);
+        build_unsupported();
 }
 
 // We're doing a simplification here
@@ -180,26 +220,26 @@ static void build_q(Builder *builder, PKT_Data *pkt_data) {
 // if we receive "s:0" we do only step of thread 0, like set scheduler-locking on
 // if we receive "s" we assume that we step the selected core
 
-static void build_v(Builder *builder, PKT_Data *pkt_data) {
+static void build_v() {
+    if (strcmp(server.pkt_data.command, "vCont?") == 0) {
+        sad_buff_append_str(server.output_buffer, "s;c");
 
-    if (strcmp(pkt_data->command, "vCont?") == 0) {
-        sad_buff_append_str(builder->pkt_buffer, "s;c");
-
-    } else if (strcmp(pkt_data->command, "vCont") == 0) {
-        int fill = pkt_data->params_filled;
+    } else if (strcmp(server.pkt_data.command, "vCont") == 0) {
+        int fill = server.pkt_data.params_filled;
 
         if (fill == 1) {
             switch (GET_PARAM_1(0)[0]) {
             case 'c':
-                builder->sys_ops.cores_continue();
+                server.sys_ops.cores_continue();
                 break;
             case 's':
-                builder->sys_ops.core_step(builder->selected_core);
+                sad_buff_append_str(server.output_buffer, "E");
                 break;
             default:
-                build_unsupported(builder, pkt_data);
+                build_unsupported();
                 break;
             }
+			wait_for_halt(server.builder.selected_core);
         } else {
             const char *thread_id_str = GET_PARAM_1(1);
             int thread_id = strtol(thread_id_str, NULL, 16);
@@ -207,53 +247,50 @@ static void build_v(Builder *builder, PKT_Data *pkt_data) {
             case 'c':
                 // this is the case of continue all so or just "c" or "c:-1"
                 if (thread_id == -1)
-                    builder->sys_ops.cores_continue();
+                    server.sys_ops.cores_continue();
                 else {
-                    builder->sys_ops.core_continue(thread_id);
-                    while (1) {
-                        printf("LOCKED\n");
-                    }
+                    server.sys_ops.core_continue(thread_id);
                 }
                 break;
             case 's':
                 if (thread_id == -1) {
-                    sad_buff_append_str(builder->pkt_buffer, "E");
+                    sad_buff_append_str(server.output_buffer, "E");
                     return;
                 }
-                builder->sys_ops.core_step(thread_id);
+                server.sys_ops.core_step(thread_id);
                 break;
             default:
-                build_unsupported(builder, pkt_data);
+                build_unsupported();
                 break;
             }
+            wait_for_halt(thread_id);
         }
 
-        sad_buff_append_str(builder->pkt_buffer, "S05");
+        sad_buff_append_str(server.output_buffer, "S05");
         //
     } else
-        build_unsupported(builder, pkt_data);
+        build_unsupported();
 }
 
-static void build_T(Builder *builder, PKT_Data *pkt_data) {
-    sad_buff_append_str(builder->pkt_buffer, "OK");
+static void build_T() {
+    sad_buff_append_str(server.output_buffer, "OK");
 }
 
-static void build_H(Builder *builder, PKT_Data *pkt_data) {
-
-    if (strncmp(pkt_data->command, "Hg", 2) == 0) {
-        const char *thread_id_str = pkt_data->command + 2;
+static void build_H() {
+    if (strncmp(server.pkt_data.command, "Hg", 2) == 0) {
+        const char *thread_id_str = server.pkt_data.command + 2;
         int thread_id = strtol(thread_id_str, NULL, 10);
 
         if (thread_id != -1)
-            builder->selected_core = thread_id;
+            server.builder.selected_core = thread_id;
 
-        sad_buff_append_str(builder->pkt_buffer, "OK");
+        sad_buff_append_str(server.output_buffer, "OK");
     } else {
-        build_unsupported(builder, pkt_data);
+        build_unsupported();
     }
 }
 
-static void build_Z(Builder *builder, PKT_Data *pkt_data) {
+static void build_Z() {
     // format: Z type,addr,kind
     /**/
     /* const char *str_type = GET_CMD_PARAM(pkt_data); */
@@ -266,7 +303,7 @@ static void build_Z(Builder *builder, PKT_Data *pkt_data) {
     /**/
     /* if ((type < 0) || (type > 4) || (kind != 4)) { */
     /*     // compressed (kind == 2) is unsupported atm */
-    /*     sad_buff_append_str(builder->pkt_buffer, "E"); */
+    /*     sad_buff_append_str(builder->out_pkt_buffer, "E"); */
     /*     return; */
     /* } */
     /**/
@@ -292,34 +329,34 @@ static void build_Z(Builder *builder, PKT_Data *pkt_data) {
     /* w_handler->data = (unsigned char *) &tmp_data; */
     /**/
     /* sad_callbacks_dispatch(builder->cbks, WRITE_MEM_CBK); */
-    /* sad_pkt_buff_append_str(builder->pkt_buffer, "OK"); */
+    /* sad_pkt_buff_append_str(builder->out_pkt_buffer, "OK"); */
 }
 
 // SAD_EXTEND END
 
-void sad_builder_build_resp(Builder *builder, PKT_Data *pkt_data, bool ack_enabled) {
+void sad_builder_build_resp() {
     uint8_t checksum;
     char hex_checksum[3];
     cmd_type cmd;
 
-    if (ack_enabled)
-        sad_buff_append_str(builder->pkt_buffer, "+$");
+    if (server.ack_enabled)
+        sad_buff_append_str(server.output_buffer, "+$");
     else
-        sad_buff_append_str(builder->pkt_buffer, "$");
+        sad_buff_append_str(server.output_buffer, "$");
 
-    builder->pkt_buffer->start_pkt_data = builder->pkt_buffer->filled;
+    server.output_buffer->start_pkt_data = server.output_buffer->filled;
 
     // build resp
-    cmd = supported_idx(pkt_data->command[0]);
+    cmd = supported_idx(server.pkt_data.command[0]);
 
     // call the correct builder
-    builder->supported_builders[cmd](builder, pkt_data);
+    server.builder.supported_builders[cmd]();
 
-    builder->pkt_buffer->end_pkt_data = builder->pkt_buffer->filled;
+    server.output_buffer->end_pkt_data = server.output_buffer->filled;
 
-    sad_buff_append_str(builder->pkt_buffer, "#");
+    sad_buff_append_str(server.output_buffer, "#");
 
-    checksum = sad_buff_checksum(builder->pkt_buffer);
+    checksum = sad_buff_checksum(server.output_buffer);
     sprintf(hex_checksum, "%02x", checksum);
-    sad_buff_append_str(builder->pkt_buffer, hex_checksum);
+    sad_buff_append_str(server.output_buffer, hex_checksum);
 }

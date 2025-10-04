@@ -2,7 +2,7 @@
 #include "args.h"
 #include "cpu.h"
 #include "memory.h"
-#include "stub.h"
+#include "sad_gdb.h"
 #include "threads_mgr.h"
 #include <assert.h>
 #include <stdio.h>
@@ -30,7 +30,7 @@ void *debug_thread_fun(void *args) {
         .socket_io_size = STUB_READ_SIZE,
     };
 
-    sad_stub_init(conf);
+    sad_stub_init(&conf);
 
 	while(1)
 		sad_stub_handle_cmds();

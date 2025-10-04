@@ -1,2 +1,4 @@
 Check memory boundaries at the moment if requesting a strange address
 to the vm it will surely crash
+
+fix PKT_DATA params resize 

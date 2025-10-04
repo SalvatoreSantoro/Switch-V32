@@ -1,5 +1,5 @@
-#ifndef STUB_H
-#define STUB_H
+#ifndef SAD_GDB_H
+#define SAD_GDB_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -26,8 +26,8 @@ typedef struct {
     void (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
     void (*core_step)(int core_id);
     void (*core_continue)(int core_id);
-    void (*cores_continue)();
-    void (*cores_halt)();
+    void (*cores_continue)(void);
+    void (*cores_halt)(void);
     bool (*is_halted)(int);
 } Sys_Ops;
 
@@ -45,10 +45,10 @@ typedef struct {
     size_t socket_io_size;
 } Stub_Conf;
 
-stub_ret sad_stub_init(Stub_Conf conf);
+stub_ret sad_stub_init(Stub_Conf* conf);
 
 stub_ret sad_stub_handle_cmds(void);
 
-void sad_stub_reset(void);
+void sad_stub_deinit(void);
 
 #endif

@@ -12,6 +12,7 @@
 // buffers are shrinked when using reset
 // and their size is bigger than this parameter
 #define MAX_BUFF_DATA_SIZE 4096
+#define MAX_DATA_PARAMS_SIZE 10
 #define MAX_SMP 16
 
 #define SAD_ASSERT(exp, str)                                                                                           \

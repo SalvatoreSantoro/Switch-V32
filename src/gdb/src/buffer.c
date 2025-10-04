@@ -1,5 +1,8 @@
-#include "buffer.h"
 #include "defs.h"
+#include "sad_gdb_internal.h"
+#include <asm-generic/errno-base.h>
+#include <asm-generic/errno.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -85,9 +88,18 @@ buff_ret sad_buff_from_socket(PKT_Buffer *buff, int fd) {
             return BUFF_OOM;
     };
 
-    rd_bytes = read(fd, buff->data + buff->filled, buff->socket_io_size);
-    if (rd_bytes <= 0)
-        return BUFF_FD_ERR;
+    do {
+        rd_bytes = read(fd, buff->data + buff->filled, buff->socket_io_size);
+    } while (rd_bytes == -1 && errno == EINTR);
+
+    if (rd_bytes == -1) {
+        if (errno == EAGAIN || errno == EWOULDBLOCK)
+            return BUFF_WOULD_BLOCK;
+        else
+            return BUFF_FD_ERR;
+    } else if (rd_bytes == 0) {
+        return BUFF_CLOSED; // EOF
+    }
 
     buff->filled += rd_bytes;
     return BUFF_OK;
@@ -103,9 +115,20 @@ buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd) {
     left_to_wt = bytes_to_wt;
 
     while (tot_wt_bytes != bytes_to_wt) {
-        wt_bytes = write(fd, buff->data + tot_wt_bytes, left_to_wt);
-        if (wt_bytes == -1)
+        do {
+            wt_bytes = write(fd, buff->data + tot_wt_bytes, left_to_wt);
+        } while (wt_bytes == -1 && errno == EINTR);
+
+        if (wt_bytes == -1) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK)
+                return BUFF_WOULD_BLOCK;
             return BUFF_FD_ERR;
+        }
+
+        if (wt_bytes == 0) {
+            return BUFF_FD_ERR; // should not happen unless weird fd
+        }
+
         left_to_wt -= wt_bytes;
         tot_wt_bytes += wt_bytes;
     }
@@ -115,7 +138,8 @@ buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd) {
 void sad_buff_print_content(PKT_Buffer *buff, const char *str) {
     printf("%s", str);
     for (size_t i = 0; i < buff->filled; i++)
-        putchar(buff->data[i]);
+		printf("%d", buff->data[i]);
+        //putchar(buff->data[i]);
     putchar('\n');
 }
 

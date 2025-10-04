@@ -1,5 +1,4 @@
-#include "utils.h"
-#include "defs.h"
+#include "sad_gdb_internal.h"
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
