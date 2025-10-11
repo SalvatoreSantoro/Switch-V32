@@ -138,8 +138,7 @@ buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd) {
 void sad_buff_print_content(PKT_Buffer *buff, const char *str) {
     printf("%s", str);
     for (size_t i = 0; i < buff->filled; i++)
-		printf("%d", buff->data[i]);
-        //putchar(buff->data[i]);
+        putchar(buff->data[i]);
     putchar('\n');
 }
 

@@ -1,9 +1,11 @@
 #ifndef STUB_H
 #define STUB_H
 
+#include "defs.h"
 #include "sad_gdb.h"
 #include "supported.h"
 #include <netinet/in.h>
+#include <stdint.h>
 
 // TYPES
 
@@ -11,6 +13,7 @@ typedef struct Parser Parser;
 typedef struct Builder Builder;
 typedef struct PKT_Data PKT_Data;
 typedef struct PKT_Buffer PKT_Buffer;
+typedef struct Breakpoint Breakpoint;
 
 // PKT_DATA
 
@@ -52,6 +55,19 @@ struct Parser {
     pars_state state;
     pars_data_state data_state;
     size_t parse_idx;
+};
+
+// BREAKPOINT
+
+typedef enum {
+    BRK_EMPTY,
+    BRK_FULL
+} breakpoint_status;
+
+struct Breakpoint {
+    uint32_t addr;
+    uint32_t instr;
+    breakpoint_status status;
 };
 
 // BUILDER
@@ -100,6 +116,7 @@ typedef struct {
     // sad client address
     struct sockaddr_in address;
     socklen_t addrlen;
+    Breakpoint breakpoints[MAX_BREAKPOINTS];
 } SAD_Stub;
 
 // UTILS
@@ -168,5 +185,15 @@ buff_ret sad_buff_append_str(PKT_Buffer *buff, const char *str);
 uint8_t sad_buff_checksum(PKT_Buffer *buff);
 
 void sad_buff_reset(PKT_Buffer *buff);
+
+// BREAKPOINT
+
+bool sad_insert_breakpoint(uint32_t addr);
+
+bool sad_remove_breakpoint(uint32_t addr);
+
+Breakpoint *sad_find_breakpoint(uint32_t addr);
+
+bool sad_step_the_breakpoint(int core_idx);
 
 #endif

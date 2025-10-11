@@ -26,7 +26,7 @@ static void sad_stub_reset() {
 }
 
 // STUB
-stub_ret sad_stub_init(Stub_Conf* conf) {
+stub_ret sad_stub_init(Stub_Conf *conf) {
     int opt = 1;
     struct sockaddr_in address;
     stub_ret ret = STUB_OOM;
@@ -36,8 +36,8 @@ stub_ret sad_stub_init(Stub_Conf* conf) {
     size_t socket_io_size = conf->socket_io_size > 0 ? conf->socket_io_size : DEFAULT_SOCKET_IO_SIZE;
     int port = conf->port > 0 ? conf->port : DEFAULT_PORT;
 
-	server.sys_conf = conf->sys_conf;
-	server.sys_ops = conf->sys_ops;
+    server.sys_conf = conf->sys_conf;
+    server.sys_ops = conf->sys_ops;
 
     if (conf->sys_conf.arch != RV32)
         return STUB_ARCH;
@@ -57,7 +57,7 @@ stub_ret sad_stub_init(Stub_Conf* conf) {
     if (sad_pkt_data_init() == DATA_OOM)
         return STUB_OOM;
 
-	// builder init
+    // builder init
     sad_builder_init();
 
     // reset state
@@ -84,6 +84,10 @@ stub_ret sad_stub_init(Stub_Conf* conf) {
     server.sad_socket = accept(server.server_fd, (struct sockaddr *) &server.address, &server.addrlen);
     if (server.sad_socket == -1)
         goto close_socket;
+
+	// Reset breakpoints
+    for (size_t i = 0; i < MAX_BREAKPOINTS ; i++)
+        server.breakpoints[i].status = BRK_EMPTY;
 
     server.ack_enabled = true;
     return STUB_OK;
@@ -113,7 +117,9 @@ stub_ret sad_stub_handle_cmds(void) {
         // the parser could be parsing an incomplete packet (without the ending "#")
         // so in case  sad_parser_pkt returns PARSING_INCOMPLETE the stub does nothing
         sad_parser_pkt();
+#ifdef SAD_DEBUG
         sad_buff_print_content(server.input_buffer, "READ: ");
+#endif
 
         if (server.parser.state == PARSE_ERROR) {
             // reset output in case last time it was "PARSING_GOT_NACK"
@@ -141,13 +147,15 @@ stub_ret sad_stub_handle_cmds(void) {
             // reset output in case last time it was "PARSING_GOT_NACK"
             sad_stub_reset_output_state();
 
-			// parse data to initialize server PKT_Data
-			sad_parser_data();
+            // parse data to initialize server PKT_Data
+            sad_parser_data();
 
-			//sad_pkt_data_print();
+            // sad_pkt_data_print();
 
             sad_builder_build_resp();
+#ifdef SAD_DEBUG
             sad_buff_print_content(server.output_buffer, "WRITE: ");
+#endif
 
             if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;

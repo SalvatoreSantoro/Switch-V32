@@ -7,7 +7,7 @@ LIB_OUTPUT := $(BUILD_DIR)/lib$(LIB_NAME).a
 
 # Compiler and flags
 CC := gcc
-CFLAGS := -Wall -Wextra -std=c99 -fPIC -O2
+CFLAGS := -Wall -Wextra -std=c99 -fPIC -O2 -DSAD_DEBUG
 INCLUDES := -I$(LIB_DIR)
 
 # Source and object files

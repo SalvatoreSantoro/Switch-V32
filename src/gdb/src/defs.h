@@ -14,6 +14,7 @@
 #define MAX_BUFF_DATA_SIZE 4096
 #define MAX_DATA_PARAMS_SIZE 10
 #define MAX_SMP 16
+#define MAX_BREAKPOINTS 128
 
 #define SAD_ASSERT(exp, str)                                                                                           \
     do {                                                                                                               \

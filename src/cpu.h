@@ -97,7 +97,9 @@ void vcore_s_type(VCore *core, uint32_t ins);
 
 void vcore_a_type(VCore *core, uint32_t ins);
 
-void vcore_e_type(VCore *core, uint32_t ins);
+// returns true if executed a breakpoint
+// otherwise false
+bool vcore_e_type(VCore *core, uint32_t ins);
 
 void vcore_run(VCore *core);
 

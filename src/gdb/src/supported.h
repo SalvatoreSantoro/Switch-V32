@@ -12,6 +12,7 @@
     X(g, 'g')                                                                                                          \
     X(v, 'v')                                                                                                          \
     X(Z, 'Z')                                                                                                          \
+	X(z, 'z')                                                                                                          \
     X(T, 'T')                                                                                                          \
     X(H, 'H')                                                                                                          \
     X(unsupported, '0') // assmuning '0' isn't a valid command

@@ -1,3 +1,4 @@
+#include "sad_gdb.h"
 #include "sad_gdb_internal.h"
 #include "supported.h"
 #include <fcntl.h>
@@ -34,39 +35,38 @@ static int fd_set_blocking(bool blocking) {
     return fcntl(server.sad_socket, F_SETFL, flags);
 }
 
-static void wait_for_halt(int core_idx) {
+static bool wait_for_halt(int core_idx) {
     // set the socket as non blocking
-    bool halted = false;
+    bool breakp_stop = false;
     size_t filled;
     unsigned char *data;
     fd_set_blocking(false);
 
-    while (!halted) {
+    while (!breakp_stop) {
         // check GDB stop message
-		//sad_buff_reset(server.input_buffer);
         sad_buff_from_socket(server.input_buffer, server.sad_socket);
 
         // ^C from gdb
         data = sad_buff_read_prep(server.input_buffer, &filled);
-		sad_buff_print_content(server.input_buffer, "INPUT");
-		printf("FILLED %ld", filled);
 
-        if (data[filled] == '\x03') {
-			printf("GDB STOPPED\n");
+        if (data[filled - 1] == '\x03') {
             server.sys_ops.cores_halt();
-            return;
+            break;
         }
 
         // check if core halted
-        halted = server.sys_ops.is_halted(core_idx);
+        // just check the core_idx because as a convention a breakpoint stops all the threads
+        breakp_stop = server.sys_ops.is_halted(core_idx);
     }
 
     // reset to blocking socket
     fd_set_blocking(true);
+    return breakp_stop;
 }
 
 void sad_builder_init() {
     server.builder.selected_core = 0;
+
     if (server.sys_conf.arch == RV32) {
         server.builder.cached_regs_bytes = server.sys_conf.regs_num * 4;
         server.builder.cached_regs_str_bytes = (server.builder.cached_regs_bytes * 2);
@@ -89,7 +89,6 @@ static void build_g() {
     char output[output_sz];
     // Read regs
     server.sys_ops.read_regs(regs, regs_sz, server.builder.selected_core);
-    printf("BUILD_G\n");
     // Convert to string;
     sad_bytes_to_hex_chars(output, regs, output_sz, regs_sz);
     // Reply
@@ -223,53 +222,75 @@ static void build_q() {
 static void build_v() {
     if (strcmp(server.pkt_data.command, "vCont?") == 0) {
         sad_buff_append_str(server.output_buffer, "s;c");
+        return;
 
     } else if (strcmp(server.pkt_data.command, "vCont") == 0) {
         int fill = server.pkt_data.params_filled;
+        int thread_id;
+        const char *thread_id_str = NULL;
 
-        if (fill == 1) {
-            switch (GET_PARAM_1(0)[0]) {
-            case 'c':
-                server.sys_ops.cores_continue();
-                break;
-            case 's':
-                sad_buff_append_str(server.output_buffer, "E");
-                break;
-            default:
-                build_unsupported();
-                break;
-            }
-			wait_for_halt(server.builder.selected_core);
-        } else {
-            const char *thread_id_str = GET_PARAM_1(1);
-            int thread_id = strtol(thread_id_str, NULL, 16);
-            switch (GET_PARAM_1(0)[0]) {
-            case 'c':
-                // this is the case of continue all so or just "c" or "c:-1"
-                if (thread_id == -1)
-                    server.sys_ops.cores_continue();
-                else {
-                    server.sys_ops.core_continue(thread_id);
-                }
-                break;
-            case 's':
-                if (thread_id == -1) {
-                    sad_buff_append_str(server.output_buffer, "E");
-                    return;
-                }
-                server.sys_ops.core_step(thread_id);
-                break;
-            default:
-                build_unsupported();
-                break;
-            }
-            wait_for_halt(thread_id);
+        if (fill == 0) {
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
         }
 
-        sad_buff_append_str(server.output_buffer, "S05");
-        //
-    } else
-        build_unsupported();
+        // s:#;c:#
+        if (fill >= 2) {
+            thread_id_str = GET_PARAM_1(1);
+        }
+
+        thread_id = thread_id_str == NULL ? server.builder.selected_core : strtol(thread_id_str, NULL, 16);
+
+        if (thread_id >= server.sys_conf.smp) {
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
+        }
+
+        // always check if there is some core on the breakpoint and correctly
+        // exec the saved instruction before continuing
+
+        switch (GET_PARAM_1(0)[0]) {
+        case 'c':
+            if ((thread_id_str == NULL) || (thread_id == -1)) {
+                // this is the case of continue all so or just "c" or "c:-1"
+                for (int i = 0; i < server.sys_conf.smp; i++)
+                    sad_step_the_breakpoint(i);
+                server.sys_ops.cores_continue();
+            } else {
+                sad_step_the_breakpoint(thread_id);
+                server.sys_ops.core_continue(thread_id);
+            }
+            break;
+
+        case 's':
+            if ((thread_id_str == NULL) || (thread_id == -1)) {
+                // this is the case of continue all so or just "s" or "s:-1"
+                sad_buff_append_str(server.output_buffer, "E");
+                return;
+            } else {
+                if (!sad_step_the_breakpoint(thread_id))
+                    server.sys_ops.core_step(thread_id);
+            }
+            break;
+
+        default:
+            build_unsupported();
+            return;
+            break;
+        }
+
+        // wait that the cores hit a breakpoint or the user sends a stop signal
+        // from GDB
+        bool stop;
+        stop = wait_for_halt(thread_id);
+        if (stop) { // breakpoint stop or step stop
+            if (GET_PARAM_1(0)[0] == 's')
+                sad_buff_append_str(server.output_buffer, "S05");
+            else
+                sad_buff_append_str(server.output_buffer, "T05swbreak:;");
+        } else // GDB interactive stop
+            sad_buff_append_str(server.output_buffer, "S02");
+    }
 }
 
 static void build_T() {
@@ -293,43 +314,55 @@ static void build_H() {
 static void build_Z() {
     // format: Z type,addr,kind
     /**/
-    /* const char *str_type = GET_CMD_PARAM(pkt_data); */
-    /* const char *str_addr = pkt_data->params[0].param1; */
-    /* const char *str_kind = pkt_data->params[1].param1; */
+    const char *str_type = GET_CMD_PARAM;
+    const char *str_addr = GET_PARAM_1(0);
+    const char *str_kind = GET_PARAM_1(1);
+
+    int type = atoi(str_type);
+    int kind = atoi(str_kind);
+    long addr = strtol(str_addr, NULL, 16);
+
+    bool inserted;
+
+    if (server.sys_conf.arch == RV32) {
+        if ((type < 0) || (type > 4) || (kind != 4)) {
+            // compressed (kind == 2) is unsupported atm
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
+        }
+
+        inserted = sad_insert_breakpoint(addr);
+        if (!inserted) {
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
+        }
+    }
+
+    sad_buff_append_str(server.output_buffer, "OK");
+}
+
+static void build_z() {
+    // format: z type,addr,kind
     /**/
-    /* int type = atoi(str_type); */
-    /* int kind = atoi(str_kind); */
-    /* long addr = strtol(str_addr, NULL, 16); */
-    /**/
-    /* if ((type < 0) || (type > 4) || (kind != 4)) { */
-    /*     // compressed (kind == 2) is unsupported atm */
-    /*     sad_buff_append_str(builder->out_pkt_buffer, "E"); */
-    /*     return; */
-    /* } */
-    /**/
-    /* // read current content */
-    /* READ_MEM_CBK_t *r_handler = GET_HANDL(builder->cbks, READ_MEM_CBK); */
-    /* r_handler->addr = addr; */
-    /* r_handler->length = kind; */
-    /**/
-    /* sad_callbacks_dispatch(builder->cbks, READ_MEM_CBK); */
-    /**/
-    /* size_t filled; */
-    /* unsigned char prova[kind]; */
-    /* sad_buff_read_prep(r_handler->output, &filled); */
-    /**/
-    /* printf("PROVA BREAK: %X\n", *prova); */
-    /**/
-    /* // write breakpoint instruction */
-    /* WRITE_MEM_CBK_t *w_handler = GET_HANDL(builder->cbks, WRITE_MEM_CBK); */
-    /* // ebreak encoding */
-    /* uint32_t tmp_data = 0x00100073; */
-    /* w_handler->addr = addr; */
-    /* w_handler->length = kind; */
-    /* w_handler->data = (unsigned char *) &tmp_data; */
-    /**/
-    /* sad_callbacks_dispatch(builder->cbks, WRITE_MEM_CBK); */
-    /* sad_pkt_buff_append_str(builder->out_pkt_buffer, "OK"); */
+    const char *str_type = GET_CMD_PARAM;
+    const char *str_addr = GET_PARAM_1(0);
+    const char *str_kind = GET_PARAM_1(1);
+
+    int type = atoi(str_type);
+    int kind = atoi(str_kind);
+    long addr = strtol(str_addr, NULL, 16);
+
+    if (server.sys_conf.arch == RV32) {
+        if ((type < 0) || (type > 4) || (kind != 4)) {
+            // compressed (kind == 2) is unsupported atm
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
+        }
+
+        sad_remove_breakpoint(addr);
+    }
+
+    sad_buff_append_str(server.output_buffer, "OK");
 }
 
 // SAD_EXTEND END

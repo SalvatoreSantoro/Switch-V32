@@ -2,6 +2,7 @@
 #include "emu.h"
 #include "macros.h"
 #include "memory.h"
+#include "threads_mgr.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -153,7 +154,9 @@ const char *re_na(int reg_num) {
                 vcore_a_type(core, ins);                                                                               \
                 break;                                                                                                 \
             case ENV_TYPE:                                                                                             \
-                vcore_e_type(core, ins);                                                                               \
+                if (vcore_e_type(core, ins)) { /* if true(breakpoint) don't update the PC */                           \
+                    pc_next = core->pc;                                                                                \
+                }                                                                                                      \
                 break;                                                                                                 \
             default:                                                                                                   \
                 fprintf(stderr, "%x BADOPCODE at %x\n", ins, core->pc);                                                \
@@ -501,19 +504,21 @@ void vcore_a_type(VCore *core, uint32_t ins) {
     }
 }
 
-void vcore_e_type(VCore *core, uint32_t ins) {
+bool vcore_e_type(VCore *core, uint32_t ins) {
     int32_t imm = I_IMM(ins);
     switch (imm) {
     case ECALL:
         emu_system_call(core);
         break;
     case EBREAK:
-        // gdb_breakpoint();
+        threads_mgr_halt_all();
+        return true;
         break;
     default:
         fprintf(stderr, "%x E-Type BADCODE\n", ins);
         exit(EXIT_FAILURE);
     }
+    return false;
 }
 
 void vcore_run(VCore *core) {
@@ -527,7 +532,6 @@ void vcore_run(VCore *core) {
         INSTR_SWITCH;
     }
 }
-
 
 void vcore_step(VCore *core) {
     uint32_t ins;
