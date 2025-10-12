@@ -6,7 +6,6 @@
 #include <unistd.h>
 
 
-
 Args_Context ctx = {
     .elf_stdin = NULL, 
     .elf_stdout = NULL,
@@ -26,14 +25,12 @@ int main(int argc, char *argv[]) {
 	threads_mgr_init();
 
 //#ifdef USER
-
     emu_args();
 
     emu_std();
 
-	// core 0 is always allocated in USER mode
+	//assuming that core 0 is always allocated in USER mode
     ld_elf();
-
 //#endif
 
     // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()

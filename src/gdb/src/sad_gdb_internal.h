@@ -1,5 +1,5 @@
-#ifndef STUB_H
-#define STUB_H
+#ifndef SAD_GDB_INTERNAL_H
+#define SAD_GDB_INTERNAL_H
 
 #include "defs.h"
 #include "sad_gdb.h"

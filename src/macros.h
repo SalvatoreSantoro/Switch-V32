@@ -6,6 +6,9 @@
 //  #define LOADER_VERBOSE
 //  #define CPU_VERBOSE
 
+#include <stdio.h>
+#include <stdlib.h>
+
 #ifdef ALL_VERBOSE
     #define CPU_VERBOSE
     #define SYS_VERBOSE
@@ -84,5 +87,17 @@
 #else
     #define LOG_LOAD()
 #endif
+
+#define SV32_CRASH(str)                                                                                                \
+    do {                                                                                                               \
+        fprintf(stderr, "%s\n", str);                                                                                  \
+        exit(EXIT_FAILURE);                                                                                            \
+    } while (0)
+
+#define SV32_EXIT(str)                                                                                                 \
+    do {                                                                                                               \
+        printf("%s\n", str);                                                                                  \
+        exit(EXIT_SUCCESS);                                                                                            \
+    } while (0)
 
 #endif

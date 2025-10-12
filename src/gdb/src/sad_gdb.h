@@ -12,7 +12,8 @@ typedef enum {
     STUB_OOM,
     STUB_SOCKET,
     STUB_ARCH,
-    STUB_SMP
+    STUB_SMP,
+	STUB_CLOSED
 } stub_ret;
 
 typedef enum {

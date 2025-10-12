@@ -1,4 +1,5 @@
 #include "defs.h"
+#include "sad_gdb.h"
 #include "sad_gdb_internal.h"
 #include <fcntl.h>
 #include <stdarg.h>
@@ -112,6 +113,8 @@ stub_ret sad_stub_handle_cmds(void) {
             return STUB_OOM;
         if (b_ret == BUFF_FD_ERR)
             return STUB_SOCKET;
+		if (b_ret == BUFF_CLOSED)
+			return STUB_CLOSED;
 
         // parse data just read in the input_buffer
         // the parser could be parsing an incomplete packet (without the ending "#")

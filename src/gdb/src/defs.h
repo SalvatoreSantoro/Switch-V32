@@ -16,12 +16,4 @@
 #define MAX_SMP 16
 #define MAX_BREAKPOINTS 128
 
-#define SAD_ASSERT(exp, str)                                                                                           \
-    do {                                                                                                               \
-        if (!(exp)) {                                                                                                  \
-            printf("SAD ASSERT FAILED: %s: %d: %s\n", __FILE__, __LINE__, str);                                        \
-            exit(EXIT_FAILURE);                                                                                        \
-        }                                                                                                              \
-    } while (0)
-
 #endif

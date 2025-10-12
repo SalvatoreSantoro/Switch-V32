@@ -1,5 +1,5 @@
 ### VARIABLES & FLAGS
-NAME = SV32
+NAME = sv32
 
 DOOM_DIR = doom_riscv/src/riscv
 DOOM = doom-riscv.elf
