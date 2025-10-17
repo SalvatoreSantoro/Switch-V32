@@ -2,30 +2,24 @@
 #include "args.h"
 #include "cpu.h"
 #include "debug.h"
+#include "macros.h"
 #include <asm-generic/errno-base.h>
 #include <assert.h>
 #include <pthread.h>
 #include <sched.h>
-#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
-#define THREADS_CRASH(str)                                                                                             \
-    do {                                                                                                               \
-        fprintf(stderr, "Threads manager crashed: %s\n", str);                                                         \
-        exit(EXIT_FAILURE);                                                                                            \
-    } while (0)
 
 #define pthread_mutex_unlock_(mutex_ref)                                                                               \
     do {                                                                                                               \
         if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
-            THREADS_CRASH("UNLOCK FAILED");                                                                            \
+            SV32_CRASH("UNLOCK FAILED");                                                                            \
     } while (0)
 
 #define pthread_mutex_lock_(mutex_ref)                                                                                 \
     do {                                                                                                               \
         if (pthread_mutex_lock(mutex_ref) != 0)                                                                        \
-            THREADS_CRASH("LOCK FAILED");                                                                              \
+            SV32_CRASH("LOCK FAILED");                                                                              \
     } while (0)
 
 #define __WAIT_STOP_ALL__                                                                                              \
@@ -138,7 +132,7 @@ void threads_mgr_init() {
     // false sharing
     threads_mgr.threads_cores = malloc(sizeof(Thread) * ctx.cores);
     if (threads_mgr.threads_cores == NULL)
-        THREADS_CRASH("OOM");
+        SV32_CRASH("OOM");
 
     threads_mgr.atomic_stop_all = false;
     threads_mgr.atomic_barrier_count = 0;
@@ -153,7 +147,7 @@ void threads_mgr_init() {
     // set debugging structs
     threads_mgr.halt_cond = malloc(sizeof(Halt_Cond) * ctx.cores);
     if (threads_mgr.halt_cond == NULL)
-        THREADS_CRASH("OOM");
+        SV32_CRASH("OOM");
 
     for (int i = 0; i < ctx.cores; i++) {
         GET_HALT(i).halted = true;
@@ -161,7 +155,7 @@ void threads_mgr_init() {
         pthread_mutex_init(&GET_HALT(i).mutex, NULL);
         ret = pthread_cond_init(&GET_HALT(i).cond, NULL);
         if (ret != 0)
-            THREADS_CRASH("PTHREAD COND INIT");
+            SV32_CRASH("PTHREAD COND INIT");
     }
 }
 
@@ -188,19 +182,19 @@ void threads_mgr_run() {
         for (int i = 1; i < ctx.cores; i++) {
             ret = pthread_create(&GET_THREAD_ID(i), NULL, debug_core_thread_fun, NULL);
             if (ret != 0)
-                THREADS_CRASH("PTHREAD CREATE");
+                SV32_CRASH("PTHREAD CREATE");
         }
 
         // create debug thread
         ret = pthread_create(&threads_mgr.debug_thread, NULL, debug_thread_fun, NULL);
         if (ret != 0)
-            THREADS_CRASH("PTHREAD CREATE");
+            SV32_CRASH("PTHREAD CREATE");
 
     } else {
         for (int i = 1; i < ctx.cores; i++) {
             ret = pthread_create(&GET_THREAD_ID(i), NULL, core_thread_fun, NULL);
             if (ret != 0)
-                THREADS_CRASH("PTHREAD CREATE");
+                SV32_CRASH("PTHREAD CREATE");
         }
     }
 

@@ -88,10 +88,11 @@
     #define LOG_LOAD()
 #endif
 
-#define SV32_CRASH(str)                                                                                                \
-    do {                                                                                                               \
-        fprintf(stderr, "%s\n", str);                                                                                  \
-        exit(EXIT_FAILURE);                                                                                            \
+#define SV32_CRASH(msg)                                                                                               \
+    do {                                                                                                              \
+        fprintf(stderr, "[SV32_CRASH] %s:%d: %s\n", __FILE__, __LINE__, (msg));                                       \
+        fflush(stderr);                                                                                               \
+        exit(EXIT_FAILURE);                                                                                           \
     } while (0)
 
 #define SV32_EXIT(str)                                                                                                 \

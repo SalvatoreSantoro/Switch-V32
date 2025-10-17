@@ -170,8 +170,32 @@ const char *re_na(int reg_num) {
 void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
+    uint32_t func = R_FUNC(ins);
     uint64_t tmp_mul;
-    switch (R_FUNC(ins)) {
+    // Divide by zero
+    if (rs2 == 0) {
+        if ((func == DIV) || (func == DIVU)) {
+            *rd = 0xFFFFFFFF;
+            return;
+        }
+        if ((func == REM) || (func == REMU)) {
+            *rd = rs1;
+            return;
+        }
+    }
+    // overlow (minnegative / -1)
+    if (((signed) rs2 == -1) && ((signed) rs1 == INT32_MIN)) {
+        if ((func == DIV) || (func == DIVU)) {
+            *rd = INT32_MIN;
+            return;
+        }
+        if ((func == REM) || (func == REMU)) {
+            *rd = 0;
+            return;
+        }
+    }
+
+    switch (func) {
     case ADD:
         *rd = rs1 + rs2;
         LOG_R("ADD");

@@ -14,11 +14,6 @@
 #include <time.h>
 #include <unistd.h>
 
-#define EMU_CRASH(str)                                                                                                 \
-    do {                                                                                                               \
-        fprintf(stderr, "The system EMULATION crashed: %s\n", str);                                                    \
-        exit(EXIT_FAILURE);                                                                                            \
-    } while (0)
 
 // System calls needed from Newlib
 
@@ -106,7 +101,7 @@ void emu_std() {
         close(fd);
     }
     if (ret == -1)
-        EMU_CRASH("CAN'T SET STDIN");
+        SV32_CRASH("CAN'T SET STDIN");
 
     if (ctx.elf_stdout == NULL)
         dup2(STDOUT_FILENO, ELF_FDS_BASELINE + 1);
@@ -116,7 +111,7 @@ void emu_std() {
         close(fd);
     }
     if (ret == -1)
-        EMU_CRASH("CAN'T SET STDOUT");
+        SV32_CRASH("CAN'T SET STDOUT");
 
     if (ctx.elf_stderr == NULL)
         dup2(STDERR_FILENO, ELF_FDS_BASELINE + 2);
@@ -126,7 +121,7 @@ void emu_std() {
         close(fd);
     }
     if (ret == -1)
-        EMU_CRASH("CAN'T SET STDERR");
+        SV32_CRASH("CAN'T SET STDERR");
 }
 
 void emu_args() {
@@ -140,7 +135,7 @@ void emu_args() {
 
     tmp_str_sz = strlen(ctx.elf_args);
     if (tmp_str_sz >= PAGE_SIZE)
-        EMU_CRASH("ELF ARGUMENT TOO BIG");
+        SV32_CRASH("ELF ARGUMENT TOO BIG");
 
     // create temp string for tokenizer
     tmp_str = malloc(tmp_str_sz + 1);

@@ -1,5 +1,6 @@
 #include "sdl.h"
 #include "args.h"
+#include "macros.h"
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
@@ -13,11 +14,7 @@
 #include <string.h>
 #include <unistd.h>
 
-#define SDL_CRASH(str)                                                                                                 \
-    do {                                                                                                               \
-        fprintf(stderr, "ERROR FROM SDL: %s\n", str);                                                                  \
-        exit(EXIT_FAILURE);                                                                                            \
-    } while (0)
+
 
 static SDL_Window *s_win;
 static SDL_Renderer *s_ren;
@@ -34,10 +31,10 @@ static size_t s_event_buff_size_mask = 0;
 void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
     // little optimization if size is power of 2
     if ((ev_buff_sz & (ev_buff_sz - 1)) != 0)
-        SDL_CRASH("SDL Event buffer size must be power of 2\n");
+        SV32_CRASH("SDL Event buffer size must be power of 2\n");
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
-        SDL_CRASH(SDL_GetError());
+        SV32_CRASH(SDL_GetError());
 
     s_win = SDL_CreateWindow(win_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ctx.sdl_upscale * w,
                              ctx.sdl_upscale * h, 0);

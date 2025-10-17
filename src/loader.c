@@ -18,16 +18,12 @@
 #include <time.h>
 #include <unistd.h>
 
-#define LOADER_CRASH(str)                                                                                              \
-    do {                                                                                                               \
-        fprintf(stderr, "The ELF loader crashed: %s\n", str);                                                          \
-        exit(EXIT_FAILURE);                                                                                            \
-    } while (0)
+
 
 #define VALIDATE(cond)                                                                                                 \
     do {                                                                                                               \
         if (!(cond))                                                                                                   \
-            LOADER_CRASH("ELF HEADER INVALID\n");                                                                      \
+            SV32_CRASH("ELF HEADER INVALID\n");                                                                      \
     } while (0)
 
 
@@ -112,7 +108,7 @@ static void _ld_elf_symbols(Elf_File *elf) {
     // load symbols table
     sect = _ld_elf_getsect(elf, ".symtab");
     if (sect == NULL)
-        LOADER_CRASH("CAN'T FIND .symtab\n");
+        SV32_CRASH("CAN'T FIND .symtab\n");
 
     elf->symb_size = sect->sh_size / sect->sh_entsize;
     elf->symbols = (Elf32_Sym *) (elf->data + sect->sh_offset);
@@ -120,7 +116,7 @@ static void _ld_elf_symbols(Elf_File *elf) {
     // load symbols names
     sect = _ld_elf_getsect(elf, ".strtab");
     if (sect == NULL)
-        LOADER_CRASH("CAN'T FIND .strtab\n");
+        SV32_CRASH("CAN'T FIND .strtab\n");
     elf->symbols_names = (const char *) (elf->data + sect->sh_offset);
 }
 
@@ -160,13 +156,13 @@ void ld_elf() {
 
     // load the file
     if ((fd = open(ctx.elf_name, O_RDONLY)) == -1)
-        LOADER_CRASH(strerror(errno));
+        SV32_CRASH(strerror(errno));
 
     if (fstat(fd, &fst) == -1)
-        LOADER_CRASH(strerror(errno));
+        SV32_CRASH(strerror(errno));
 
     if ((elf.data = mmap(NULL, fst.st_size, PROT_READ, MAP_PRIVATE, fd, 0)) == NULL)
-        LOADER_CRASH(strerror(errno));
+        SV32_CRASH(strerror(errno));
 
     elf.header = (Elf32_Ehdr *) elf.data;
 
