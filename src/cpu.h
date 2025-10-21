@@ -72,6 +72,8 @@ typedef struct {
     // ELF
     uint32_t elf_brk;
     uint32_t elf_errno;
+	// Index
+	int core_idx;
 } VCore;
 
 // get register name

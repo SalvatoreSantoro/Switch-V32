@@ -44,9 +44,11 @@ void threads_mgr_run();
 
 void threads_mgr_halt_all();
 
-void threads_mgr_continue_all();
+void threads_mgr_halt_core(int core_idx);
 
-void threads_mgr_continue_core(int core_idx);
+void threads_mgr_run_all();
+
+void threads_mgr_run_core(int core_idx);
 
 void threads_mgr_step_core(int core_idx);
 
@@ -61,6 +63,6 @@ void barrier_count_wait(void);
 
 int thread_init();
 
-void *debug_core_thread_fun(void *args);
+//void *debug_core_thread_fun(void *args);
 
 #endif

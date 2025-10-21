@@ -5,7 +5,6 @@
 
 extern Args_Context ctx;
 
-#define SYSTEM 0
 
 #define CTX_CRASH(str)                                                                                                 \
     do {                                                                                                               \
@@ -59,7 +58,7 @@ void ctx_init(int argc, char *argv[]) {
             ctx.elf_name[i] = '\0';
             break;
         case 'c':
-#ifdef SYSTEM
+#ifdef SUPERVISOR
             ctx.cores = atoi(optarg);
 #endif
             break;

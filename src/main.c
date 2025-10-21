@@ -5,6 +5,7 @@
 #include "threads_mgr.h"
 #include <unistd.h>
 
+//#define SUPERVISOR
 
 Args_Context ctx = {
     .elf_stdin = NULL, 

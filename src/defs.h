@@ -7,6 +7,12 @@
     #define PATH_MAX 4096
 #endif
 
+#ifdef SUPERVISOR 
+#define SUPERVISOR_IS_SET 1
+#else
+#define SUPERVISOR_IS_SET 0
+#endif
+
 // 2^28
 #define MEM_SIZE 268435456
 #define PAGE_SIZE 4096

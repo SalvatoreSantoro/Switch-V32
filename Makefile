@@ -1,7 +1,7 @@
 ### VARIABLES & FLAGS
 NAME = sv32
 
-DOOM_DIR = doom_riscv/src/riscv
+DOOM_DIR = demo/doom_riscv/src/riscv
 DOOM = doom-riscv.elf
 CC = gcc -fsanitize=address -fsanitize=undefined -fno-omit-frame-pointer
 CFLAGS = -O2 -Wall -Wextra  -lSDL2 -I/usr/include/SDL2 

@@ -36,9 +36,9 @@ void debug_thread_fun() {
         switch (line[0]) {
         case 'c':
             if ((strlen(line) > 1) && (line[1] != '\n'))
-                threads_mgr_continue_core(atoi(line + 1));
+                threads_mgr_run_core(atoi(line + 1));
             else
-                threads_mgr_continue_all();
+                threads_mgr_run_all();
             break;
         case 's':
             if ((strlen(line) > 1) && (line[1] != '\n'))

@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
+extern Threads_Mgr threads_mgr;
+
 // Base Integer
 
 // Masks
@@ -554,6 +556,12 @@ void vcore_run(VCore *core) {
         core->regs[ZERO] = 0;
         ins = mem_rw(core->pc);
         INSTR_SWITCH;
+
+//When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
+#ifdef SUPERVISOR
+		if (__atomic_load_n(&GET_HALT(core->core_idx).halted, __ATOMIC_ACQUIRE))
+			return;
+#endif
     }
 }
 
