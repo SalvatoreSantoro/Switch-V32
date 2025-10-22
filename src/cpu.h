@@ -79,6 +79,8 @@ typedef struct {
 // get register name
 const char *re_na(int reg_num);
 
+void vcore_init(VCore* core, uint32_t pc, uint32_t sp);
+
 void vcore_r_type(VCore *core, uint32_t ins);
 
 void vcore_ir_type(VCore *core, uint32_t ins);

@@ -25,13 +25,14 @@ static void print_usage(void) {
     printf("  -c              Number of cores (IGNORED IN USER MODE)\n");
     printf("  -f              Specify ELF file name (if need to specify args place them\
 \n                          in \"\" for example \"file -a 1 -b 2\")\n");
+    printf("  -b              If specified, the file must be a binary(IGNORED IN USER MODE)\n");
 }
 
 void ctx_init(int argc, char *argv[]) {
     int opt;
     int i = 0;
     unsigned int upscale;
-    while ((opt = getopt(argc, argv, "u:i:o:e:f:c:dh")) != -1) {
+    while ((opt = getopt(argc, argv, "u:i:o:e:f:c:b:dh")) != -1) {
         switch (opt) {
         case 'u':
             upscale = atoi(optarg);
@@ -65,6 +66,11 @@ void ctx_init(int argc, char *argv[]) {
         case 'd':
             ctx.debug = true;
             break;
+		case 'b':
+#ifdef SUPERVISOR
+			ctx.binary = true;
+#endif
+			break;
         case 'h':
             print_usage();
             exit(EXIT_SUCCESS);

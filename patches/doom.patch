@@ -1,0 +1,32 @@
+diff --git a/src/riscv/Makefile b/src/riscv/Makefile
+index a887e96..925707f 100644
+--- a/src/riscv/Makefile
++++ b/src/riscv/Makefile
+@@ -1,14 +1,13 @@
+-CC = $(CROSS)gcc
+-OBJCOPY = $(CROSS)objcopy
+-SIZE = $(CROSS)size
+ ICEPROG = iceprog
+ 
+-CFLAGS=-Wall -O2 -march=rv32im -mabi=ilp32 -flto -fomit-frame-pointer -I/usr/include/SDL2 -I..
+-
+ CFLAGS += \
+ 	-DNORMALUNIX \
+ 	$(NULL)
+ 
++
++LDFLAGS = -I/usr/include/SDL2 -I..
++
++include ../../../build.mk
+ include ../sources.mk
+ 
+ # Filter out d_main, we provide our own simplified one
+@@ -33,7 +32,7 @@ SOURCES_doom_arch := \
+ all: doom-riscv.bin
+ 
+ doom-riscv.elf: $(addprefix ../,$(SOURCES_doom)) $(SOURCES_doom_arch)
+-	$(CC) $(CFLAGS) -Bstatic,-T,--strip-debug -o $@ $(addprefix ../,$(SOURCES_doom)) $(SOURCES_doom_arch)
++	$(CC) $(CFLAGS) $(LDFLAGS) -Bstatic,-T,--strip-debug -o $@ $(addprefix ../,$(SOURCES_doom)) $(SOURCES_doom_arch)
+ 	$(SIZE) $@
+ 
+ clean:

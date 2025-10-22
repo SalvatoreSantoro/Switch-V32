@@ -573,3 +573,9 @@ void vcore_step(VCore *core) {
     ins = mem_rw(core->pc);
     INSTR_SWITCH;
 }
+
+
+void vcore_init(VCore* core, uint32_t pc, uint32_t sp){
+	core->pc = pc;
+	core->regs[SP] = sp;
+}

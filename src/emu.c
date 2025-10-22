@@ -14,7 +14,6 @@
 #include <time.h>
 #include <unistd.h>
 
-
 // System calls needed from Newlib
 
 #define CLOSE         57

@@ -4,3 +4,4 @@ compile_commands.json
 err.txt
 out.txt
 out
+make_config-*

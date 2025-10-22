@@ -1,7 +1,7 @@
 #ifndef DEBUG_H
 #define DEBUG_H
 
-#include "sad_gdb.h"
+#include "stubb_a_dub.h"
 
 void read_regs(byte *output, size_t output_sz, int core_id);
 

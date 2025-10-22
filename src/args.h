@@ -13,6 +13,7 @@ typedef struct {
     unsigned int sdl_upscale;
     int cores;
 	bool debug;
+	bool binary;
 } Args_Context;
 
 extern Args_Context ctx;

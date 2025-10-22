@@ -1,5 +1,5 @@
-#ifndef SAD_GDB_H
-#define SAD_GDB_H
+#ifndef STUBB_A_DUB_H
+#define STUBB_A_DUB_H
 
 #include <stdbool.h>
 #include <stddef.h>
