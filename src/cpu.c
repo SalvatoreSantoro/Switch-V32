@@ -10,38 +10,42 @@
 
 extern Threads_Mgr threads_mgr;
 
+// Every mask and decode assume to operate on an uint32_t "x" (instruction)
+// so the result is always an uint32_t
+
 // Base Integer
 
 // Masks
-#define IM_RD_MASK  (0b11111 << 7)
-#define RS1_MASK    (0b11111 << 15)
-#define RS2_MASK    (0b11111 << 20)
-#define IM2_F7_MASK (0b1111111 << 25)
-#define F3_MASK     (0b111 << 12)
-#define F5_MASK     (0b11111 << 27)
-#define R_IMM_MASK  (0b111111111111 << 20)
-#define U_IMM_MASK  (0b11111111111111111111 << 12)
+#define IM_RD_MASK  (uint32_t) (0b11111 << 7)
+#define RS1_MASK    (uint32_t) (0b11111 << 15)
+#define RS2_MASK    (uint32_t) (0b11111 << 20)
+#define IM2_F7_MASK (uint32_t) (0b1111111 << 25)
+#define F3_MASK     (uint32_t) (0b111 << 12)
+#define F5_MASK     (uint32_t) (0b11111 << 27)
+#define R_IMM_MASK  (uint32_t) (0b111111111111 << 20)
+#define U_IMM_MASK  (uint32_t) (0b11111111111111111111 << 12)
 
 // Instruction Decoders
-#define RD(x)     ((x & IM_RD_MASK) >> 7)
-#define RS1(x)    ((x & RS1_MASK) >> 15)
-#define RS2(x)    ((x & RS2_MASK) >> 20)
-#define R_FUNC(x) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
-#define A_FUNC(x) ((x & F3_MASK >> 12) | ((x & F5_MASK) >> 23))
-#define FUNC(x)   ((x & F3_MASK) >> 12)
+#define RD(x)     (uint32_t) ((x & IM_RD_MASK) >> 7)
+#define RS1(x)    (uint32_t) ((x & RS1_MASK) >> 15)
+#define RS2(x)    (uint32_t) ((x & RS2_MASK) >> 20)
+#define R_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
+#define A_FUNC(x) (uint32_t) ((x & F3_MASK >> 12) | ((x & F5_MASK) >> 23))
+#define FUNC(x)   (uint32_t) ((x & F3_MASK) >> 12)
 
-#define I_IMM(x) ((int32_t) (x & R_IMM_MASK) >> 20)
+// Immediates are always int32_t (sign-extended) before shifting
+#define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
 
 #define B_IMM(x)                                                                                                       \
-    ((((0b1111 << 8) & x) >> 7) | (((0b111111 << 25) & x) >> 20) | (((0b1 << 7) & x) << 4) |                           \
-     ((int32_t) ((0b1 << 31) & x) >> 19))
+    ((((uint32_t) (0b1111 << 8) & x) >> 7) | (((uint32_t) (0b111111 << 25) & x) >> 20) |                               \
+     (((uint32_t) (0b1 << 7) & x) << 4) | (uint32_t) ((int32_t) ((uint32_t) (0b1 << 31) & x) >> 19))
 
 #define J_IMM(x)                                                                                                       \
-    (((((x) >> 21) & 0b1111111111) << 1) | ((((x) >> 20) & 0b1) << 11) | ((((x) >> 12) & 0b11111111) << 12) |          \
-     (((int32_t) (x) >> 11) & 0xFFF00000))
+    (((((x) >> 21) & (uint32_t) 0b1111111111) << 1) | ((((x) >> 20) & (uint32_t) 0b1) << 11) |                         \
+     ((((x) >> 12) & (uint32_t) 0b11111111) << 12) | ((uint32_t) ((int32_t) (x) >> 11) & (uint32_t) 0xFFF00000))
 
 #define U_IMM(x) (x & (U_IMM_MASK))
-#define S_IMM(x) ((RD(x)) | ((int32_t) (x & IM2_F7_MASK) >> 20))
+#define S_IMM(x) ((RD(x)) | (uint32_t) ((int32_t) (x & IM2_F7_MASK) >> 20))
 
 // R / IR type
 // func7:func3
@@ -188,7 +192,7 @@ void vcore_r_type(VCore *core, uint32_t ins) {
     // overlow (minnegative / -1)
     if (((signed) rs2 == -1) && ((signed) rs1 == INT32_MIN)) {
         if ((func == DIV) || (func == DIVU)) {
-            *rd = INT32_MIN;
+            *rd = (uint32_t) INT32_MIN;
             return;
         }
         if ((func == REM) || (func == REMU)) {
@@ -227,7 +231,7 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("SRL");
         break;
     case SRA:
-        *rd = (int32_t) rs1 >> rs2;
+        *rd = (uint32_t) ((int32_t) rs1 >> rs2);
         LOG_R("SRA");
         break;
     case SLT:
@@ -239,41 +243,43 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("SLTU");
         break;
     case MUL:
-        *rd = (int32_t) rs1 * (int32_t) rs2;
+        *rd = (uint32_t) ((int32_t) rs1 * (int32_t) rs2);
         LOG_R("MUL");
         break;
     case MULH:
-        tmp_mul = (int64_t) (int32_t) rs1 * (int64_t) (int32_t) rs2;
+        tmp_mul = (uint64_t) ((int64_t) (int32_t) rs1 * (int64_t) (int32_t) rs2);
         tmp_mul &= (0xFFFFFFFF00000000);
         *rd = (uint32_t) (tmp_mul >> 32);
         LOG_R("MULH");
         break;
     case MULHSU:
-        tmp_mul = (int64_t) (int32_t) rs1 * (uint64_t) (uint32_t) rs2;
+		// second operand unsigned so just extend directly to 64bit without 
+		// first converting to signed (int32_t) so the sign isn't extended
+        tmp_mul = (uint64_t) ((int64_t) (int32_t) rs1 * (int64_t) rs2);
         tmp_mul &= (0xFFFFFFFF00000000);
         *rd = (uint32_t) (tmp_mul >> 32);
         LOG_R("MULHSU");
         break;
     case MULHU:
-        tmp_mul = (uint64_t) (uint32_t) rs1 * (uint64_t) (uint32_t) rs2;
+        tmp_mul = (uint64_t) rs1 * (uint64_t) rs2;
         tmp_mul &= (0xFFFFFFFF00000000);
         *rd = (uint32_t) (tmp_mul >> 32);
         LOG_R("MULHU");
         break;
     case DIV:
-        *rd = (int32_t) rs1 / (int32_t) rs2;
+        *rd = (uint32_t) ((int32_t) rs1 / (int32_t) rs2);
         LOG_R("DIV");
         break;
     case DIVU:
-        *rd = (uint32_t) rs1 / (uint32_t) rs2;
+        *rd = rs1 / rs2;
         LOG_R("DIVU");
         break;
     case REM:
-        *rd = (int32_t) rs1 % (int32_t) rs2;
+        *rd = (uint32_t) ((int32_t) rs1 % (int32_t) rs2);
         LOG_R("REM");
         break;
     case REMU:
-        *rd = (uint32_t) rs1 % (uint32_t) rs2;
+        *rd = rs1 % rs2;
         LOG_R("REMU");
         break;
     default:
@@ -285,13 +291,13 @@ void vcore_r_type(VCore *core, uint32_t ins) {
 void vcore_ir_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
-    int func = R_FUNC(ins);
-    int32_t imm;
+    uint32_t func = R_FUNC(ins);
+    uint32_t imm;
     // need to be unsigned
-    uint32_t shift_imm = (uint32_t) RS2(ins);
+    uint32_t shift_imm = RS2(ins);
 
     if (func == SRA) {
-        *rd = (int32_t) rs1 >> shift_imm;
+        *rd = (uint32_t) ((int32_t) rs1 >> shift_imm);
         LOG_I("SRA", shift_imm);
         return;
     }
@@ -332,7 +338,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
         LOG_I("SLT", imm);
         break;
     case SLTU:
-        *rd = ((uint32_t) rs1 < (uint32_t) imm) ? 1 : 0;
+        *rd = (rs1 < imm) ? 1 : 0;
         LOG_I("SLTU", imm);
         break;
     default:
@@ -343,8 +349,8 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
 
 uint32_t vcore_b_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
-    int32_t inc = 4;
-    int32_t imm = B_IMM(ins);
+    uint32_t inc = 4;
+    uint32_t imm = B_IMM(ins);
     switch (FUNC(ins)) {
     case BEQ:
         if (rs1 == rs2)
@@ -408,7 +414,7 @@ inline void vcore_auipc_type(VCore *core, uint32_t ins) {
 void vcore_il_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
-    int32_t imm = I_IMM(ins);
+    uint32_t imm = I_IMM(ins);
     // LB and LH need sign extend
     switch (FUNC(ins)) {
     case LB:
@@ -447,11 +453,11 @@ void vcore_s_type(VCore *core, uint32_t ins) {
 
     switch (FUNC(ins)) {
     case SB:
-        mem_wb(rs1 + S_IMM(ins), rs2);
+        mem_wb(rs1 + S_IMM(ins), (uint8_t) rs2);
         LOG_S("SB");
         break;
     case SH:
-        mem_wh(rs1 + S_IMM(ins), rs2);
+        mem_wh(rs1 + S_IMM(ins), (uint16_t) rs2);
         LOG_S("SH");
         break;
     case SW:
@@ -531,7 +537,7 @@ void vcore_a_type(VCore *core, uint32_t ins) {
 }
 
 bool vcore_e_type(VCore *core, uint32_t ins) {
-    int32_t imm = I_IMM(ins);
+    uint32_t imm = I_IMM(ins);
     switch (imm) {
     case ECALL:
         emu_system_call(core);
@@ -557,10 +563,10 @@ void vcore_run(VCore *core) {
         ins = mem_rw(core->pc);
         INSTR_SWITCH;
 
-//When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
+// When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
-		if (__atomic_load_n(&GET_HALT(core->core_idx).halted, __ATOMIC_ACQUIRE))
-			return;
+        if (__atomic_load_n(&GET_HALT(core->core_idx).halted, __ATOMIC_ACQUIRE))
+            return;
 #endif
     }
 }
@@ -574,8 +580,7 @@ void vcore_step(VCore *core) {
     INSTR_SWITCH;
 }
 
-
-void vcore_init(VCore* core, uint32_t pc, uint32_t sp){
-	core->pc = pc;
-	core->regs[SP] = sp;
+void vcore_init(VCore *core, uint32_t pc, uint32_t sp) {
+    core->pc = pc;
+    core->regs[SP] = sp;
 }

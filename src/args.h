@@ -11,7 +11,7 @@ typedef struct {
     const char *elf_stderr;
     const char *elf_args;
     unsigned int sdl_upscale;
-    int cores;
+    unsigned int cores;
 	bool debug;
 	bool binary;
 } Args_Context;

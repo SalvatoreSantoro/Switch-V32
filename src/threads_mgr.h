@@ -27,7 +27,7 @@ typedef struct{
 
 typedef struct {
 	bool atomic_stop_all; // used by debugging thread to stop all the cores at the same time
-	int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
+	unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
     Halt_Cond *halt_cond; // NULL when debug isn't enabled
 	Thread* threads_cores;
 	pthread_t debug_thread;
@@ -44,15 +44,15 @@ void threads_mgr_run();
 
 void threads_mgr_halt_all();
 
-void threads_mgr_halt_core(int core_idx);
+void threads_mgr_halt_core(unsigned int core_idx);
 
 void threads_mgr_run_all();
 
-void threads_mgr_run_core(int core_idx);
+void threads_mgr_run_core(unsigned int corb_idx);
 
-void threads_mgr_step_core(int core_idx);
+void threads_mgr_step_core(unsigned int core_idx);
 
-bool threads_mgr_is_halted(int core_idx);
+bool threads_mgr_is_halted(unsigned int core_idx);
 
 
 // TESTING INTERFACE //
@@ -61,7 +61,7 @@ bool threads_mgr_is_halted(int core_idx);
 
 void barrier_count_wait(void);
 
-int thread_init();
+unsigned int thread_init();
 
 //void *debug_core_thread_fun(void *args);
 

@@ -1,5 +1,5 @@
-#include "stubb_a_dub.h"
 #include "sad_gdb_internal.h"
+#include "stubb_a_dub.h"
 #include "supported.h"
 #include <fcntl.h>
 #include <inttypes.h>
@@ -35,7 +35,7 @@ static int fd_set_blocking(bool blocking) {
     return fcntl(server.sad_socket, F_SETFL, flags);
 }
 
-static bool wait_for_halt(int core_idx) {
+static bool wait_for_halt(unsigned int core_idx) {
     // set the socket as non blocking
     bool breakp_stop = false;
     size_t filled;
@@ -172,8 +172,8 @@ static void build_q() {
         sad_buff_append_str(server.output_buffer, "swbreak+;vCont+;QStartNoAckMode+");
     }
     if (strcmp(server.pkt_data.command, "qfThreadInfo") == 0) {
-        char core_id_str[4];
-        int i;
+        char core_id_str[16];
+        unsigned int i;
         sad_buff_append_str(server.output_buffer, "m");
         for (i = 0; i < server.sys_conf.smp - 1; i++) {
             sprintf(core_id_str, "%d,", i);
@@ -241,7 +241,7 @@ static void build_v() {
 
         thread_id = thread_id_str == NULL ? server.builder.selected_core : strtol(thread_id_str, NULL, 16);
 
-        if (thread_id >= server.sys_conf.smp) {
+        if ((unsigned) thread_id >= server.sys_conf.smp) {
             sad_buff_append_str(server.output_buffer, "E");
             return;
         }
@@ -253,7 +253,7 @@ static void build_v() {
         case 'c':
             if ((thread_id_str == NULL) || (thread_id == -1)) {
                 // this is the case of continue all so or just "c" or "c:-1"
-                for (int i = 0; i < server.sys_conf.smp; i++)
+                for (unsigned int i = 0; i < server.sys_conf.smp; i++)
                     sad_step_the_breakpoint(i);
                 server.sys_ops.cores_continue();
             } else {

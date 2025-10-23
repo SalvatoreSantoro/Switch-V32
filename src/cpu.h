@@ -73,7 +73,7 @@ typedef struct {
     uint32_t elf_brk;
     uint32_t elf_errno;
 	// Index
-	int core_idx;
+	unsigned int core_idx;
 } VCore;
 
 // get register name

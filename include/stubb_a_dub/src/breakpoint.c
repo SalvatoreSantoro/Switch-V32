@@ -53,7 +53,7 @@ Breakpoint *sad_find_breakpoint(uint32_t addr) {
 // checks if a core is stopped on a breakpoint
 // if yes just insert the instruction in the breakpoint address
 // step the core, and then restore the breakpoint
-bool sad_step_the_breakpoint(int core_idx) {
+bool sad_step_the_breakpoint(unsigned int core_idx) {
 	size_t regs_sz = server.builder.cached_regs_bytes;
     byte regs[regs_sz];
     server.sys_ops.read_regs(regs, regs_sz, core_idx);

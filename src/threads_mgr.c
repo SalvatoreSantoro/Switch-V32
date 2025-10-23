@@ -13,6 +13,8 @@
 
 extern Threads_Mgr threads_mgr;
 
+
+
 #define pthread_mutex_unlock_(mutex_ref)                                                                               \
     do {                                                                                                               \
         if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
@@ -60,8 +62,8 @@ void barrier_count_wait(void) {
             ;
 }
 
-int thread_init() {
-    int i;
+unsigned int thread_init() {
+    unsigned int i;
 
     // find the vcore struct to use
     for (i = 0; i < ctx.cores; i++) {
@@ -86,7 +88,7 @@ static void threads_mgr_sleep_core(Halt_Cond *halt_cond) {
 
 static void *core_thread_fun(void *args) {
 
-    int core_idx = thread_init();
+    unsigned int core_idx = thread_init();
     VCore *core = &GET_CORE(core_idx);
     Halt_Cond *halt_cond = &GET_HALT(core_idx);
     core->core_idx = core_idx;
@@ -136,7 +138,7 @@ void threads_mgr_init() {
     threads_mgr.atomic_barrier_count = 0;
     threads_mgr.halt_cond = NULL;
 
-    for (int i = 0; i < ctx.cores; i++)
+    for (unsigned int i = 0; i < ctx.cores; i++)
         memset(&GET_CORE(i), 0, sizeof(VCore));
 
     // if SUPERVISOR IS SET we want to allocate the debug structures
@@ -149,7 +151,7 @@ void threads_mgr_init() {
     if (threads_mgr.halt_cond == NULL)
         SV32_CRASH("OOM");
 
-    for (int i = 0; i < ctx.cores; i++) {
+    for (unsigned int i = 0; i < ctx.cores; i++) {
         GET_HALT(i).halted = true;
         GET_HALT(i).atomic_step = false;
         pthread_mutex_init(&GET_HALT(i).mutex, NULL);
@@ -164,7 +166,7 @@ void threads_mgr_init() {
         GET_HALT(0).halted = false;
 }
 
-bool threads_mgr_is_halted(int core_idx) {
+bool threads_mgr_is_halted(unsigned int core_idx) {
     assert(core_idx < ctx.cores);
 
     int ret;
@@ -191,7 +193,7 @@ void threads_mgr_run() {
     }
 
     // from 1 because the main thread is already core 0
-    for (int i = 1; i < ctx.cores; i++) {
+    for (unsigned int i = 1; i < ctx.cores; i++) {
         ret = pthread_create(&GET_THREAD_ID(i), NULL, core_thread_fun, NULL);
         if (ret != 0)
             SV32_CRASH("PTHREAD CREATE");
@@ -201,7 +203,7 @@ void threads_mgr_run() {
     core_thread_fun(NULL);
 }
 
-void threads_mgr_halt_core(int core_idx) {
+void threads_mgr_halt_core(unsigned int core_idx) {
     assert(core_idx < ctx.cores);
 
     pthread_mutex_lock(&GET_HALT(core_idx).mutex);
@@ -217,7 +219,7 @@ void threads_mgr_halt_all() {
     // activate all the "halted" variables in order to
     // put them to sleep when releasing the STOP_ALL
 
-    for (int i = 0; i < ctx.cores; i++) {
+    for (unsigned int i = 0; i < ctx.cores; i++) {
         threads_mgr_halt_core(i);
     }
 
@@ -229,7 +231,7 @@ void threads_mgr_halt_all() {
 #endif
 }
 
-void threads_mgr_run_core(int core_idx) {
+void threads_mgr_run_core(unsigned int core_idx) {
     assert(core_idx < ctx.cores);
 
     pthread_mutex_lock_(&GET_HALT(core_idx).mutex);
@@ -253,12 +255,12 @@ void threads_mgr_run_all() {
 	// so this check should be redundant
     __WAIT_STOP_ALL__;
 
-    for (int i = 0; i < ctx.cores; i++) {
+    for (unsigned int i = 0; i < ctx.cores; i++) {
         threads_mgr_run_core(i);
     }
 }
 
-void threads_mgr_step_core(int core_idx) {
+void threads_mgr_step_core(unsigned int core_idx) {
 
     assert(core_idx < ctx.cores);
     // activate the step

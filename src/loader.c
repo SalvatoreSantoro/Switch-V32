@@ -9,6 +9,7 @@
 #include <errno.h>
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -18,6 +19,8 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
+#pragma GCC diagnostic error "-Wconversion"
 
 #define VALIDATE(cond)                                                                                                 \
     do {                                                                                                               \
@@ -121,7 +124,7 @@ static void ld_elf_symbols(Elf_File *elf) {
 /* static void _ld_find_section */
 
 static void ld_elf_seg(Elf_File *elf) {
-    size_t fsz;
+    uint32_t fsz;
     uint32_t foff;
     uint32_t memsz;
     uint32_t addr;
@@ -154,14 +157,20 @@ static uint8_t *ld_read_and_map_file(int *fd, struct stat *fst) {
     if (fstat(*fd, fst) == -1)
         SV32_CRASH(strerror(errno));
 
-    if ((data = mmap(NULL, fst->st_size, PROT_READ, MAP_PRIVATE, *fd, 0)) == NULL)
+    if (fst->st_size <= 0)
+        SV32_CRASH("File has a non positive length");
+
+    if ((data = mmap(NULL, (size_t) fst->st_size, PROT_READ, MAP_PRIVATE, *fd, 0)) == NULL)
         SV32_CRASH(strerror(errno));
 
     return data;
 }
 
 static void load_unmap_and_close_file(uint8_t *data, const int *fd, const struct stat *fst) {
-    munmap(data, fst->st_size);
+    if (fst->st_size <= 0)
+        SV32_CRASH("File has a non positive length");
+
+    munmap(data, (size_t) fst->st_size);
     close(*fd);
 }
 
@@ -172,10 +181,10 @@ void ld_bin(VCore *core) {
 
     data = ld_read_and_map_file(&fd, &fst);
 
-	// load binary
-    mem_wb_ptr_s(0, data, fst.st_size);
+    // load binary
+    mem_wb_ptr_s(0, data, (size_t) fst.st_size);
 
-	core->pc = 0;
+    core->pc = 0;
 
     load_unmap_and_close_file(data, &fd, &fst);
 }
@@ -208,7 +217,7 @@ void ld_elf(VCore *core) {
     ld_elf_seg(&elf);
 
     // load entry point + STACK_BASE
-	vcore_init(core, elf.header->e_entry, STACK_BASE);
+    vcore_init(core, elf.header->e_entry, STACK_BASE);
 
     // load GP
     sym = ld_elf_getsym(&elf, "__global_pointer$");

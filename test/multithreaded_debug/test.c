@@ -12,7 +12,6 @@
 #include <string.h>
 #include <threads.h>
 
-
 Args_Context ctx = {
     .elf_stdin = NULL,
     .elf_stdout = NULL,
@@ -36,7 +35,7 @@ void debug_thread_fun() {
         switch (line[0]) {
         case 'c':
             if ((strlen(line) > 1) && (line[1] != '\n'))
-                threads_mgr_run_core(atoi(line + 1));
+                threads_mgr_run_core((unsigned int) atoi(line + 1));
             else
                 threads_mgr_run_all();
             break;
@@ -46,10 +45,10 @@ void debug_thread_fun() {
             break;
         case 'B':
             __atomic_store_n(&breakpoint, true, __ATOMIC_RELEASE);
-			break;
-		case 'b':
+            break;
+        case 'b':
             __atomic_store_n(&breakpoint, false, __ATOMIC_RELEASE);
-			break;
+            break;
         }
     }
 }

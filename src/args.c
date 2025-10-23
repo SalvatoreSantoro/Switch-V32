@@ -1,9 +1,7 @@
 #include "args.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-
-extern Args_Context ctx;
+#include <getopt.h>
 
 
 #define CTX_CRASH(str)                                                                                                 \
@@ -31,13 +29,13 @@ static void print_usage(void) {
 void ctx_init(int argc, char *argv[]) {
     int opt;
     int i = 0;
-    unsigned int upscale;
+    int upscale;
     while ((opt = getopt(argc, argv, "u:i:o:e:f:c:b:dh")) != -1) {
         switch (opt) {
         case 'u':
             upscale = atoi(optarg);
-            if (upscale != 0)
-                ctx.sdl_upscale = upscale;
+            if (upscale > 0)
+                ctx.sdl_upscale = (unsigned int) upscale;
             break;
         case 'i':
             ctx.elf_stdin = optarg;

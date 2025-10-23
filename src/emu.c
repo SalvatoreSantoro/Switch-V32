@@ -6,6 +6,7 @@
 #include "sdl.h"
 #include <fcntl.h>
 #include <stdarg.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,6 +14,7 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
+
 
 // System calls needed from Newlib
 
@@ -39,12 +41,13 @@ struct EMU_timespec {
     int32_t tv_nsec; /* and nanoseconds */
 };
 
-// they're the same should get rid of this...
 struct EMU_timeval {
     int64_t tv_sec;
     int32_t tv_usec;
 };
 
+// we're truncating basically every field when emulating fstat
+// so that system call is basically unreliable
 struct EMU_stat {
     int16_t st_dev;
     uint16_t st_ino;
@@ -62,30 +65,68 @@ struct EMU_stat {
     int32_t st_spare4[2];
 };
 
-static void _emu_copy_timespec(struct EMU_timespec *ets, struct timespec *ts) {
-    ets->tv_sec = ts->tv_sec;
-    ets->tv_nsec = ts->tv_nsec;
+static void emu_copy_timespec(struct EMU_timespec *ets, struct timespec *ts) {
+
+    int64_t sec = ts->tv_sec;
+    int64_t nsec = ts->tv_nsec;
+
+    // Handle nsec overflow / underflow beyond 32-bit
+    if (nsec > INT32_MAX || nsec < INT32_MIN) {
+        int64_t extra_sec = nsec / 1000000000LL; // full seconds from nsec
+        nsec -= extra_sec * 1000000000LL;
+        sec += extra_sec;
+    }
+
+    // Handle negative nsec that is still within int32 range
+    if (nsec < 0) {
+        sec -= 1;
+        nsec += 1000000000LL;
+    }
+
+    ets->tv_sec = sec;
+    ets->tv_nsec = (int32_t) nsec;
 }
 
-static void _emu_copy_timeval(struct EMU_timeval *etv, struct timeval *tv) {
-    etv->tv_sec = tv->tv_sec;
-    etv->tv_usec = tv->tv_usec;
+static void emu_copy_timeval(struct EMU_timeval *etv, struct timeval *tv) {
+    int64_t sec = tv->tv_sec;
+    int64_t usec = tv->tv_usec;
+
+    // Normalize microseconds → seconds
+    if (usec > INT32_MAX || usec < INT32_MIN) {
+        int64_t extra_sec = usec / 1000000LL; // full seconds from usec
+        usec -= extra_sec * 1000000LL;
+        sec += extra_sec;
+    }
+
+    // Handle negative usec that is still within int32 range
+    if (usec < 0) {
+        sec -= 1;
+        usec += 1000000LL;
+    }
+    etv->tv_sec = sec;
+    etv->tv_usec = (int32_t) usec;
 }
 
-static void _emu_copy_stat(struct EMU_stat *es, struct stat *fs) {
-    es->st_dev = fs->st_dev;
-    es->st_ino = fs->st_ino;
-    es->st_mode = fs->st_mode;
-    es->st_nlink = fs->st_nlink;
-    es->st_uid = fs->st_uid;
-    es->st_gid = fs->st_gid;
-    es->st_rdev = fs->st_rdev;
-    es->st_size = fs->st_size;
-    _emu_copy_timespec(&es->st_atim, &fs->st_atim);
-    _emu_copy_timespec(&es->st_mtim, &fs->st_mtim);
-    _emu_copy_timespec(&es->st_ctim, &fs->st_ctim);
-    es->st_blksize = fs->st_blksize;
-    es->st_blocks = fs->st_blocks;
+static void emu_copy_stat(struct EMU_stat *es, struct stat *fs) {
+    es->st_dev = (int16_t) fs->st_dev;
+    es->st_ino = (uint16_t) fs->st_ino;
+    es->st_mode = (uint32_t) fs->st_mode;
+    es->st_nlink = (uint16_t) fs->st_nlink;
+    es->st_uid = (uint16_t) fs->st_uid;
+    es->st_gid = (uint16_t) fs->st_gid;
+    es->st_rdev = (int16_t) fs->st_rdev;
+
+    if (fs->st_size > INT32_MAX || fs->st_size < INT32_MIN)
+        es->st_size = INT32_MAX;
+    else
+        es->st_size = (int32_t) fs->st_size;
+
+    emu_copy_timespec(&es->st_atim, &fs->st_atim);
+    emu_copy_timespec(&es->st_mtim, &fs->st_mtim);
+    emu_copy_timespec(&es->st_ctim, &fs->st_ctim);
+
+    es->st_blksize = (int32_t) fs->st_blksize;
+    es->st_blocks = (int32_t) fs->st_blocks;
 }
 
 void emu_std() {
@@ -129,8 +170,8 @@ void emu_args() {
     char *token;
     unsigned int elf_argc = 0;
     size_t str_size = 0;
-    size_t str_size_inc = 0;
     size_t tmp_str_sz;
+	uint32_t str_size_inc = 0;
 
     tmp_str_sz = strlen(ctx.elf_args);
     if (tmp_str_sz >= PAGE_SIZE)
@@ -177,40 +218,65 @@ void emu_system_call(VCore *core) {
     switch (core->regs[A7]) {
 
     case CLOSE:
-        fd = ELF_FDS_BASELINE + core->regs[A0];
+        fd = (int) core->regs[A0];
+        if (fd < 0) {
+            core->regs[A0] = (uint32_t) -1;
+        } else {
+            fd += ELF_FDS_BASELINE;
+            core->regs[A0] = (uint32_t) close(fd);
+        }
         LOG_DE("CLOSE", fd);
-        core->regs[A0] = close(fd);
         break;
 
     case LSEEK:
-        fd = ELF_FDS_BASELINE + core->regs[A0];
+        fd = (int) core->regs[A0];
+        if (fd < 0) {
+            core->regs[A0] = (uint32_t) -1;
+        } else {
+            fd += ELF_FDS_BASELINE;
+            core->regs[A0] = (uint32_t) lseek(fd, (off_t) core->regs[A1], (int) core->regs[A2]);
+        }
         LOG_DE("LSEEK", fd);
-        core->regs[A0] = lseek(fd, (off_t) core->regs[A1], (int) core->regs[A2]);
         break;
 
     case READ:
-        fd = ELF_FDS_BASELINE + core->regs[A0];
+        fd = (int) core->regs[A0];
+        if (fd < 0) {
+            core->regs[A0] = (uint32_t) -1;
+        } else {
+            fd += ELF_FDS_BASELINE;
+            core->regs[A0] = (uint32_t) read(fd, MAP_ADDR(core->regs[A1]), core->regs[A2]);
+        }
         LOG_DE("READ", fd);
-        core->regs[A0] = read(fd, MAP_ADDR(core->regs[A1]), core->regs[A2]);
         break;
 
     case WRITE:
-        fd = ELF_FDS_BASELINE + core->regs[A0];
+        fd = (int) core->regs[A0];
+        if (fd < 0) {
+            core->regs[A0] = (uint32_t) -1;
+        } else {
+            fd += ELF_FDS_BASELINE;
+            core->regs[A0] = (uint32_t) write(fd, MAP_ADDR(core->regs[A1]), core->regs[A2]);
+        }
         LOG_DE("WRITE", fd);
-        core->regs[A0] = write(fd, MAP_ADDR(core->regs[A1]), core->regs[A2]);
         break;
 
     case FSTAT:
-        fd = ELF_FDS_BASELINE + core->regs[A1];
+        fd = (int) core->regs[A0];
+        if (fd < 0) {
+            core->regs[A0] = (uint32_t) -1;
+        } else {
+            fd += ELF_FDS_BASELINE;
+            core->regs[A0] = (uint32_t) fstat(fd, &fs);
+            emu_copy_stat(MAP_ADDR(core->regs[A1]), &fs);
+        }
         LOG_DE("FSTAT", fd);
-        core->regs[A0] = fstat(fd, &fs);
-        _emu_copy_stat(MAP_ADDR(core->regs[A1]), &fs);
         break;
 
     case GETTIMEOFDAY:
         LOG_DE("GETTIMEOFDAY", 0);
-        core->regs[A0] = gettimeofday(&tv, MAP_ADDR(core->regs[A1]));
-        _emu_copy_timeval(MAP_ADDR(core->regs[A0]), &tv);
+        core->regs[A0] = (uint32_t) gettimeofday(&tv, MAP_ADDR(core->regs[A1]));
+        emu_copy_timeval(MAP_ADDR(core->regs[A0]), &tv);
         break;
 
     case EXIT:
@@ -218,19 +284,19 @@ void emu_system_call(VCore *core) {
         tmp_addr = MAP_ADDR(core->elf_errno);
         if (tmp_addr != 0)
             fprintf(stderr, "Last application ERRNO: %d %s\n", *((int *) tmp_addr), strerror(*(int *) tmp_addr));
-        exit(core->regs[A0]);
+        exit((int) core->regs[A0]);
         break;
 
     case CLOCK_GETTIME:
-        core->regs[A0] = clock_gettime(core->regs[A0], &ts);
+        core->regs[A0] = (uint32_t) clock_gettime((clockid_t) core->regs[A0], &ts);
         LOG_DE("CLOCK_GETTIME", core->regs[A0]);
-        _emu_copy_timespec(MAP_ADDR(core->regs[A1]), &ts);
+        emu_copy_timespec(MAP_ADDR(core->regs[A1]), &ts);
         break;
 
     case OPEN:
         LOG_STR("OPEN", MAP_ADDR(core->regs[A0]));
-        fd = open(MAP_ADDR(core->regs[A0]), core->regs[A1]);
-        core->regs[A0] = fd;
+        fd = open(MAP_ADDR(core->regs[A0]), (int) core->regs[A1]);
+        core->regs[A0] = (uint32_t) fd;
         if (fd >= ELF_FDS_BASELINE) {
             fprintf(stderr, "THE ELF FILE OPENED TOO MANY FDs\n");
             exit(EXIT_FAILURE);
@@ -243,7 +309,7 @@ void emu_system_call(VCore *core) {
         LOG_EX("BRK", MAP_ADDR(core->regs[A0]));
         if ((MAP_ADDR(core->regs[A0]) >= MAP_ADDR(BRK_LIMIT))) {
             fprintf(stderr, "THE PROCESS TRIED ALLOCATING TOO MUCH HEAP MEMORY\n");
-            core->regs[A0] = -1;
+            core->regs[A0] = (uint32_t) -1;
             break;
         }
         if (core->regs[A0] > 0)

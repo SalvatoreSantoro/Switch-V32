@@ -5,7 +5,6 @@
 #include <SDL2/SDL_events.h>
 #include <SDL2/SDL_pixels.h>
 #include <SDL2/SDL_scancode.h>
-#include <signal.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -13,7 +12,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
 
 
 static SDL_Window *s_win;

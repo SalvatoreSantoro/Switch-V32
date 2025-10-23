@@ -21,21 +21,21 @@ typedef enum {
 } arch;
 
 typedef struct {
-    void (*read_regs)(byte *output, size_t output_sz, int core_id);
-    void (*write_regs)(const byte *input, size_t input_sz, int core_id);
+    void (*read_regs)(byte *output, size_t output_sz, unsigned int core_id);
+    void (*write_regs)(const byte *input, size_t input_sz, unsigned int core_id);
     void (*read_mem)(byte *output, size_t output_sz, uint32_t addr);
     void (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
-    void (*core_step)(int core_id);
-    void (*core_continue)(int core_id);
+    void (*core_step)(unsigned int core_id);
+    void (*core_continue)(unsigned int core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);
-    bool (*is_halted)(int);
+    bool (*is_halted)(unsigned int);
 } Sys_Ops;
 
 typedef struct {
     arch arch;
     int regs_num;
-    int smp;
+    unsigned int smp;
 } Sys_Conf;
 
 typedef struct {

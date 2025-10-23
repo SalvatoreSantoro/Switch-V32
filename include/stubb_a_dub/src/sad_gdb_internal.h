@@ -78,7 +78,7 @@ struct Builder {
     Builder_Fun supported_builders[COMMANDS_COUNT];
     size_t cached_regs_bytes;
     size_t cached_regs_str_bytes;
-    int selected_core;
+    unsigned int selected_core;
 };
 
 // BUFFER
@@ -194,6 +194,6 @@ bool sad_remove_breakpoint(uint32_t addr);
 
 Breakpoint *sad_find_breakpoint(uint32_t addr);
 
-bool sad_step_the_breakpoint(int core_idx);
+bool sad_step_the_breakpoint(unsigned int core_idx);
 
 #endif

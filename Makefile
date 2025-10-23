@@ -24,8 +24,39 @@ INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
 
 ### VARIABLES & FLAGS
 CC = gcc 
-CFLAGS = -O2 -Wall -Wextra
+CFLAGS = -O2
+
+### WARNINGS
+CFLAGS += -Wall
+CFLAGS += -Wextra
+CFLAGS += -Wpedantic -pedantic-errors
+CFLAGS += -Wno-unused-parameter
+CFLAGS += -Waggregate-return
+CFLAGS += -Wbad-function-cast
+CFLAGS += -Wcast-align
+CFLAGS += -Wcast-qual
+CFLAGS += -Wfloat-equal
+CFLAGS += -Wformat=2
+CFLAGS += -Wlogical-op
+CFLAGS += -Wmissing-declarations
+CFLAGS += -Wmissing-include-dirs
+CFLAGS += -Wmissing-prototypes
+CFLAGS += -Wnested-externs
+CFLAGS += -Wpointer-arith
+CFLAGS += -Wredundant-decls
+CFLAGS += -Wsequence-point
+CFLAGS += -Wshadow
+CFLAGS += -Wstrict-prototypes
+CFLAGS += -Wswitch
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wunused-but-set-parameter
+CFLAGS += -Wwrite-strings
+CFLAGS += -Wswitch-default 
+CFLAGS += -Wconversion
+
 LDFLAGS = -lSDL2 -I/usr/include/SDL2 $(INCLUDE_FLAGS)
+
 
 MODE_DEFAULT := user
 MODE_FLAGS := -DUSER

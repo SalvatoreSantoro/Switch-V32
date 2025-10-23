@@ -9,6 +9,8 @@
 #include <stdio.h>
 #include <string.h>
 
+
+
 extern Threads_Mgr threads_mgr;
 
 void *debug_thread_fun(void *args) {
@@ -52,7 +54,7 @@ void *debug_thread_fun(void *args) {
 }
 
 // core_id unused for now
-void read_regs(byte *output, size_t output_sz, int core_id) {
+void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
     assert(core_id < ctx.cores);
     VCore *core = &GET_CORE(core_id);
 
@@ -64,7 +66,7 @@ void read_regs(byte *output, size_t output_sz, int core_id) {
 }
 
 // core_id unused for now
-void write_regs(const byte *input, size_t input_sz, int core_id) {
+void write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
     assert(core_id < ctx.cores);
     size_t regs_size = input_sz - 4; // don't count PC
     VCore *core = &GET_CORE(core_id);
