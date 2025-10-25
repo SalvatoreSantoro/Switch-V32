@@ -1,3 +1,4 @@
+#define _POSIX_C_SOURCE 200809L
 #include "emu.h"
 #include "args.h"
 #include "cpu.h"
@@ -14,7 +15,6 @@
 #include <sys/time.h>
 #include <time.h>
 #include <unistd.h>
-
 
 // System calls needed from Newlib
 
@@ -129,7 +129,7 @@ static void emu_copy_stat(struct EMU_stat *es, struct stat *fs) {
     es->st_blocks = (int32_t) fs->st_blocks;
 }
 
-void emu_std() {
+void emu_std(void) {
     int ret;
     int fd;
 
@@ -164,16 +164,16 @@ void emu_std() {
         SV32_CRASH("CAN'T SET STDERR");
 }
 
-void emu_args() {
+void emu_args(void) {
     const char *str;
     char *tmp_str;
     char *token;
     unsigned int elf_argc = 0;
-    size_t str_size = 0;
-    size_t tmp_str_sz;
-	uint32_t str_size_inc = 0;
+    uint32_t str_size = 0;
+    uint32_t tmp_str_sz;
+    uint32_t str_size_inc = 0;
 
-    tmp_str_sz = strlen(ctx.elf_args);
+    tmp_str_sz = (uint32_t) strlen(ctx.elf_args);
     if (tmp_str_sz >= PAGE_SIZE)
         SV32_CRASH("ELF ARGUMENT TOO BIG");
 
@@ -197,7 +197,7 @@ void emu_args() {
 
     str = tmp_str;
     for (unsigned int i = 0; i < elf_argc; i++) {
-        str_size = strlen(str) + 1; // keep in mind the '\0'
+        str_size = (uint32_t) strlen(str) + 1; // keep in mind the '\0'
         mem_wb_ptr_s(arg_str_start + str_size_inc, str, str_size);
         mem_ww(arg_ptr_start + (i * 4), arg_str_start + str_size_inc);
         str_size_inc += str_size;
@@ -319,7 +319,7 @@ void emu_system_call(VCore *core) {
 
         // SDL
     case SDL_INIT:
-        sdl_init(MAP_ADDR(core->regs[A0]), core->regs[A1], core->regs[A2], core->regs[A3]);
+        sdl_init(MAP_ADDR(core->regs[A0]), (int) core->regs[A1], (int) core->regs[A2], core->regs[A3]);
         break;
 
     case SDL_WRITE_PALETTE:

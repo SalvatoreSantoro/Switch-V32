@@ -1,6 +1,7 @@
 #include "sad_gdb_internal.h"
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 
 extern SAD_Stub server;
 
@@ -17,7 +18,7 @@ bool sad_insert_breakpoint(uint32_t addr) {
             server.sys_ops.read_mem((byte *) (&instr), sizeof(instr), addr);
 
             // write breakpoint
-            server.sys_ops.write_mem((byte *) (&riscv_breakpoint), sizeof(riscv_breakpoint), addr);
+            server.sys_ops.write_mem((const byte *) (&riscv_breakpoint), sizeof(riscv_breakpoint), addr);
 
             server.breakpoints[i].addr = addr;
             server.breakpoints[i].instr = instr;
@@ -37,7 +38,7 @@ bool sad_remove_breakpoint(uint32_t addr) {
 
     server.sys_ops.write_mem((byte *) (&breakpoint->instr), sizeof(breakpoint->instr), addr);
     breakpoint->status = BRK_EMPTY;
-	return true;
+    return true;
 }
 
 Breakpoint *sad_find_breakpoint(uint32_t addr) {
@@ -54,18 +55,19 @@ Breakpoint *sad_find_breakpoint(uint32_t addr) {
 // if yes just insert the instruction in the breakpoint address
 // step the core, and then restore the breakpoint
 bool sad_step_the_breakpoint(unsigned int core_idx) {
-	size_t regs_sz = server.builder.cached_regs_bytes;
+    size_t regs_sz = server.builder.cached_regs_bytes;
     byte regs[regs_sz];
     server.sys_ops.read_regs(regs, regs_sz, core_idx);
 
     // get the PC (the last of the registers)
-    uint32_t pc = *((uint32_t *) (regs + server.builder.cached_regs_bytes - 4));
-	
-	// if removed, step and reinsert
-	if (sad_remove_breakpoint(pc)){
-		server.sys_ops.core_step(core_idx);
-		sad_insert_breakpoint(pc);
-	}
-	// else just return false
-	return false;
+	uint32_t pc;
+	memcpy(&pc, regs + server.builder.cached_regs_bytes - 4, sizeof(pc));
+
+    // if removed, step and reinsert
+    if (sad_remove_breakpoint(pc)) {
+        server.sys_ops.core_step(core_idx);
+        sad_insert_breakpoint(pc);
+    }
+    // else just return false
+    return false;
 }

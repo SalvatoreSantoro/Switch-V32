@@ -1,8 +1,7 @@
 #include "args.h"
+#include <getopt.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <getopt.h>
-
 
 #define CTX_CRASH(str)                                                                                                 \
     do {                                                                                                               \
@@ -34,7 +33,9 @@ void ctx_init(int argc, char *argv[]) {
         switch (opt) {
         case 'u':
             upscale = atoi(optarg);
-            if (upscale > 0)
+            if (upscale <= 0 || upscale > MAX_UPSCALE)
+                printf("Upscale value ignored (correct value is between 1 and %d\n", MAX_UPSCALE);
+            else
                 ctx.sdl_upscale = (unsigned int) upscale;
             break;
         case 'i':
@@ -64,11 +65,11 @@ void ctx_init(int argc, char *argv[]) {
         case 'd':
             ctx.debug = true;
             break;
-		case 'b':
+        case 'b':
 #ifdef SUPERVISOR
-			ctx.binary = true;
+            ctx.binary = true;
 #endif
-			break;
+            break;
         case 'h':
             print_usage();
             exit(EXIT_SUCCESS);

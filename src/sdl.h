@@ -12,9 +12,15 @@
 #define SDL_PULL_EVENTS   2103
 #define SDL_SHUTDOWN      2104
 
-void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz);
+typedef enum{
+	BUFF_SZ_POW_OF_2,
+	NOT_POS_H,
+	NOT_POS_W
+}sdl_err;
 
-void sdl_write_palette(uint32_t *p, size_t p_size);
+sdl_err sdl_init(const char *win_name, int w, int h, uint32_t ev_buff_sz);
+
+void sdl_write_palette(uint32_t *p, uint32_t p_size);
 
 void sdl_write_fb(const uint8_t *pix_idx);
 
@@ -22,7 +28,7 @@ void sdl_write_fb(const uint8_t *pix_idx);
 // the system call will load the events inside the array, updating the head accordingly
 // (will treat the events array as a Circular buffer, using the ev_buff_sz given during sdl_init)
 // returns the number of event written
-int sdl_pull_events(SDL_Event *events, int *head, int tail);
+unsigned int sdl_pull_events(SDL_Event *events, unsigned int *head, unsigned int tail);
 
 void sdl_shutdown(void);
 

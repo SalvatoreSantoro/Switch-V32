@@ -2,7 +2,7 @@
 #define SAD_GDB_INTERNAL_H
 
 #include "defs.h"
-#include "stubb_a_dub.h"
+#include "../stubb_a_dub.h"
 #include "supported.h"
 #include <netinet/in.h>
 #include <stdint.h>
@@ -89,7 +89,7 @@ struct PKT_Buffer {
     size_t socket_io_size;
     size_t filled;
     size_t data_size;
-    unsigned char *data;
+    byte *data;
 };
 
 typedef enum {
@@ -137,28 +137,30 @@ util_ret sad_hex_str_to_bytes(byte *dest, const char *src, size_t dest_size);
 util_ret sad_bytes_to_hex_chars(char *dest, const byte *src, size_t dest_size, size_t src_size);
 
 // BUILDER
-void sad_builder_init();
+void sad_builder_init(void);
 
-void sad_builder_build_resp();
+void sad_builder_build_resp(void);
 
 // PARSER
 
-void sad_parser_reset();
+void sad_parser_reset(void);
 
-void sad_parser_pkt();
+void sad_parser_pkt(void);
 
 void sad_parser_data(void);
 
 // PKT DATA
-data_ret sad_pkt_data_init();
+data_ret sad_pkt_data_init(void);
 
-void sad_pkt_data_deinit();
+void sad_pkt_data_deinit(void);
 
-void sad_pkt_data_reset();
+void sad_pkt_data_reset(void);
 
 data_ret sad_pkt_data_append_par(char *param1, char *param2);
 
-void sad_pkt_data_print();
+void sad_pkt_data_print(void);
+
+Data_Param *sad_pkt_data_find(PKT_Data *pkt_data, const char *param1);
 
 // BUFFER
 

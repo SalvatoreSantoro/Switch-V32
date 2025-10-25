@@ -6,7 +6,7 @@
 
 extern SAD_Stub server;
 
-data_ret sad_pkt_data_init() {
+data_ret sad_pkt_data_init(void) {
     server.pkt_data.params = malloc(sizeof(Data_Param) * DEFAULT_PAR_SIZE);
 
     if (server.pkt_data.params == NULL) {
@@ -19,11 +19,11 @@ data_ret sad_pkt_data_init() {
     return DATA_OK;
 }
 
-void sad_pkt_data_deinit() {
+void sad_pkt_data_deinit(void) {
     free(server.pkt_data.params);
 }
 
-static data_ret sad_pkt_data_param_expand() {
+static data_ret sad_pkt_data_param_expand(void) {
     Data_Param *tmp_par;
 
     tmp_par = realloc(server.pkt_data.params, sizeof(Data_Param) * server.pkt_data.params_sz * 2);
@@ -36,7 +36,7 @@ static data_ret sad_pkt_data_param_expand() {
     return DATA_OK;
 }
 
-void sad_pkt_data_reset() {
+void sad_pkt_data_reset(void) {
     if (server.pkt_data.params_filled > MAX_DATA_PARAMS_SIZE) {
         free(server.pkt_data.params);
         server.pkt_data.params = malloc(sizeof(Data_Param) * DEFAULT_PAR_SIZE);
@@ -67,7 +67,7 @@ Data_Param *sad_pkt_data_find(PKT_Data *pkt_data, const char *param1) {
     return NULL;
 }
 
-void sad_pkt_data_print() {
+void sad_pkt_data_print(void) {
     printf("PARAM SIZE: %ld\n", server.pkt_data.params_sz);
     printf("PARAM FILL: %ld\n", server.pkt_data.params_filled);
     printf("COMMAND %s\n", server.pkt_data.command);

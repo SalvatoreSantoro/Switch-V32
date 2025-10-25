@@ -1,21 +1,22 @@
-#include <assert.h>
 #include "sad_gdb_internal.h"
+#include <assert.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 extern SAD_Stub server;
 
-void sad_parser_reset() {
+void sad_parser_reset(void) {
     server.parser.state = PARSE_RESET;
     server.parser.data_state = DATA_RESET;
     server.parser.parse_idx = 0;
 }
 
-void sad_parser_pkt() {
+void sad_parser_pkt(void) {
     uint8_t value;
     size_t buff_filled;
     char checksum[3];
-    unsigned char *data = sad_buff_read_prep(server.input_buffer, &buff_filled);
+    byte *data = sad_buff_read_prep(server.input_buffer, &buff_filled);
     checksum[2] = '\0';
 
     while (server.parser.parse_idx < buff_filled) {
@@ -40,7 +41,7 @@ void sad_parser_pkt() {
         case PARSE_START:
             if (data[idx] == '$') {
                 // first data byte
-				server.input_buffer->start_pkt_data = idx + 1;
+                server.input_buffer->start_pkt_data = idx + 1;
                 server.parser.state = PARSE_SKIP;
             } else
                 server.parser.state = PARSE_ERROR;
@@ -57,13 +58,14 @@ void sad_parser_pkt() {
             break;
 
         case PARSE_CHECKSUM_DIGIT_0:
-            checksum[0] = data[idx];
+            checksum[0] = (char) data[idx];
             server.parser.state = PARSE_CHECKSUM_DIGIT_1;
             break;
 
         case PARSE_CHECKSUM_DIGIT_1:
-            checksum[1] = data[idx];
-            value = strtol(checksum, NULL, 16);
+            checksum[1] = (char) data[idx];
+			// should always be 2 digits so from 00 to 99
+            value = (uint8_t) strtol(checksum, NULL, 16);
             if (value != sad_buff_checksum(server.input_buffer))
                 server.parser.state = PARSE_ERROR;
             else
@@ -74,12 +76,15 @@ void sad_parser_pkt() {
         case PARSE_NACK:
         case PARSE_FINISHED:
             break;
+        default:
+            assert(0 && "PARSER ERROR");
+            break;
         }
         server.parser.parse_idx += 1;
     }
 }
 
-void sad_parser_data() {
+void sad_parser_data(void) {
     // check if the parser hasn't finished parsing packet structure
     assert(server.parser.state == PARSE_FINISHED);
 
@@ -116,6 +121,8 @@ void sad_parser_data() {
             data[idx] = '\0';
             sad_pkt_data_append_par(prev_param, (char *) (data + idx + 1));
             server.parser.data_state = DATA_RESET;
+            break;
+        default:
             break;
         }
 

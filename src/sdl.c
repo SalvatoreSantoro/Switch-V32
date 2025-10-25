@@ -13,7 +13,6 @@
 #include <string.h>
 #include <unistd.h>
 
-
 static SDL_Window *s_win;
 static SDL_Renderer *s_ren;
 static SDL_Texture *s_texture;
@@ -22,20 +21,26 @@ static uint32_t *s_frame_buffer = NULL;
 static int s_width;
 static int s_height;
 
-static size_t s_palette_size;
-static size_t s_event_buff_size;
-static size_t s_event_buff_size_mask = 0;
+static uint32_t s_palette_size;
+static uint32_t s_event_buff_size;
+static uint32_t s_event_buff_size_mask = 0;
 
-void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
+sdl_err sdl_init(const char *win_name, int w, int h, uint32_t ev_buff_sz) {
     // little optimization if size is power of 2
     if ((ev_buff_sz & (ev_buff_sz - 1)) != 0)
-        SV32_CRASH("SDL Event buffer size must be power of 2\n");
+        return BUFF_SZ_POW_OF_2;
+
+    if (w <= 0)
+        return NOT_POS_W;
+
+    if (h <= 0)
+        return NOT_POS_H;
 
     if (SDL_Init(SDL_INIT_VIDEO) != 0)
         SV32_CRASH(SDL_GetError());
 
-    s_win = SDL_CreateWindow(win_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, ctx.sdl_upscale * w,
-                             ctx.sdl_upscale * h, 0);
+    s_win = SDL_CreateWindow(win_name, SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, (int) ctx.sdl_upscale * w,
+                             (int) ctx.sdl_upscale * h, 0);
     if (s_win == NULL) {
         fprintf(stderr, "SDL_CreateWindow Error: %s\n", SDL_GetError());
         goto sdl_quit;
@@ -53,7 +58,7 @@ void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
         goto ren_destroy;
     }
 
-    s_frame_buffer = malloc(sizeof(*s_frame_buffer) * w * h);
+    s_frame_buffer = malloc(sizeof(*s_frame_buffer) * (size_t) w * (size_t) h);
     if (!s_frame_buffer) {
         fprintf(stderr, "SDL Frame buffer Error\n");
         goto ren_destroy;
@@ -69,7 +74,7 @@ void sdl_init(const char *win_name, int w, int h, size_t ev_buff_sz) {
     s_height = h;
     s_event_buff_size = ev_buff_sz;
     s_event_buff_size_mask = ev_buff_sz - 1;
-    return;
+    return 0;
 
 ren_destroy:
     SDL_DestroyRenderer(s_ren);
@@ -80,7 +85,7 @@ sdl_quit:
     exit(EXIT_FAILURE);
 }
 
-void sdl_write_palette(uint32_t *p, size_t p_size) {
+void sdl_write_palette(uint32_t *p, uint32_t p_size) {
     if (s_palette == NULL) {
         s_palette_size = p_size;
         s_palette = malloc(sizeof(*p) * p_size);
@@ -117,18 +122,18 @@ void sdl_shutdown(void) {
     SDL_DestroyWindow(s_win);
     SDL_Quit();
 
-	exit(0);
+    exit(0);
 }
 
 // the application need to pass a pointer to SDL_Event array, pointer to head and value of tail
 // the system call will load the events inside the array, updating the head accordingly
 // returns the number of event written
-int sdl_pull_events(SDL_Event *events, int *head, int tail) {
+unsigned int sdl_pull_events(SDL_Event *events, unsigned int *head, unsigned int tail) {
     SDL_Event e;
-    int idx = *head;
-    size_t i = 0;
+    unsigned int idx = *head;
+    unsigned int i = 0;
 
-    while ((SDL_PollEvent(&e)) && ((int) ((idx + 1) & s_event_buff_size_mask) != tail)) {
+    while ((SDL_PollEvent(&e)) && (((idx + 1) & s_event_buff_size_mask) != tail)) {
         if (e.type == SDL_KEYDOWN || e.type == SDL_KEYUP || e.type == SDL_MOUSEMOTION ||
             e.type == SDL_MOUSEBUTTONDOWN || e.type == SDL_MOUSEBUTTONUP) {
             events[idx] = e;

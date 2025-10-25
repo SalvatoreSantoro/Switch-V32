@@ -47,23 +47,23 @@ enum {
 };
 
 // Check compress
-#define COMPR_OPCODE_MASK 0b11
-#define IS_COMPRESSED(x)  (((x & COMPR_OPCODE_MASK) != 0b11))
+#define COMPR_OPCODE_MASK 0x3
+#define IS_COMPRESSED(x)  (((x & COMPR_OPCODE_MASK) != 0x3))
 
 // Check opcode
-#define OPCODE_MASK    0b1111111
+#define OPCODE_MASK    0x7F
 #define OPCODE_TYPE(x) (x & OPCODE_MASK)
-#define R_TYPE         0b0110011
-#define IR_TYPE        0b0010011
-#define IL_TYPE        0b0000011
-#define S_TYPE         0b0100011
-#define B_TYPE         0b1100011
-#define J_TYPE         0b1101111
-#define IJ_TYPE        0b1100111
-#define LUI            0b0110111
-#define AUIPC          0b0010111
-#define ENV_TYPE       0b1110011
-#define A_TYPE         0b0101111
+#define R_TYPE         0x33
+#define IR_TYPE        0x13
+#define IL_TYPE        0x3
+#define S_TYPE         0x23
+#define B_TYPE         0x63
+#define J_TYPE         0x6F
+#define IJ_TYPE        0x67
+#define LUI            0x37
+#define AUIPC          0x17
+#define ENV_TYPE       0x73
+#define A_TYPE         0x2F
 
 typedef struct {
     uint32_t regs[REG_NUMS];
@@ -78,8 +78,6 @@ typedef struct {
 
 // get register name
 const char *re_na(int reg_num);
-
-void vcore_init(VCore* core, uint32_t pc, uint32_t sp);
 
 void vcore_r_type(VCore *core, uint32_t ins);
 

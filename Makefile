@@ -19,12 +19,14 @@ DEMO_DIRS := $(wildcard demo/user/*) $(wildcard demo/supervisor/*)
 LIBS := $(addprefix $(LIBS_DIRS)/build/lib, $(notdir $(LIBS_DIRS)))
 LIBS := $(addsuffix .a, $(LIBS))
 
-# Compiler include flags
+# compiler include flags
 INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
+INCLUDE_FLAGS += -I/usr/include/SDL2
 
 ### VARIABLES & FLAGS
-CC = gcc 
-CFLAGS = -O2
+CC = gcc
+
+CFLAGS = -std=c99 -O2 $(MODE_FLAGS)
 
 ### WARNINGS
 CFLAGS += -Wall
@@ -55,8 +57,7 @@ CFLAGS += -Wwrite-strings
 CFLAGS += -Wswitch-default 
 CFLAGS += -Wconversion
 
-LDFLAGS = -lSDL2 -I/usr/include/SDL2 $(INCLUDE_FLAGS)
-
+LDFLAGS = -lSDL2  
 
 MODE_DEFAULT := user
 MODE_FLAGS := -DUSER
@@ -72,7 +73,6 @@ MODE_FLAGS := -DUSER
 BIN_NAME := sv32_user
 endif
 
-CFLAGS += $(MODE_FLAGS)
 
 ### DIRECTORIES
 SRC_DIR := src
@@ -97,14 +97,14 @@ init:
 # Rule: for each library, run make in its folder
 $(LIBS): $(LIBS_DIRS) 
 	@echo "Building library in $^"
-	$(MAKE) -C $^
+	$(MAKE) CC=$(CC) -C $^ 
 
 $(BUILD_DIR)/$(BIN_NAME): $(OBJS) $(LIBS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(OBJS) $(LIBS) -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE_FLAGS) $(OBJS) $(LIBS) -o $@
 
 
 $(BUILD_DIR)/%.$(MODE_DEFAULT).o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) $(LDFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 
 
 #valgrind: $(BUILD_DIR)/$(NAME)

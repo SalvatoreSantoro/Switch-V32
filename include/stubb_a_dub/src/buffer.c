@@ -4,6 +4,7 @@
 #include <asm-generic/errno.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -32,12 +33,12 @@ PKT_Buffer *sad_buff_create(size_t initial_size, size_t socket_io_size) {
     buff->data = data;
     sad_buff_reset(buff);
     return buff;
-};
+}
 
 void sad_buff_destroy(PKT_Buffer *buff) {
     free(buff->data);
     free(buff);
-};
+}
 
 void sad_buff_reset(PKT_Buffer *buff) {
     if (buff->data_size >= MAX_BUFF_DATA_SIZE) {
@@ -74,11 +75,18 @@ buff_ret sad_buff_append(PKT_Buffer *buff, const char *data, size_t data_size) {
     return BUFF_OK;
 }
 
-unsigned char *sad_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled) {
+byte *sad_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled) {
     if (buff_filled != NULL)
         *buff_filled = buff->filled;
     return buff->data;
 }
+
+// gcc gives warnings on if (errno == EAGAIN || errno == EWOULDBLOCK)
+
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic push
+    #pragma GCC diagnostic ignored "-Wlogical-op"
+#endif
 
 buff_ret sad_buff_from_socket(PKT_Buffer *buff, int fd) {
     ssize_t rd_bytes = 0;
@@ -93,15 +101,17 @@ buff_ret sad_buff_from_socket(PKT_Buffer *buff, int fd) {
     } while (rd_bytes == -1 && errno == EINTR);
 
     if (rd_bytes == -1) {
-        if (errno == EAGAIN || errno == EWOULDBLOCK)
+
+        if (errno == EAGAIN || errno == EWOULDBLOCK) {
             return BUFF_WOULD_BLOCK;
-        else
+        } else {
             return BUFF_FD_ERR;
+        }
     } else if (rd_bytes == 0) {
         return BUFF_CLOSED; // EOF
     }
 
-    buff->filled += rd_bytes;
+    buff->filled += (size_t) rd_bytes;
     return BUFF_OK;
 }
 
@@ -129,11 +139,14 @@ buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd) {
             return BUFF_FD_ERR; // should not happen unless weird fd
         }
 
-        left_to_wt -= wt_bytes;
-        tot_wt_bytes += wt_bytes;
+        left_to_wt -= (size_t) wt_bytes;
+        tot_wt_bytes += (size_t) wt_bytes;
     }
     return BUFF_OK;
 }
+#if defined(__GNUC__) && !defined(__clang__)
+    #pragma GCC diagnostic pop
+#endif
 
 void sad_buff_print_content(PKT_Buffer *buff, const char *str) {
     printf("%s", str);

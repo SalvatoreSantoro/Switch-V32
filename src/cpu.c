@@ -16,14 +16,14 @@ extern Threads_Mgr threads_mgr;
 // Base Integer
 
 // Masks
-#define IM_RD_MASK  (uint32_t) (0b11111 << 7)
-#define RS1_MASK    (uint32_t) (0b11111 << 15)
-#define RS2_MASK    (uint32_t) (0b11111 << 20)
-#define IM2_F7_MASK (uint32_t) (0b1111111 << 25)
-#define F3_MASK     (uint32_t) (0b111 << 12)
-#define F5_MASK     (uint32_t) (0b11111 << 27)
-#define R_IMM_MASK  (uint32_t) (0b111111111111 << 20)
-#define U_IMM_MASK  (uint32_t) (0b11111111111111111111 << 12)
+#define IM_RD_MASK  (uint32_t) (0x1F << 7)
+#define RS1_MASK    (uint32_t) (0x1F << 15)
+#define RS2_MASK    (uint32_t) (0x1F << 20)
+#define IM2_F7_MASK (uint32_t) (0x7F << 25)
+#define F3_MASK     (uint32_t) (0x7 << 12)
+#define F5_MASK     (uint32_t) (0x1F << 27)
+#define R_IMM_MASK  (uint32_t) (0xFFF << 20)
+#define U_IMM_MASK  (uint32_t) (0xFFFFF << 12)
 
 // Instruction Decoders
 #define RD(x)     (uint32_t) ((x & IM_RD_MASK) >> 7)
@@ -37,12 +37,12 @@ extern Threads_Mgr threads_mgr;
 #define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
 
 #define B_IMM(x)                                                                                                       \
-    ((((uint32_t) (0b1111 << 8) & x) >> 7) | (((uint32_t) (0b111111 << 25) & x) >> 20) |                               \
-     (((uint32_t) (0b1 << 7) & x) << 4) | (uint32_t) ((int32_t) ((uint32_t) (0b1 << 31) & x) >> 19))
+    ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) |                               \
+     (((uint32_t) (0x1 << 7) & x) << 4) | (uint32_t) ((int32_t) ((uint32_t) (0x1 << 31) & x) >> 19))
 
 #define J_IMM(x)                                                                                                       \
-    (((((x) >> 21) & (uint32_t) 0b1111111111) << 1) | ((((x) >> 20) & (uint32_t) 0b1) << 11) |                         \
-     ((((x) >> 12) & (uint32_t) 0b11111111) << 12) | ((uint32_t) ((int32_t) (x) >> 11) & (uint32_t) 0xFFF00000))
+    (((((x) >> 21) & (uint32_t) 0x3FF) << 1) | ((((x) >> 20) & (uint32_t) 0x1) << 11) |                         \
+     ((((x) >> 12) & (uint32_t) 0xFF) << 12) | ((uint32_t) ((int32_t) (x) >> 11) & (uint32_t) 0xFFF00000))
 
 #define U_IMM(x) (x & (U_IMM_MASK))
 #define S_IMM(x) ((RD(x)) | (uint32_t) ((int32_t) (x & IM2_F7_MASK) >> 20))
@@ -419,13 +419,13 @@ void vcore_il_type(VCore *core, uint32_t ins) {
     switch (FUNC(ins)) {
     case LB:
         *rd = mem_rb(rs1 + imm);
-        if (*rd >= 0b10000000)
+        if (*rd >= 0x80)
             *rd |= 0xFFFFFF00;
         LOG_I("LB", imm);
         break;
     case LH:
         *rd = mem_rh(rs1 + imm);
-        if (*rd >= 0b1000000000000000)
+        if (*rd >= 0x8000)
             *rd |= 0xFFFF0000;
         LOG_I("LH", imm);
         break;
@@ -565,6 +565,7 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
+		// this is a bit ugly because in general halted should be wrapped in a mutex
         if (__atomic_load_n(&GET_HALT(core->core_idx).halted, __ATOMIC_ACQUIRE))
             return;
 #endif
@@ -578,9 +579,4 @@ void vcore_step(VCore *core) {
     core->regs[ZERO] = 0;
     ins = mem_rw(core->pc);
     INSTR_SWITCH;
-}
-
-void vcore_init(VCore *core, uint32_t pc, uint32_t sp) {
-    core->pc = pc;
-    core->regs[SP] = sp;
 }

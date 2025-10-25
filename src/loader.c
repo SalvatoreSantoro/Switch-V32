@@ -217,7 +217,8 @@ void ld_elf(VCore *core) {
     ld_elf_seg(&elf);
 
     // load entry point + STACK_BASE
-    vcore_init(core, elf.header->e_entry, STACK_BASE);
+	core->pc = elf.header->e_entry;
+	core->regs[SP] = STACK_BASE;
 
     // load GP
     sym = ld_elf_getsym(&elf, "__global_pointer$");

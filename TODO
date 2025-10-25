@@ -1,0 +1,4 @@
+-CHECK file size when loading comparing it with actual memory size to see if it fits
+-CHECK AGAIN MAKEFILE to see differences when running elf or bin + fix the USER/SUPERVISOR macro tricks
+in the args.c
+

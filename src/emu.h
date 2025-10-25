@@ -3,9 +3,9 @@
 
 #include "cpu.h"
 
-void emu_std();
+void emu_std(void);
 
-void emu_args();
+void emu_args(void);
 
 void emu_system_call(VCore *core);
 

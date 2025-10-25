@@ -1,5 +1,5 @@
 #include "defs.h"
-#include "stubb_a_dub.h"
+#include "../stubb_a_dub.h"
 #include "sad_gdb_internal.h"
 #include <fcntl.h>
 #include <stdarg.h>
@@ -11,17 +11,17 @@
 
 SAD_Stub server;
 
-static void sad_stub_reset_input_state() {
+static void sad_stub_reset_input_state(void) {
     sad_parser_reset();
     sad_pkt_data_reset();
     sad_buff_reset(server.input_buffer);
 }
 
-static void sad_stub_reset_output_state() {
+static void sad_stub_reset_output_state(void) {
     sad_buff_reset(server.output_buffer);
 }
 
-static void sad_stub_reset() {
+static void sad_stub_reset(void) {
     sad_stub_reset_input_state();
     sad_stub_reset_output_state();
 }
@@ -35,7 +35,7 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     // set to default
     size_t buff_size = conf->buffers_size > 0 ? conf->buffers_size : DEFAULT_BUFF_SIZE;
     size_t socket_io_size = conf->socket_io_size > 0 ? conf->socket_io_size : DEFAULT_SOCKET_IO_SIZE;
-    int port = conf->port > 0 ? conf->port : DEFAULT_PORT;
+    uint16_t port = conf->port > 0 ? conf->port : DEFAULT_PORT;
 
     server.sys_conf = conf->sys_conf;
     server.sys_ops = conf->sys_ops;

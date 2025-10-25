@@ -1,7 +1,6 @@
 #ifndef _SV32_DEFS_H
 #define _SV32_DEFS_H
 
-#include <limits.h>
 
 #ifndef PATH_MAX
     #define PATH_MAX 4096
@@ -26,5 +25,8 @@
 #define STUB_PORT 1234
 #define STUB_BUFF_SIZE 128
 #define STUB_READ_SIZE 256
+
+// SDL UPSCALE
+#define MAX_UPSCALE 8
 
 #endif

@@ -13,7 +13,7 @@ typedef enum {
     STUB_SOCKET,
     STUB_ARCH,
     STUB_SMP,
-	STUB_CLOSED
+    STUB_CLOSED
 } stub_ret;
 
 typedef enum {
@@ -34,19 +34,19 @@ typedef struct {
 
 typedef struct {
     arch arch;
-    int regs_num;
+    unsigned int regs_num;
     unsigned int smp;
 } Sys_Conf;
 
 typedef struct {
     Sys_Ops sys_ops;
     Sys_Conf sys_conf;
-    int port;
+    uint16_t port;
     size_t buffers_size;
     size_t socket_io_size;
 } Stub_Conf;
 
-stub_ret sad_stub_init(Stub_Conf* conf);
+stub_ret sad_stub_init(Stub_Conf *conf);
 
 stub_ret sad_stub_handle_cmds(void);
 

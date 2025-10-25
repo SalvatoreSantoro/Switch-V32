@@ -30,9 +30,9 @@ util_ret sad_hex_chars_to_bytes(byte *dest, const char *src, size_t dest_size, s
 
         if (state) {
             c <<= 4;
-            tmp_val = c;
+            tmp_val = (byte) c;
         } else {
-            tmp_val += c;
+            tmp_val += (byte) c;
             *(dest + bytes_idx) = tmp_val;
             bytes_idx += 1;
         }

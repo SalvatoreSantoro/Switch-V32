@@ -7,8 +7,37 @@ LIB_OUTPUT := $(BUILD_DIR)/lib$(LIB_NAME).a
 
 # Compiler and flags
 CC := gcc
-CFLAGS := -Wall -Wextra -std=c99 -fPIC -O2 -DSAD_DEBUG
+CFLAGS := -std=c99 -fPIC -O2 -DSAD_DEBUG
 INCLUDES := -I$(LIB_DIR) -I.
+
+CFLAGS += -Wall
+CFLAGS += -Wextra
+CFLAGS += -Wpedantic -pedantic-errors
+CFLAGS += -Wno-unused-parameter
+CFLAGS += -Waggregate-return
+CFLAGS += -Wbad-function-cast
+CFLAGS += -Wcast-align
+CFLAGS += -Wcast-qual
+CFLAGS += -Wfloat-equal
+CFLAGS += -Wformat=2
+CFLAGS += -Wlogical-op
+CFLAGS += -Wmissing-declarations
+CFLAGS += -Wmissing-include-dirs
+CFLAGS += -Wmissing-prototypes
+CFLAGS += -Wnested-externs
+CFLAGS += -Wpointer-arith
+CFLAGS += -Wredundant-decls
+CFLAGS += -Wsequence-point
+CFLAGS += -Wshadow
+CFLAGS += -Wstrict-prototypes
+CFLAGS += -Wswitch
+CFLAGS += -Wundef
+CFLAGS += -Wunreachable-code
+CFLAGS += -Wunused-but-set-parameter
+CFLAGS += -Wwrite-strings
+CFLAGS += -Wswitch-default 
+CFLAGS += -Wconversion
+
 
 # Source and object files
 SRC := $(wildcard $(LIB_DIR)/*.c)
