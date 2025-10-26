@@ -1,8 +1,6 @@
 #include "defs.h"
 #include "sad_gdb_internal.h"
-#include <asm-generic/errno-base.h>
-#include <asm-generic/errno.h>
-#include <errno.h>
+#include <errno.h> // IWYU pragma: export
 #include <fcntl.h>
 #include <stddef.h>
 #include <stdio.h>

@@ -1,4 +1,7 @@
 -CHECK file size when loading comparing it with actual memory size to see if it fits
 -CHECK AGAIN MAKEFILE to see differences when running elf or bin + fix the USER/SUPERVISOR macro tricks
 in the args.c
+-Fix the step mechanism (and also the halted) using a better synchronization mechanism
+basically the same as "halted" but that is used from the core that is halting himself to notify
+the debug thread that it finished
 

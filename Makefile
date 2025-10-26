@@ -51,6 +51,7 @@ CFLAGS += -Wshadow
 CFLAGS += -Wstrict-prototypes
 CFLAGS += -Wswitch
 CFLAGS += -Wundef
+CFLAGS += -Wunused
 CFLAGS += -Wunreachable-code
 CFLAGS += -Wunused-but-set-parameter
 CFLAGS += -Wwrite-strings

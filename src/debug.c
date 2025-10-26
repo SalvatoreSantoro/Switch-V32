@@ -53,15 +53,13 @@ void *debug_thread_fun(void *args) {
     return NULL;
 }
 
-// core_id unused for now
 void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
     assert(core_id < ctx.cores);
+
     VCore *core = &GET_CORE(core_id);
 
-    size_t regs_size = output_sz - 4; // don't count PC
-    // copy all regs
+    size_t regs_size = output_sz - 4;
     memcpy(output, &core->regs, regs_size);
-    // copy PC
     memcpy(output + regs_size, &core->pc, 4);
 }
 

@@ -37,11 +37,11 @@ extern Threads_Mgr threads_mgr;
 #define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
 
 #define B_IMM(x)                                                                                                       \
-    ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) |                               \
-     (((uint32_t) (0x1 << 7) & x) << 4) | (uint32_t) ((int32_t) ((uint32_t) (0x1 << 31) & x) >> 19))
+    ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) | (((uint32_t) (0x1 << 7) & x) << 4) | \
+     (uint32_t) ((int32_t) ((uint32_t) (0x1 << 31) & x) >> 19))
 
 #define J_IMM(x)                                                                                                       \
-    (((((x) >> 21) & (uint32_t) 0x3FF) << 1) | ((((x) >> 20) & (uint32_t) 0x1) << 11) |                         \
+    (((((x) >> 21) & (uint32_t) 0x3FF) << 1) | ((((x) >> 20) & (uint32_t) 0x1) << 11) |                                \
      ((((x) >> 12) & (uint32_t) 0xFF) << 12) | ((uint32_t) ((int32_t) (x) >> 11) & (uint32_t) 0xFFF00000))
 
 #define U_IMM(x) (x & (U_IMM_MASK))
@@ -253,8 +253,8 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("MULH");
         break;
     case MULHSU:
-		// second operand unsigned so just extend directly to 64bit without 
-		// first converting to signed (int32_t) so the sign isn't extended
+        // second operand unsigned so just extend directly to 64bit without
+        // first converting to signed (int32_t) so the sign isn't extended
         tmp_mul = (uint64_t) ((int64_t) (int32_t) rs1 * (int64_t) rs2);
         tmp_mul &= (0xFFFFFFFF00000000);
         *rd = (uint32_t) (tmp_mul >> 32);
@@ -565,8 +565,8 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
-		// this is a bit ugly because in general halted should be wrapped in a mutex
-        if (__atomic_load_n(&GET_HALT(core->core_idx).halted, __ATOMIC_ACQUIRE))
+        // this is a bit ugly because in general halted should be wrapped in a mutex
+        if (GET_HALTED(core->core_idx))
             return;
 #endif
     }
