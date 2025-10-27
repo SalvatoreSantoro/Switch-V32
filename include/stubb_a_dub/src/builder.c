@@ -4,6 +4,7 @@
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
+#include <sched.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -97,7 +98,10 @@ static bool wait_for_halt(unsigned int core_idx) {
 
         // check if core halted
         // just check the core_idx because as a convention a breakpoint stops all the threads
-        breakp_stop = server.sys_ops.is_halted(core_idx);
+        // nonblocking
+        breakp_stop = server.sys_ops.is_halted(core_idx, false);
+        if (!breakp_stop)
+            sched_yield();
     }
 
     // reset to blocking socket

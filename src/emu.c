@@ -9,6 +9,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -297,6 +298,9 @@ void emu_system_call(VCore *core) {
         LOG_STR("OPEN", MAP_ADDR(core->regs[A0]));
         fd = open(MAP_ADDR(core->regs[A0]), (int) core->regs[A1]);
         core->regs[A0] = (uint32_t) fd;
+        // error
+        if (fd < 0)
+            return;
         if (fd >= ELF_FDS_BASELINE) {
             fprintf(stderr, "THE ELF FILE OPENED TOO MANY FDs\n");
             exit(EXIT_FAILURE);

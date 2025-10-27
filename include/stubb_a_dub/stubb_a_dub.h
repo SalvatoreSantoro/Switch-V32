@@ -13,7 +13,8 @@ typedef enum {
     STUB_SOCKET,
     STUB_ARCH,
     STUB_SMP,
-    STUB_CLOSED
+    STUB_CLOSED,
+	STUB_HALTED
 } stub_ret;
 
 typedef enum {
@@ -29,7 +30,7 @@ typedef struct {
     void (*core_continue)(unsigned int core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);
-    bool (*is_halted)(unsigned int);
+    bool (*is_halted)(unsigned int, bool);
 } Sys_Ops;
 
 typedef struct {

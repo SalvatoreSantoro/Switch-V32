@@ -1,5 +1,5 @@
-#include "defs.h"
 #include "../stubb_a_dub.h"
+#include "defs.h"
 #include "sad_gdb_internal.h"
 #include <fcntl.h>
 #include <stdarg.h>
@@ -86,8 +86,8 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     if (server.sad_socket == -1)
         goto close_socket;
 
-	// Reset breakpoints
-    for (size_t i = 0; i < MAX_BREAKPOINTS ; i++)
+    // Reset breakpoints
+    for (size_t i = 0; i < MAX_BREAKPOINTS; i++)
         server.breakpoints[i].status = BRK_EMPTY;
 
     server.ack_enabled = true;
@@ -107,14 +107,21 @@ input_err:
 stub_ret sad_stub_handle_cmds(void) {
     buff_ret b_ret;
 
+    // check that all core are halted before running
+
+    for (unsigned idx = 0; idx < server.sys_conf.smp; idx++) {
+        if (!server.sys_ops.is_halted(idx))
+            return STUB_HALTED;
+    }
+
     while (1) {
         b_ret = sad_buff_from_socket(server.input_buffer, server.sad_socket);
         if (b_ret == BUFF_OOM)
             return STUB_OOM;
         if (b_ret == BUFF_FD_ERR)
             return STUB_SOCKET;
-		if (b_ret == BUFF_CLOSED)
-			return STUB_CLOSED;
+        if (b_ret == BUFF_CLOSED)
+            return STUB_CLOSED;
 
         // parse data just read in the input_buffer
         // the parser could be parsing an incomplete packet (without the ending "#")

@@ -565,8 +565,8 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
-        // this is a bit ugly because in general halted should be wrapped in a mutex
-        if (GET_HALTED(core->core_idx))
+        // this is a bit ugly because in general halted should be wrapped in a mutex (we're atomically reading atleast)
+        if (GET_SIGNAL(core->core_idx) == STOP_S)
             return;
 #endif
     }

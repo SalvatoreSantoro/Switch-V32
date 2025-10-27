@@ -26,7 +26,7 @@ INCLUDE_FLAGS += -I/usr/include/SDL2
 ### VARIABLES & FLAGS
 CC = gcc
 
-CFLAGS = -std=c99 -O2 $(MODE_FLAGS)
+CFLAGS = -std=c99 -O2 -fsanitize=thread $(MODE_FLAGS)
 
 ### WARNINGS
 CFLAGS += -Wall

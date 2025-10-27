@@ -16,9 +16,22 @@
             SV32_CRASH("LOCK FAILED");                                                                                 \
     } while (0)
 
+typedef enum {
+    STOP_S,
+    RUN_S,
+    STEP_S,
+} Thread_Signal;
+
+typedef enum {
+    STATE_HALTED,
+    STATE_RUNNING,
+    STATE_STEPPING
+} Core_State;
+
 typedef struct {
     pthread_mutex_t mutex;
-    pthread_cond_t cond;
+    pthread_cond_t cond_signal;
+    pthread_cond_t cond_state;
     // halted cores are always stopped on this with a pthread_cond
     // but to synchronize all the cores simultanoeusly (so can't use a mutex)
     // we always assume to first make them spin for a bit on the "atomic_stop_all"
@@ -29,18 +42,17 @@ typedef struct {
     // we're making this atomic even if it's wrapped in mutexes
     // because it's read atomically in vcore_run when running as SUPERVISOR (when not debugging)
     // (avoiding to lock/unlock in the hot loop)
-    bool atomic_halted;
-    bool atomic_step; // Used to synchronize Debugger and Cores during stepping
-} Halt_Cond;
+    Core_State core_state;
+    Thread_Signal atomic_signal;
+} Thread_Cond;
 
 typedef struct {
     pthread_t thread_id;
+    Thread_Cond thread_cond;
     VCore core;
-    Halt_Cond halt_cond;
 } Thread_Args;
 
 typedef struct {
-    bool atomic_stop_all;              // used by debugging thread to stop all the cores at the same time
     unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
     pthread_t debug_thread;
     Thread_Args *threads_args;
@@ -49,18 +61,20 @@ typedef struct {
                                           // In general "single" run and "single" halt, operations can race
 } Threads_Mgr;
 
-#define GET_ARG(core_idx)       threads_mgr.threads_args[core_idx]
-#define GET_CORE(core_idx)      GET_ARG(core_idx).core
-#define GET_HALT_COND(core_idx) GET_ARG(core_idx).halt_cond
-#define GET_THREAD_ID(core_idx) GET_ARG(core_idx).thread_id
+#define GET_ARG(core_idx)         threads_mgr.threads_args[core_idx]
+#define GET_CORE(core_idx)        GET_ARG(core_idx).core
+#define GET_THREAD_COND(core_idx) GET_ARG(core_idx).thread_cond
+#define GET_THREAD_ID(core_idx)   GET_ARG(core_idx).thread_id
 
-#define SET_HALTED(core_idx, val) __atomic_store_n(&GET_HALT_COND(core_idx).atomic_halted, val, __ATOMIC_RELAXED)
-#define GET_HALTED(core_idx)      __atomic_load_n(&GET_HALT_COND(core_idx).atomic_halted, __ATOMIC_RELAXED)
+#define SET_SIGNAL(core_idx, val) __atomic_store_n(&GET_THREAD_COND(core_idx).atomic_signal, val, __ATOMIC_RELAXED)
+#define GET_SIGNAL(core_idx)      __atomic_load_n(&GET_THREAD_COND(core_idx).atomic_signal, __ATOMIC_RELAXED)
 
-#define GET_MUTEX(core_idx) GET_HALT_COND(core_idx).mutex
-#define GET_COND(core_idx)  GET_HALT_COND(core_idx).cond
-#define GET_STEP(core_idx)  GET_HALT_COND(core_idx).atomic_step
+#define SET_STATE(core_idx, val) (GET_THREAD_COND(core_idx).core_state = val)
+#define GET_STATE(core_idx)      GET_THREAD_COND(core_idx).core_state
 
+#define GET_MUTEX(core_idx)      GET_THREAD_COND(core_idx).mutex
+#define GET_SIGN_COND(core_idx)  GET_THREAD_COND(core_idx).cond_signal
+#define GET_STATE_COND(core_idx) GET_THREAD_COND(core_idx).cond_state
 
 void threads_mgr_init(void);
 
@@ -76,7 +90,7 @@ void threads_mgr_run_core(unsigned int corb_idx);
 
 void threads_mgr_step_core(unsigned int core_idx);
 
-bool threads_mgr_is_halted(unsigned int core_idx);
+bool threads_mgr_is_halted(unsigned int core_idx, bool blocking);
 
 // TESTING INTERFACE //
 // exposing them just to make testing easier not meant to be used
