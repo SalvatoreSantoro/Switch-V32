@@ -1,7 +1,7 @@
 #ifndef _SV32_MACROS_H
 #define _SV32_MACROS_H
 
-// #define ALL_VERBOSE
+//#define ALL_VERBOSE
 // #define SYS_VERBOSE
 //   #define LOADER_VERBOSE
 //#define CPU_VERBOSE
@@ -72,7 +72,7 @@
 #endif
 
 #ifdef SYS_VERBOSE
-    #define LOG_DE(op, d)  printf("%s: %d\n", op, d);
+    #define LOG_DE(op, d)  printf("%s: %u\n", op, d);
     #define LOG_EX(op, x)  printf("%s: %x\n", op, x);
     #define LOG_STR(op, s) printf("%s: %d\n", op, s);
 #else

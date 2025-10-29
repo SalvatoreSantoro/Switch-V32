@@ -43,7 +43,7 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     if (conf->sys_conf.arch != RV32)
         return STUB_ARCH;
 
-    if ((conf->sys_conf.smp <= 0) || (conf->sys_conf.smp > MAX_SMP))
+    if (conf->sys_conf.smp > MAX_SMP)
         return STUB_SMP;
 
     server.input_buffer = sad_buff_create(buff_size, socket_io_size);
@@ -107,7 +107,7 @@ input_err:
 stub_ret sad_stub_handle_cmds(void) {
     buff_ret b_ret;
 
-    // check that all core are halted before running
+    // check that all cores are halted before running
 
     for (unsigned idx = 0; idx < server.sys_conf.smp; idx++) {
         if (!server.sys_ops.is_halted(idx))

@@ -1,8 +1,8 @@
 #ifndef SAD_GDB_INTERNAL_H
 #define SAD_GDB_INTERNAL_H
 
-#include "defs.h"
 #include "../stubb_a_dub.h"
+#include "defs.h"
 #include "supported.h"
 #include <netinet/in.h>
 #include <stdint.h>
@@ -174,13 +174,13 @@ buff_ret sad_buff_expand(PKT_Buffer *buff);
 // returns -1 on error, 0 otherwise
 buff_ret sad_buff_append(PKT_Buffer *buff, const char *data, size_t data_size);
 
-unsigned char *sad_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled);
+unsigned char *sad_buff_read_prep(const PKT_Buffer *buff, size_t *buff_filled);
 
 buff_ret sad_buff_from_socket(PKT_Buffer *buff, int fd);
 
 buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd);
 
-void sad_buff_print_content(PKT_Buffer *buff, const char *str);
+void sad_buff_print_content(const PKT_Buffer *buff, const char *str);
 
 buff_ret sad_buff_append_str(PKT_Buffer *buff, const char *str);
 

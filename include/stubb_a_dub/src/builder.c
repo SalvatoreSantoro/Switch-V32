@@ -81,7 +81,7 @@ static bool wait_for_halt(unsigned int core_idx) {
     // set the socket as non blocking
     bool breakp_stop = false;
     size_t filled;
-    unsigned char *data;
+    const unsigned char *data;
     fd_set_blocking(false);
 
     while (!breakp_stop) {
@@ -99,7 +99,8 @@ static bool wait_for_halt(unsigned int core_idx) {
         // check if core halted
         // just check the core_idx because as a convention a breakpoint stops all the threads
         // nonblocking
-        breakp_stop = server.sys_ops.is_halted(core_idx, false);
+        breakp_stop = server.sys_ops.is_halted(core_idx);
+
         if (!breakp_stop)
             sched_yield();
     }
@@ -228,10 +229,10 @@ static void build_q(void) {
         unsigned int i;
         sad_buff_append_str(server.output_buffer, "m");
         for (i = 0; i < server.sys_conf.smp - 1; i++) {
-            sprintf(core_id_str, "%d,", i);
+            sprintf(core_id_str, "%u,", i);
             sad_buff_append_str(server.output_buffer, core_id_str);
         }
-        sprintf(core_id_str, "%d", i);
+        sprintf(core_id_str, "%u", i);
         sad_buff_append_str(server.output_buffer, core_id_str);
     }
     if (strcmp(server.pkt_data.command, "qsThreadInfo") == 0) {
@@ -245,7 +246,7 @@ static void build_q(void) {
 
     if (strcmp(server.pkt_data.command, "qC") == 0) {
         char response[10];
-        sprintf(response, "QC%d", server.builder.selected_core);
+        sprintf(response, "QC%u", server.builder.selected_core);
         sad_buff_append_str(server.output_buffer, response);
     }
     if (strcmp(server.pkt_data.command, "qSymbol") == 0) {

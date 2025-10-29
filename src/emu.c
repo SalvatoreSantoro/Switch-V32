@@ -66,7 +66,7 @@ struct EMU_stat {
     int32_t st_spare4[2];
 };
 
-static void emu_copy_timespec(struct EMU_timespec *ets, struct timespec *ts) {
+static void emu_copy_timespec(struct EMU_timespec *ets, const struct timespec *ts) {
 
     int64_t sec = ts->tv_sec;
     int64_t nsec = ts->tv_nsec;
@@ -88,7 +88,7 @@ static void emu_copy_timespec(struct EMU_timespec *ets, struct timespec *ts) {
     ets->tv_nsec = (int32_t) nsec;
 }
 
-static void emu_copy_timeval(struct EMU_timeval *etv, struct timeval *tv) {
+static void emu_copy_timeval(struct EMU_timeval *etv, const struct timeval *tv) {
     int64_t sec = tv->tv_sec;
     int64_t usec = tv->tv_usec;
 
@@ -138,6 +138,9 @@ void emu_std(void) {
         ret = dup2(STDIN_FILENO, ELF_FDS_BASELINE);
     else {
         fd = open(ctx.elf_stdin, O_RDONLY);
+		if (fd == -1)
+			SV32_CRASH("CAN'T OPEN STDIN");
+
         ret = dup2(fd, ELF_FDS_BASELINE);
         close(fd);
     }
@@ -148,6 +151,9 @@ void emu_std(void) {
         dup2(STDOUT_FILENO, ELF_FDS_BASELINE + 1);
     else {
         fd = open(ctx.elf_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+		if (fd == -1)
+			SV32_CRASH("CAN'T OPEN STDOUT");
+
         ret = dup2(fd, ELF_FDS_BASELINE + 1);
         close(fd);
     }
@@ -158,6 +164,9 @@ void emu_std(void) {
         dup2(STDERR_FILENO, ELF_FDS_BASELINE + 2);
     else {
         fd = open(ctx.elf_stderr, O_WRONLY | O_TRUNC | O_CREAT, 0644);
+		if (fd == -1)
+			SV32_CRASH("CAN'T OPEN STDERR");
+
         ret = dup2(fd, ELF_FDS_BASELINE + 2);
         close(fd);
     }
@@ -168,9 +177,9 @@ void emu_std(void) {
 void emu_args(void) {
     const char *str;
     char *tmp_str;
-    char *token;
+    const char *token;
     unsigned int elf_argc = 0;
-    uint32_t str_size = 0;
+    uint32_t str_size;
     uint32_t tmp_str_sz;
     uint32_t str_size_inc = 0;
 
@@ -180,6 +189,9 @@ void emu_args(void) {
 
     // create temp string for tokenizer
     tmp_str = malloc(tmp_str_sz + 1);
+    if (tmp_str == NULL)
+        SV32_CRASH("OOM");
+
     memcpy(tmp_str, ctx.elf_args, tmp_str_sz);
     tmp_str[tmp_str_sz] = '\0';
 
@@ -214,7 +226,7 @@ void emu_system_call(VCore *core) {
     struct timespec ts;
     struct timeval tv;
     int fd;
-    void *tmp_addr;
+    const void *tmp_addr;
 
     switch (core->regs[A7]) {
 
@@ -284,7 +296,8 @@ void emu_system_call(VCore *core) {
         LOG_DE("EXIT", core->regs[A0]);
         tmp_addr = MAP_ADDR(core->elf_errno);
         if (tmp_addr != 0)
-            fprintf(stderr, "Last application ERRNO: %d %s\n", *((int *) tmp_addr), strerror(*(int *) tmp_addr));
+            fprintf(stderr, "Last application ERRNO: %d %s\n", *((const int *) tmp_addr),
+                    strerror(*(const int *) tmp_addr));
         exit((int) core->regs[A0]);
         break;
 
@@ -343,7 +356,7 @@ void emu_system_call(VCore *core) {
         break;
 
     default:
-        fprintf(stderr, "UNSUPPORTED SYSCALL %d at %x\n", core->regs[A7], core->pc);
+        fprintf(stderr, "UNSUPPORTED SYSCALL %u at %x\n", core->regs[A7], core->pc);
         core->regs[A0] = 0;
         exit(EXIT_FAILURE);
     }

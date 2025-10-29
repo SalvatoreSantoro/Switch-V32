@@ -30,20 +30,10 @@ typedef enum {
 
 typedef struct {
     pthread_mutex_t mutex;
-    pthread_cond_t cond_signal;
-    pthread_cond_t cond_state;
-    // halted cores are always stopped on this with a pthread_cond
-    // but to synchronize all the cores simultanoeusly (so can't use a mutex)
-    // we always assume to first make them spin for a bit on the "atomic_stop_all"
-    // then we set all the halted of the cores correctly, and after we release
-    // the cores clearing atomic_stop_all, so the cores resume execution
-    // but suddenly (eventually) stop on this halted variable
-
-    // we're making this atomic even if it's wrapped in mutexes
-    // because it's read atomically in vcore_run when running as SUPERVISOR (when not debugging)
-    // (avoiding to lock/unlock in the hot loop)
-    Core_State core_state;
-    Thread_Signal atomic_signal;
+    pthread_cond_t cond_signal; //condition used to signal and wait when atomic_signal changes
+    pthread_cond_t cond_state; //condition used to signal and wait when core_state changes
+    Core_State core_state;	   //state of each core used to synchronize operations
+    Thread_Signal atomic_signal; //signal sent to cores to run/stop/step them
 } Thread_Cond;
 
 typedef struct {
@@ -53,10 +43,11 @@ typedef struct {
 } Thread_Args;
 
 typedef struct {
+	bool atomic_spin_all;
     unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
-    pthread_t debug_thread;
     Thread_Args *threads_args;
     // NULL when debug isn't enabled
+	pthread_t debug_thread;
     pthread_mutex_t halt_all_n_run_mutex; // used to make the halt_all and run/run_all mutually exclusive
                                           // In general "single" run and "single" halt, operations can race
 } Threads_Mgr;
@@ -80,25 +71,34 @@ void threads_mgr_init(void);
 
 void threads_mgr_run(void);
 
-void threads_mgr_halt_all(void);
+// low level functions that allow to specify "synchronous" or "asynchronous behaviour"
+void threads_mgr_signal_run(unsigned int core_idx, bool synch);
+
+void threads_mgr_signal_stop(unsigned int core_idx, bool synch);
+
+void threads_mgr_signal_step(unsigned int core_idx, bool synch);
+
+// if specified with synch = false, a return value of "false" could both means that
+// the core isn't halted or that it failed the check
+bool threads_mgr_is_halted(unsigned int core_idx, bool synch);
+
+//All these function are synchronous (waiting for the action to take place before returning)
+//are prefered and more robust in order to avoid race conditions
+
+// the run functions return true if the operation succeded, they return false otherwise.
+// run operations can fail in the moment they're racing with an "halt_all" operation
+// since an "halt_all" operation is supposed to be triggered by a breakpoint during debugging
+// we want to be sure that if an "halt_all" is racing with a "run"/"run_all" operation,
+// we end up with all the cores stopped.
+// So run/run_all operation should only succeed when there isn't an halt_all currently being executed
+bool threads_mgr_run_core(unsigned int core_idx);
+
+bool threads_mgr_run_all(void);
 
 void threads_mgr_halt_core(unsigned int core_idx);
 
-void threads_mgr_run_all(void);
-
-void threads_mgr_run_core(unsigned int corb_idx);
+void threads_mgr_halt_all(void);
 
 void threads_mgr_step_core(unsigned int core_idx);
-
-bool threads_mgr_is_halted(unsigned int core_idx, bool blocking);
-
-// TESTING INTERFACE //
-// exposing them just to make testing easier not meant to be used
-
-void barrier_count_wait(void);
-
-unsigned int thread_init(void);
-
-// void *debug_core_thread_fun(void *args);
 
 #endif

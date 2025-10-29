@@ -16,7 +16,7 @@ void sad_parser_pkt(void) {
     uint8_t value;
     size_t buff_filled;
     char checksum[3];
-    byte *data = sad_buff_read_prep(server.input_buffer, &buff_filled);
+    const byte *data = sad_buff_read_prep(server.input_buffer, &buff_filled);
     checksum[2] = '\0';
 
     while (server.parser.parse_idx < buff_filled) {

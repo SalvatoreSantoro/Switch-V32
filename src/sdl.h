@@ -20,7 +20,7 @@ typedef enum{
 
 sdl_err sdl_init(const char *win_name, int w, int h, uint32_t ev_buff_sz);
 
-void sdl_write_palette(uint32_t *p, uint32_t p_size);
+void sdl_write_palette(const uint32_t *p, uint32_t p_size);
 
 void sdl_write_fb(const uint8_t *pix_idx);
 

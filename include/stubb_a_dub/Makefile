@@ -60,5 +60,8 @@ $(OBJ_DIR)/%.o: $(LIB_DIR)/%.c
 clean:
 	rm -rf $(BUILD_DIR)
 
+cppcheck:
+	cppcheck --enable=all --check-level=exhaustive --force --inconclusive --quiet --suppress=missingIncludeSystem $(INCLUDE_FLAGS) src/
+
 # Phony targets
 .PHONY: all clean

@@ -1,0 +1,20 @@
+Checks: >
+  clang-analyzer-*,
+  bugprone-*,
+  performance-*,
+  portability-*,
+  readability-*,
+  security-*,
+  misc-*,
+  -clang-analyzer-cplusplus*,      # Disable all C++ analyzer checks
+  -bugprone-exception-escape,      # Not relevant to C
+  -readability-identifier-naming,  # Optional, enable later if desired
+  -misc-unused-parameters          # Can be noisy in C codebases
+
+WarningsAsErrors: ''
+HeaderFilterRegex: '.*'
+FormatStyle: file
+AnalyzeTemporaryDtors: false
+CheckOptions:
+  - key: readability-magic-numbers.IgnoredValues
+    value: '0,1,-1'

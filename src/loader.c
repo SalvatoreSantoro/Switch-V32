@@ -44,7 +44,7 @@ typedef struct {
     const char *sections_names;
 } Elf_File;
 
-static void ld_elf_validate(Elf_File *elf) {
+static void ld_elf_validate(const Elf_File *elf) {
     VALIDATE(elf->header->e_ident[EI_MAG0] == ELFMAG0);
     VALIDATE(elf->header->e_ident[EI_MAG1] == ELFMAG1);
     VALIDATE(elf->header->e_ident[EI_MAG2] == ELFMAG2);
@@ -105,7 +105,7 @@ static void ld_elf_section_names(Elf_File *elf) {
 }
 
 static void ld_elf_symbols(Elf_File *elf) {
-    Elf32_Shdr *sect;
+    const Elf32_Shdr *sect;
 
     // load symbols table
     sect = ld_elf_getsect(elf, ".symtab");
@@ -191,7 +191,7 @@ void ld_bin(VCore *core) {
 }
 
 void ld_elf(VCore *core) {
-    Elf32_Sym *sym;
+    const Elf32_Sym *sym;
     Elf_File elf;
     int fd;
     struct stat fst;

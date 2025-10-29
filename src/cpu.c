@@ -36,9 +36,10 @@ extern Threads_Mgr threads_mgr;
 // Immediates are always int32_t (sign-extended) before shifting
 #define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
 
+
 #define B_IMM(x)                                                                                                       \
     ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) | (((uint32_t) (0x1 << 7) & x) << 4) | \
-     (uint32_t) ((int32_t) ((uint32_t) (0x1 << 31) & x) >> 19))
+     (uint32_t) ((int32_t) ((uint32_t) (1u << 31) & x) >> 19))
 
 #define J_IMM(x)                                                                                                       \
     (((((x) >> 21) & (uint32_t) 0x3FF) << 1) | ((((x) >> 20) & (uint32_t) 0x1) << 11) |                                \
@@ -173,7 +174,7 @@ const char *re_na(int reg_num) {
         }                                                                                                              \
     } while (0)
 
-void vcore_r_type(VCore *core, uint32_t ins) {
+static void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t func = R_FUNC(ins);
@@ -223,15 +224,18 @@ void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("AND");
         break;
     case SLL:
-        *rd = (uint32_t) rs1 << rs2;
+		//only first 5 bits should take effect
+		*rd = (uint32_t)(rs1 << (rs2 & 31));
         LOG_R("SLL");
         break;
     case SRL:
-        *rd = (uint32_t) rs1 >> rs2;
+		//only first 5 bits should take effect
+        *rd = (uint32_t) rs1 >> (rs2 & 31);
         LOG_R("SRL");
         break;
     case SRA:
-        *rd = (uint32_t) ((int32_t) rs1 >> rs2);
+		//only first 5 bits should take effect
+        *rd = (uint32_t) ((int32_t) rs1 >> (rs2 & 31));
         LOG_R("SRA");
         break;
     case SLT:
@@ -288,7 +292,7 @@ void vcore_r_type(VCore *core, uint32_t ins) {
     }
 }
 
-void vcore_ir_type(VCore *core, uint32_t ins) {
+static void vcore_ir_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t func = R_FUNC(ins);
@@ -347,7 +351,7 @@ void vcore_ir_type(VCore *core, uint32_t ins) {
     }
 }
 
-uint32_t vcore_b_type(VCore *core, uint32_t ins) {
+static uint32_t vcore_b_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t inc = 4;
     uint32_t imm = B_IMM(ins);
@@ -389,29 +393,29 @@ uint32_t vcore_b_type(VCore *core, uint32_t ins) {
     return core->pc + inc;
 }
 
-inline uint32_t vcore_j_type(VCore *core, uint32_t ins) {
+static inline uint32_t vcore_j_type(VCore *core, uint32_t ins) {
     LOG_J();
     core->regs[RD(ins)] = core->pc + 4;
     return core->pc + J_IMM(ins);
 }
 
-inline uint32_t vcore_ij_type(VCore *core, uint32_t ins) {
+static inline uint32_t vcore_ij_type(VCore *core, uint32_t ins) {
     LOG_IJ();
     core->regs[RD(ins)] = core->pc + 4;
     return core->regs[RS1(ins)] + I_IMM(ins);
 }
 
-inline void vcore_lui_type(VCore *core, uint32_t ins) {
+static inline void vcore_lui_type(VCore *core, uint32_t ins) {
     core->regs[RD(ins)] = U_IMM(ins);
     LOG_LUI();
 }
 
-inline void vcore_auipc_type(VCore *core, uint32_t ins) {
+static inline void vcore_auipc_type(VCore *core, uint32_t ins) {
     core->regs[RD(ins)] = core->pc + U_IMM(ins);
     LOG_AUIPC();
 }
 
-void vcore_il_type(VCore *core, uint32_t ins) {
+static void vcore_il_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t imm = I_IMM(ins);
@@ -448,7 +452,7 @@ void vcore_il_type(VCore *core, uint32_t ins) {
     }
 }
 
-void vcore_s_type(VCore *core, uint32_t ins) {
+static void vcore_s_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
 
     switch (FUNC(ins)) {
@@ -472,7 +476,7 @@ void vcore_s_type(VCore *core, uint32_t ins) {
 
 // acquire-release logic unimplemented for now, cause this implementation is
 // single threaded
-void vcore_a_type(VCore *core, uint32_t ins) {
+static void vcore_a_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t tmp_swp;
@@ -536,7 +540,9 @@ void vcore_a_type(VCore *core, uint32_t ins) {
     }
 }
 
-bool vcore_e_type(VCore *core, uint32_t ins) {
+// returns true if executed a breakpoint
+// otherwise false
+static bool vcore_e_type(VCore *core, uint32_t ins) {
     uint32_t imm = I_IMM(ins);
     switch (imm) {
     case ECALL:

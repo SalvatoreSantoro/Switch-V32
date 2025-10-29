@@ -30,7 +30,7 @@ typedef struct {
     void (*core_continue)(unsigned int core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);
-    bool (*is_halted)(unsigned int, bool);
+    bool (*is_halted)(unsigned int);
 } Sys_Ops;
 
 typedef struct {

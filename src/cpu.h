@@ -79,30 +79,6 @@ typedef struct {
 // get register name
 const char *re_na(int reg_num);
 
-void vcore_r_type(VCore *core, uint32_t ins);
-
-void vcore_ir_type(VCore *core, uint32_t ins);
-
-uint32_t vcore_b_type(VCore *core, uint32_t ins);
-
-uint32_t vcore_j_type(VCore *core, uint32_t ins);
-
-uint32_t vcore_ij_type(VCore *core, uint32_t ins);
-
-void vcore_lui_type(VCore *core, uint32_t ins);
-
-void vcore_auipc_type(VCore *core, uint32_t ins);
-
-void vcore_il_type(VCore *core, uint32_t ins);
-
-void vcore_s_type(VCore *core, uint32_t ins);
-
-void vcore_a_type(VCore *core, uint32_t ins);
-
-// returns true if executed a breakpoint
-// otherwise false
-bool vcore_e_type(VCore *core, uint32_t ins);
-
 void vcore_run(VCore *core);
 
 void vcore_step(VCore *core);

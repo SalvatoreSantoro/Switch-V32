@@ -85,10 +85,12 @@ sdl_quit:
     exit(EXIT_FAILURE);
 }
 
-void sdl_write_palette(uint32_t *p, uint32_t p_size) {
+void sdl_write_palette(const uint32_t *p, uint32_t p_size) {
     if (s_palette == NULL) {
         s_palette_size = p_size;
         s_palette = malloc(sizeof(*p) * p_size);
+		if (s_palette == NULL)
+			SV32_CRASH("OOM in SDL");
     }
     memcpy(s_palette, p, sizeof(*p) * s_palette_size);
 }

@@ -73,7 +73,7 @@ buff_ret sad_buff_append(PKT_Buffer *buff, const char *data, size_t data_size) {
     return BUFF_OK;
 }
 
-byte *sad_buff_read_prep(PKT_Buffer *buff, size_t *buff_filled) {
+byte *sad_buff_read_prep(const PKT_Buffer *buff, size_t *buff_filled) {
     if (buff_filled != NULL)
         *buff_filled = buff->filled;
     return buff->data;
@@ -146,7 +146,7 @@ buff_ret sad_buff_to_socket(PKT_Buffer *buff, int fd) {
     #pragma GCC diagnostic pop
 #endif
 
-void sad_buff_print_content(PKT_Buffer *buff, const char *str) {
+void sad_buff_print_content(const PKT_Buffer *buff, const char *str) {
     printf("%s", str);
     for (size_t i = 0; i < buff->filled; i++)
         putchar(buff->data[i]);

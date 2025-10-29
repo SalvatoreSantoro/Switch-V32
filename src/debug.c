@@ -9,9 +9,64 @@
 #include <stdio.h>
 #include <string.h>
 
-
-
 extern Threads_Mgr threads_mgr;
+
+// need to do more robust checks on memory and core_id
+// in order to really return errors and not just crasa with assert
+
+static void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
+    assert(core_id < ctx.cores);
+
+    const VCore *core = &GET_CORE(core_id);
+
+    size_t regs_size = output_sz - 4;
+    memcpy(output, &core->regs, regs_size);
+    memcpy(output + regs_size, &core->pc, 4);
+}
+
+// core_id unused for now
+static void write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
+    assert(core_id < ctx.cores);
+    size_t regs_size = input_sz - 4; // don't count PC
+    VCore *core = &GET_CORE(core_id);
+    // copy all regs
+    memcpy(&core->regs, input, regs_size);
+    // copy PC
+    memcpy(&core->pc, input + regs_size, 4);
+}
+
+static void read_mem(byte *output, size_t output_sz, uint32_t addr) {
+    mem_rb_ptr_s(addr, output, output_sz);
+}
+
+static void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
+    mem_wb_ptr_s(addr, input, input_sz);
+}
+
+static void core_continue(unsigned int core_id) {
+    // do checks on core_idx
+    threads_mgr_run_core(core_id);
+}
+
+static void cores_continue(void) {
+    // do checks on core_idx
+    threads_mgr_run_all();
+}
+
+static void cores_halt(void) {
+    // do checks on core_idx
+    threads_mgr_halt_all();
+}
+
+static void core_step(unsigned int core_id) {
+    // do checks on core_idx
+    threads_mgr_step_core(core_id);
+}
+
+static bool core_is_halted(unsigned core_id) {
+    // do checks on core_idx
+    return threads_mgr_is_halted(core_id, false);
+}
 
 void *debug_thread_fun(void *args) {
     stub_ret ret;
@@ -24,11 +79,11 @@ void *debug_thread_fun(void *args) {
         .sys_ops.write_regs = write_regs,
         .sys_ops.read_mem = read_mem,
         .sys_ops.write_mem = write_mem,
-        .sys_ops.core_continue = threads_mgr_run_core,
-        .sys_ops.cores_continue = threads_mgr_run_all,
-        .sys_ops.cores_halt = threads_mgr_halt_all,
-        .sys_ops.core_step = threads_mgr_step_core,
-        .sys_ops.is_halted = threads_mgr_is_halted,
+        .sys_ops.core_continue = core_continue,
+        .sys_ops.cores_continue = cores_continue,
+        .sys_ops.cores_halt = cores_halt,
+        .sys_ops.core_step = core_step,
+        .sys_ops.is_halted = core_is_halted,
         .port = STUB_PORT,
         .buffers_size = STUB_BUFF_SIZE,
         .socket_io_size = STUB_READ_SIZE,
@@ -51,33 +106,4 @@ void *debug_thread_fun(void *args) {
     }
 
     return NULL;
-}
-
-void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
-    assert(core_id < ctx.cores);
-
-    VCore *core = &GET_CORE(core_id);
-
-    size_t regs_size = output_sz - 4;
-    memcpy(output, &core->regs, regs_size);
-    memcpy(output + regs_size, &core->pc, 4);
-}
-
-// core_id unused for now
-void write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
-    assert(core_id < ctx.cores);
-    size_t regs_size = input_sz - 4; // don't count PC
-    VCore *core = &GET_CORE(core_id);
-    // copy all regs
-    memcpy(&core->regs, input, regs_size);
-    // copy PC
-    memcpy(&core->pc, input + regs_size, 4);
-}
-
-void read_mem(byte *output, size_t output_sz, uint32_t addr) {
-    mem_rb_ptr_s(addr, output, output_sz);
-}
-
-void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
-    mem_wb_ptr_s(addr, input, input_sz);
 }

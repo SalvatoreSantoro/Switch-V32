@@ -18,7 +18,7 @@ struct Memory {
 
 extern struct Memory g_mem __attribute__((aligned(PAGE_SIZE)));
 
-void mem_wb_s(uint32_t addr, uint8_t data, size_t sz);
+void mem_wb_s(uint32_t addr, uint8_t data, size_t data_size);
 
 // Write {Byte/Long/Word} data value in memory address "addr"
 #define GEN_W_FUN_HDR(sign_size) void mem_w##sign_size(uint32_t addr, TYPE_##sign_size data);

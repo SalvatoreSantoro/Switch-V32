@@ -1,34 +1,14 @@
-NAME ?= doom_riscv
-DEBUG_OPT :=
+#####################################
+##	  		 COMPILER 			   ##
+#####################################
 
-DEMO_PROG_PATH := $(shell find ./demo -type d -name "$(NAME)" 2>/dev/null)
-
-# Determine whether it’s under 'user' or 'supervisor'
-# (extract the second-level directory name)
-ROLE := $(shell echo "$(DEMO_PROG_PATH)" | awk -F/ '/demo\/(user|supervisor)\// {print $$3; exit}')
-
-ifdef DEBUG
-DEBUG_OPT := -d
-endif
-
-# All directories inside include/
-LIBS_DIRS := $(wildcard include/*)
-DEMO_DIRS := $(wildcard demo/user/*) $(wildcard demo/supervisor/*)
-
-# Static libraries (assumes build/lib<dirname>.a exists in each include/*)
-LIBS := $(addprefix $(LIBS_DIRS)/build/lib, $(notdir $(LIBS_DIRS)))
-LIBS := $(addsuffix .a, $(LIBS))
-
-# compiler include flags
-INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
-INCLUDE_FLAGS += -I/usr/include/SDL2
-
-### VARIABLES & FLAGS
 CC = gcc
+CFLAGS = -std=c99 -O2
 
-CFLAGS = -std=c99 -O2 -fsanitize=thread $(MODE_FLAGS)
+#####################################
+##	  		 WARNINGS 			   ##
+#####################################
 
-### WARNINGS
 CFLAGS += -Wall
 CFLAGS += -Wextra
 CFLAGS += -Wpedantic -pedantic-errors
@@ -58,36 +38,77 @@ CFLAGS += -Wwrite-strings
 CFLAGS += -Wswitch-default 
 CFLAGS += -Wconversion
 
+#####################################
+##	  		 LIBRARIES 			   ##
+#####################################
+
+LIBS_DIRS := $(wildcard include/*)
+
+# Static libraries (assumes build/lib<dirname>.a exists in each include/*)
+LIBS := $(addprefix $(LIBS_DIRS)/build/lib, $(notdir $(LIBS_DIRS)))
+LIBS := $(addsuffix .a, $(LIBS))
+
+# compiler include flags
+INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
+INCLUDE_FLAGS += -I/usr/include/SDL2
+# linker flag
 LDFLAGS = -lSDL2  
 
-MODE_DEFAULT := user
+#####################################
+##	  	      PARAMS    	       ##
+#####################################
+
+#defaults
+MODE := user
 MODE_FLAGS := -DUSER
 BIN_NAME := sv32_user
+DEBUG_OPT :=
 
-# Define macros per mode
+#supervisor params
 ifeq ($(MODE),supervisor)
-MODE_DEFAULT := supervisor
+MODE := supervisor
 MODE_FLAGS := -DSUPERVISOR
 BIN_NAME := sv32_supervisor
-else
-MODE_FLAGS := -DUSER
-BIN_NAME := sv32_user
 endif
 
+#enable debugging
+ifdef DEBUG
+DEBUG_OPT := -d
+endif
 
-### DIRECTORIES
+#####################################
+##	  	        DEMO    	       ##
+#####################################
+
+#default demo
+NAME_DEMO ?= doom_riscv
+DEMO_DIRS := $(wildcard demo/user/*) $(wildcard demo/supervisor/*)
+DEMO_PROG_PATH := $(shell find ./demo -type d -name "$(NAME_DEMO)" 2>/dev/null)
+# Determine whether it’s under 'user' or 'supervisor'
+# (extract the second-level directory name based on DEMO_PROG_PATH)
+DEMO_MODE := $(shell echo "$(DEMO_PROG_PATH)" | awk -F/ '/demo\/(user|supervisor)\// {print $$3; exit}')
+
+#####################################
+##        SOURCES and OBJECTS      ##
+#####################################
+
+#main sv32 directories
 SRC_DIR := src
 BUILD_DIR := build
 
-### SRCS and OBJS
+#main sv32 srcs and objs
 SRCS_BASE := $(wildcard $(SRC_DIR)/*.c)
-SRCS_MODE := $(wildcard $(SRC_DIR)/$(MODE_DEFAULT)/*.c)
+SRCS_MODE := $(wildcard $(SRC_DIR)/$(MODE)/*.c)
 
-OBJS_BASE := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.$(MODE_DEFAULT).o, $(SRCS_BASE))
-OBJS_MODE := $(patsubst $(SRC_DIR)/$(MODE_DEFAULT)/%.c, $(BUILD_DIR)/%.$(MODE_DEFAULT).o, $(SRCS_MODE))
+OBJS_BASE := $(patsubst $(SRC_DIR)/%.c, $(BUILD_DIR)/%.$(MODE).o, $(SRCS_BASE))
+OBJS_MODE := $(patsubst $(SRC_DIR)/$(MODE)/%.c, $(BUILD_DIR)/%.$(MODE).o, $(SRCS_MODE))
 
 SRCS := $(SRCS_BASE) $(SRCS_MODE)
 OBJS := $(OBJS_BASE) $(OBJS_MODE)
+
+#####################################
+##             TARGETS             ##
+#####################################
 
 all: init $(BUILD_DIR) $(BUILD_DIR)/$(BIN_NAME)
 
@@ -98,33 +119,41 @@ init:
 # Rule: for each library, run make in its folder
 $(LIBS): $(LIBS_DIRS) 
 	@echo "Building library in $^"
+	#CFLAGS=$(CFLAGS)
 	$(MAKE) CC=$(CC) -C $^ 
 
 $(BUILD_DIR)/$(BIN_NAME): $(OBJS) $(LIBS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $(INCLUDE_FLAGS) $(OBJS) $(LIBS) -o $@
+	$(CC) $(CFLAGS) $(MODE_FLAGS) $(LDFLAGS) $(INCLUDE_FLAGS) $(OBJS) $(LIBS) -o $@
 
 
-$(BUILD_DIR)/%.$(MODE_DEFAULT).o: $(SRC_DIR)/%.c
-	$(CC) $(CFLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+$(BUILD_DIR)/%.$(MODE).o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(MODE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 
+cppcheck:
+	cppcheck --enable=all --check-level=exhaustive --force --inconclusive --quiet --suppress=missingIncludeSystem $(INCLUDE_FLAGS) src/
 
-#valgrind: $(BUILD_DIR)/$(NAME)
-	#valgrind --tool=memcheck --leak-check=full --track-origins=yes -s $(BUILD_DIR)/$(NAME) -f "$(DOOM_DIR)/$(DOOM)" -u 4 -o /dev/null -e /dev/null -d
+clang-tidy:
+	clang-tidy src/* 
+
+valgrind: user supervisor
+	$(MAKE) -C $(DEMO_PROG_PATH)
+	valgrind --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+
+helgrind: user supervisor
+	$(MAKE) -C $(DEMO_PROG_PATH)
+	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 elf: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-ifeq ($(ROLE), user)
-	./build/sv32_user -f "$(DEMO_PROG_PATH)/build/$(NAME).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
-else
-	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
-endif
+	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+
 
 bin: supervisor
-ifeq ($(ROLE), user)
+ifeq ($(DEMO_MODE), user)
 	@echo "BIN SUPPORTED ONLY FOR SUPERVISORS DEMO"
 else
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME).bin" -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).bin" -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 endif
 
 # Separate targets for modes
@@ -177,6 +206,11 @@ help:
 	@echo "    make user                -   compile with only user mode enabled"
 	@echo "    make                     -   compile with only user mode enabled"
 	@echo "    make clean               -   clean the build directory (even of submodules)"
-	@echo "    make elf NAME= (DEBUG)   -   run demo elf, NAME must be the same of the program folder inside demo"
-	@echo "    make bin NAME= (DEBUG)   -   run demo bin, NAME must be the same of the program folder inside demo(ONLY SUPERVISOR)"
+	@echo "    make elf NAME_DEMO= (DEBUG)   -   run demo elf, NAME_DEMO must be the same of the program folder inside demo"
+	@echo "    make clean NAME_DEMO= 		   -   run clean of the NAME_DEMO program"
+	@echo "    make bin NAME_DEMO= (DEBUG)   -   run demo bin, NAME_DEMO must be the same of the program folder inside demo(ONLY SUPERVISOR)"
+	@echo "    make valgrind NAME_DEMO= (DEBUG)   -   run demo elf running the vm with valgrind, NAME_DEMO must be the same of the program folder inside demo(ONLY SUPERVISOR)"
+	@echo "    make helgrind NAME_DEMO= (DEBUG)   -   run demo elf running the vm with helgrind, NAME_DEMO must be the same of the program folder inside demo(ONLY SUPERVISOR)"
+	@echo "    make cppcheck   -   run static analysis with cppcheck"
+	@echo "    make clang-tidy   -   run static analysis with clang-tidy"
 	@echo
