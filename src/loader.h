@@ -1,5 +1,5 @@
-#ifndef _SV32_LOADER_H
-#define _SV32_LOADER_H
+#ifndef SV32_LOADER_H
+#define SV32_LOADER_H
 
 #include "cpu.h"
 

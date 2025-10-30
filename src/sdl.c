@@ -27,6 +27,9 @@ static uint32_t s_event_buff_size_mask = 0;
 
 sdl_err sdl_init(const char *win_name, int w, int h, uint32_t ev_buff_sz) {
     // little optimization if size is power of 2
+    if (ev_buff_sz == 0)
+        return BUFF_SZ_ZERO; // new error code, or handle as you prefer
+
     if ((ev_buff_sz & (ev_buff_sz - 1)) != 0)
         return BUFF_SZ_POW_OF_2;
 
@@ -85,17 +88,53 @@ sdl_quit:
     exit(EXIT_FAILURE);
 }
 
+
 void sdl_write_palette(const uint32_t *p, uint32_t p_size) {
-    if (s_palette == NULL) {
-        s_palette_size = p_size;
-        s_palette = malloc(sizeof(*p) * p_size);
-		if (s_palette == NULL)
-			SV32_CRASH("OOM in SDL");
+    if (!p || p_size == 0) {
+        fprintf(stderr, "sdl_write_palette: invalid palette pointer or size\n");
+        return;
     }
-    memcpy(s_palette, p, sizeof(*p) * s_palette_size);
+
+    if (s_palette == NULL) {
+        s_palette = malloc(sizeof(*s_palette) * (size_t)p_size);
+        if (s_palette == NULL) {
+            SV32_CRASH("OOM in SDL");
+        }
+        s_palette_size = p_size;
+
+    } else if (p_size != s_palette_size) {
+        // resize palette if needed
+        uint32_t *newp = realloc(s_palette, sizeof(*s_palette) * (size_t)p_size);
+        if (!newp) {
+            SV32_CRASH("OOM in SDL (realloc)");
+        }
+        s_palette = newp;
+        s_palette_size = p_size;
+    }
+    memcpy(s_palette, p, sizeof(*p) * (size_t)s_palette_size);
 }
 
-void sdl_write_fb(const uint8_t *pix_idx) {
+
+int sdl_write_fb(const uint8_t *pix_idx) {
+    if (!pix_idx)
+        return -1;
+
+    // sdl_init wasn't called
+    if (!s_palette)
+        return -1;
+
+    if (!s_frame_buffer)
+        return -1;
+
+    if (!s_texture)
+        return -1;
+
+    if (s_width <= 0 || s_height <= 0)
+        return -1;
+
+    if (s_palette == NULL)
+        return -1;
+
     for (int y = 0; y < s_height; y++) {
         for (int x = 0; x < s_width; x++) {
             int offset = (y * s_width) + x;
@@ -107,6 +146,7 @@ void sdl_write_fb(const uint8_t *pix_idx) {
     SDL_RenderClear(s_ren);
     SDL_RenderCopy(s_ren, s_texture, NULL, NULL);
     SDL_RenderPresent(s_ren);
+    return 0;
 }
 
 void sdl_shutdown(void) {

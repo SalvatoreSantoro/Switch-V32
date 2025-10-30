@@ -344,7 +344,7 @@ void emu_system_call(VCore *core) {
         break;
 
     case SDL_WRITE_FB:
-        sdl_write_fb(MAP_ADDR(core->regs[A0]));
+        core->regs[A0] = (uint32_t) sdl_write_fb(MAP_ADDR(core->regs[A0]));
         break;
 
     case SDL_SHUTDOWN:

@@ -4,17 +4,6 @@
 #include "cpu.h"
 #include <pthread.h>
 
-#define pthread_mutex_unlock_(mutex_ref)                                                                               \
-    do {                                                                                                               \
-        if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
-            SV32_CRASH("UNLOCK FAILED");                                                                               \
-    } while (0)
-
-#define pthread_mutex_lock_(mutex_ref)                                                                                 \
-    do {                                                                                                               \
-        if (pthread_mutex_lock(mutex_ref) != 0)                                                                        \
-            SV32_CRASH("LOCK FAILED");                                                                                 \
-    } while (0)
 
 typedef enum {
     STOP_S,

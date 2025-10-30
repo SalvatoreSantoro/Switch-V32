@@ -12,7 +12,7 @@
 extern Threads_Mgr threads_mgr;
 
 // need to do more robust checks on memory and core_id
-// in order to really return errors and not just crasa with assert
+// in order to really return errors and not just crash with assert
 
 static void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
     assert(core_id < ctx.cores);
@@ -24,7 +24,6 @@ static void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
     memcpy(output + regs_size, &core->pc, 4);
 }
 
-// core_id unused for now
 static void write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
     assert(core_id < ctx.cores);
     size_t regs_size = input_sz - 4; // don't count PC

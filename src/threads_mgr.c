@@ -7,18 +7,28 @@
 #include <assert.h>
 #include <errno.h> // IWYU pragma: export
 #include <pthread.h>
-#include <sched.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <valgrind/helgrind.h>
 
 extern Threads_Mgr threads_mgr;
 
+#define pthread_mutex_unlock_(mutex_ref)                                                                               \
+    do {                                                                                                               \
+        if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
+            SV32_CRASH("UNLOCK FAILED");                                                                               \
+    } while (0)
 
-#define __BARRIER_COUNT_WAIT__ barrier_count_wait()
+#define pthread_mutex_lock_(mutex_ref)                                                                                 \
+    do {                                                                                                               \
+        if (pthread_mutex_lock(mutex_ref) != 0)                                                                        \
+            SV32_CRASH("LOCK FAILED");                                                                                 \
+    } while (0)
 
-#define __RESET_BARRIER_COUNT__                                                                                        \
+
+#define BARRIER_COUNT_WAIT__ barrier_count_wait()
+
+#define RESET_BARRIER_COUNT__                                                                                        \
     do {                                                                                                               \
         __atomic_store_n(&threads_mgr.atomic_barrier_count, ctx.cores, __ATOMIC_RELEASE);                              \
     } while (0)
@@ -155,7 +165,7 @@ static void *core_thread_fun(void *args) {
 
         if (ctx.debug) {
             // start the threads at the same time after a run all
-            __BARRIER_COUNT_WAIT__;
+            BARRIER_COUNT_WAIT__;
             vcore_step(core);
         } else {
             // we go directly here only in USER mode and without debugging
@@ -299,7 +309,6 @@ bool threads_mgr_run_core(unsigned int core_idx) {
         return false;
     }
 
-    // we don't wait for synchronization
     threads_mgr_signal_run(core_idx, true);
 
     pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
@@ -320,10 +329,9 @@ bool threads_mgr_run_all(void) {
     }
 
     // start cores at the same time
-    __RESET_BARRIER_COUNT__;
+    RESET_BARRIER_COUNT__;
 
     for (unsigned int i = 0; i < ctx.cores; i++) {
-        // asynchronous start
         threads_mgr_signal_run(i, true);
     }
 

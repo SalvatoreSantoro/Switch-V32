@@ -50,7 +50,7 @@ LIBS := $(addsuffix .a, $(LIBS))
 
 # compiler include flags
 INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
-INCLUDE_FLAGS += -I/usr/include/SDL2
+INCLUDE_FLAGS += -I/usr/include/SDL2 -Isrc
 # linker flag
 LDFLAGS = -lSDL2  
 
@@ -137,13 +137,13 @@ clang-tidy:
 
 valgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 helgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
 	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
-elf: user supervisor
+elf: $(MODE)
 	$(MAKE) -C $(DEMO_PROG_PATH)
 	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
@@ -179,12 +179,12 @@ clean:
 			$(MAKE) -C $$dir clean; \
 		fi \
 	done
-	@for dir in $(DEMO_DIRS); do \
-		if [ -f $$dir/Makefile ]; then \
-			echo "Cleaning $$dir..."; \
-			$(MAKE) -C $$dir clean; \
-		fi \
-	done
+	# @for dir in $(DEMO_DIRS); do \
+	# 	if [ -f $$dir/Makefile ]; then \
+	# 		echo "Cleaning $$dir..."; \
+	# 		$(MAKE) -C $$dir clean; \
+	# 	fi \
+	# done
 
 .PHONY: help
 help:

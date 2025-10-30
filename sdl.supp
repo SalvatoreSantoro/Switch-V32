@@ -1,0 +1,291 @@
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:Wayland_GLES_SwapWindow
+   fun:UnknownInlinedFun
+   fun:SDL_RenderPresent_REAL
+   fun:sdl_write_fb
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:ReallocZero
+   fun:realloc
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:BadSize
+   fun:posix_memalign
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:ReallocZero
+   fun:realloc
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:BadSize
+   fun:posix_memalign
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:SDL_EGL_CreateSurface
+   fun:Wayland_CreateWindow
+   fun:SDL_RecreateWindow
+   fun:GL_CreateRenderer.lto_priv.0
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:SDL_EGL_CreateSurface
+   fun:Wayland_CreateWindow
+   fun:SDL_RecreateWindow
+   fun:GL_CreateRenderer.lto_priv.0
+   fun:SDL_CreateRendererWithProperties_REAL
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:UnknownInlinedFun
+   fun:Wayland_DestroyWindow
+   fun:SDL_DestroyWindow_REAL.part.0
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:calloc
+   fun:dbus_message_new_empty_header
+   fun:_dbus_message_loader_queue_messages
+   fun:_dbus_transport_get_dispatch_status
+   fun:_dbus_transport_queue_messages
+   fun:do_reading
+   fun:socket_do_iteration
+   fun:UnknownInlinedFun
+   fun:UnknownInlinedFun
+   fun:_dbus_connection_do_iteration_unlocked
+   fun:UnknownInlinedFun
+   fun:dbus_pending_call_block
+   fun:dbus_connection_send_with_reply_and_block
+   fun:dbus_bus_register
+   fun:internal_bus_get
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Leak
+   match-leak-kinds: definite
+   fun:malloc
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   obj:*
+   fun:Wayland_GLES_SwapWindow
+   fun:UnknownInlinedFun
+   fun:SDL_RenderPresent_REAL
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:wlEglMemoryIsReadable
+   fun:wlEglIsWaylandWindowValid
+   fun:wlEglDestroySurface.part.0
+   fun:UnknownInlinedFun
+   fun:wlEglDestroySurfaceHook
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:UnknownInlinedFun
+   fun:Wayland_DestroyWindow
+   fun:SDL_DestroyWindow_REAL.part.0
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:wlEglMemoryIsReadable
+   fun:wlEglIsWaylandWindowValid
+   fun:wlEglSwapBuffersWithDamageHook
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:Wayland_GLES_SwapWindow
+   fun:UnknownInlinedFun
+   fun:SDL_RenderPresent_REAL
+   fun:sdl_write_fb
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:wlEglMemoryIsReadable
+   fun:UnknownInlinedFun
+   fun:wlEglCreatePlatformWindowSurfaceHook
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:SDL_EGL_CreateSurface
+   fun:Wayland_CreateWindow
+   fun:SDL_RecreateWindow
+   fun:GL_CreateRenderer.lto_priv.0
+   fun:SDL_CreateRendererWithProperties_REAL
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:wlEglMemoryIsReadable
+   fun:wlEglIsWaylandWindowValid
+   fun:wlEglCreatePlatformWindowSurfaceHook
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:SDL_EGL_CreateSurface
+   fun:Wayland_CreateWindow
+   fun:SDL_RecreateWindow
+   fun:GL_CreateRenderer.lto_priv.0
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:BadSize
+   fun:posix_memalign
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   fun:NvGlEglApiInit
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:UnknownInlinedFun
+   fun:loadEGLExternalPlatform
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:ReallocZero
+   fun:realloc
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   obj:/usr/lib/libnvidia-eglcore.so.580.95.05
+   fun:NvGlEglApiInit
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   obj:/usr/lib/libEGL_nvidia.so.580.95.05
+   fun:UnknownInlinedFun
+   fun:loadEGLExternalPlatform
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:BadSize
+   fun:posix_memalign
+   obj:/usr/lib/libnvidia-glcore.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+}
+{
+   <insert_a_suppression_name_here>
+   Memcheck:ReallocZero
+   fun:realloc
+   obj:/usr/lib/libnvidia-glcore.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   obj:/usr/lib/libGLX_nvidia.so.580.95.05
+   fun:_dl_init
+   fun:_dl_catch_exception
+   fun:dl_open_worker
+   fun:_dl_catch_exception
+   fun:_dl_open
+   fun:dlopen_doit
+   fun:_dl_catch_exception
+}
+

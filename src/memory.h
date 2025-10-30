@@ -1,5 +1,5 @@
-#ifndef _SV32_MEM_H
-#define _SV32_MEM_H
+#ifndef SV32_MEM_H
+#define SV32_MEM_H
 
 #include <stdint.h>
 #include <string.h>

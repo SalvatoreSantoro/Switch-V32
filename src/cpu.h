@@ -1,9 +1,9 @@
-#ifndef _SV32_CPU_H
-#define _SV32_CPU_H
+#ifndef SV32_CPU_H
+#define SV32_CPU_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <sys/types.h>
-#include <stdbool.h>
 // Register list using X-Macro pattern
 #define REG_LIST                                                                                                       \
     X(ZERO, 0) /* x0 */                                                                                                \
@@ -46,34 +46,31 @@ enum {
         REG_NUMS
 };
 
-// Check compress
-#define COMPR_OPCODE_MASK 0x3
-#define IS_COMPRESSED(x)  (((x & COMPR_OPCODE_MASK) != 0x3))
-
-// Check opcode
-#define OPCODE_MASK    0x7F
-#define OPCODE_TYPE(x) (x & OPCODE_MASK)
-#define R_TYPE         0x33
-#define IR_TYPE        0x13
-#define IL_TYPE        0x3
-#define S_TYPE         0x23
-#define B_TYPE         0x63
-#define J_TYPE         0x6F
-#define IJ_TYPE        0x67
-#define LUI            0x37
-#define AUIPC          0x17
-#define ENV_TYPE       0x73
-#define A_TYPE         0x2F
+#ifdef SUPERVISOR
+typedef enum {
+    // supervisor is 0 so when resetting the
+    // memory area of the core we ensure to start in supervisor as default
+    SUPERVISOR_MODE = 0,
+    USER_MODE = 1
+} execution_mode;
+#endif
 
 typedef struct {
     uint32_t regs[REG_NUMS];
     uint32_t pc;
     uint32_t reserved; // atomics
+    // Index
+    unsigned int core_idx;
+#ifdef SUPERVISOR
+    execution_mode mode;
+    // CSRs
+    uint32_t satp;
+    uint32_t sstatus;
+#else
     // ELF
     uint32_t elf_brk;
     uint32_t elf_errno;
-	// Index
-	unsigned int core_idx;
+#endif
 } VCore;
 
 // get register name

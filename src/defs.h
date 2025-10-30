@@ -1,5 +1,5 @@
-#ifndef _SV32_DEFS_H
-#define _SV32_DEFS_H
+#ifndef SV32_DEFS_H
+#define SV32_DEFS_H
 
 
 #ifndef PATH_MAX
@@ -12,8 +12,8 @@
 #define SUPERVISOR_IS_SET 0
 #endif
 
-// 2^28
-#define MEM_SIZE 268435456
+// 2^30
+#define MEM_SIZE 1073741824 
 #define PAGE_SIZE 4096
 #define DCACHE_LINE_SIZE 64
 

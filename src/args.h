@@ -1,5 +1,5 @@
-#ifndef _SV32_ARGS_H
-#define _SV32_ARGS_H
+#ifndef SV32_ARGS_H
+#define SV32_ARGS_H
 
 #include "defs.h"
 #include <stdbool.h>

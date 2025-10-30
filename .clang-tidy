@@ -1,20 +1,31 @@
 Checks: >
   clang-analyzer-*,
-  bugprone-*,
   performance-*,
   portability-*,
-  readability-*,
   security-*,
   misc-*,
-  -clang-analyzer-cplusplus*,      # Disable all C++ analyzer checks
-  -bugprone-exception-escape,      # Not relevant to C
-  -readability-identifier-naming,  # Optional, enable later if desired
-  -misc-unused-parameters          # Can be noisy in C codebases
+  modernize-*,
 
-WarningsAsErrors: ''
+#  bugprone-*,
+
+WarningsAsErrors: '*'
 HeaderFilterRegex: '.*'
 FormatStyle: file
-AnalyzeTemporaryDtors: false
 CheckOptions:
   - key: readability-magic-numbers.IgnoredValues
     value: '0,1,-1'
+  - key: bugprone-sizeof-expression
+    value: 'true'                 # Catch sizeof mistakes
+  - key: readability-implicit-bool-conversion.StrictMode
+    value: 'true'                 # Force strict bool usage
+  - key: clang-analyzer-core.UndefinedBinaryOperatorResult
+    value: 'true'                 # Aggressive undefined behavior detection
+  - key: clang-analyzer-core.CallAndMessage
+    value: 'true'                 # Catch dangerous calls
+  - key: clang-analyzer-core.NonNullParamChecker
+    value: 'true'                 # Ensure non-null params
+  - key: clang-analyzer-deadcode.DeadStores
+    value: 'true'                 # Catch dead stores
+  - key: readability-named-parameter.SuppressAllWarnings
+    value: 'false'                # Be super picky
+

@@ -10,32 +10,50 @@
 
 extern Threads_Mgr threads_mgr;
 
+// Check compress
+#define COMPR_OPCODE_MASK 0x3
+#define IS_COMPRESSED(x)  (((x & COMPR_OPCODE_MASK) != 0x3))
+
+// Check opcode
+#define OPCODE_MASK    0x7F
+#define OPCODE_TYPE(x) (x & OPCODE_MASK)
+#define R_TYPE         0x33
+#define IR_TYPE        0x13
+#define IL_TYPE        0x3
+#define S_TYPE         0x23
+#define B_TYPE         0x63
+#define J_TYPE         0x6F
+#define IJ_TYPE        0x67
+#define LUI            0x37
+#define AUIPC          0x17
+#define ENV_TYPE       0x73
+#define A_TYPE         0x2F
+
 // Every mask and decode assume to operate on an uint32_t "x" (instruction)
 // so the result is always an uint32_t
 
 // Base Integer
 
 // Masks
-#define IM_RD_MASK  (uint32_t) (0x1F << 7)
-#define RS1_MASK    (uint32_t) (0x1F << 15)
-#define RS2_MASK    (uint32_t) (0x1F << 20)
-#define IM2_F7_MASK (uint32_t) (0x7F << 25)
-#define F3_MASK     (uint32_t) (0x7 << 12)
-#define F5_MASK     (uint32_t) (0x1F << 27)
-#define R_IMM_MASK  (uint32_t) (0xFFF << 20)
-#define U_IMM_MASK  (uint32_t) (0xFFFFF << 12)
+#define IM_RD_MASK  (0x1Fu << 7)
+#define RS1_MASK    (0x1Fu << 15)
+#define RS2_MASK    (0x1Fu << 20)
+#define IM2_F7_MASK (0x7Fu << 25)
+#define F3_MASK     (0x7u << 12)
+#define F5_MASK     (0x1Fu << 27)
+#define R_IMM_MASK  (0xFFFu << 20)
+#define U_IMM_MASK  (0xFFFFFu << 12)
 
 // Instruction Decoders
 #define RD(x)     (uint32_t) ((x & IM_RD_MASK) >> 7)
 #define RS1(x)    (uint32_t) ((x & RS1_MASK) >> 15)
 #define RS2(x)    (uint32_t) ((x & RS2_MASK) >> 20)
 #define R_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
-#define A_FUNC(x) (uint32_t) ((x & F3_MASK >> 12) | ((x & F5_MASK) >> 23))
+#define A_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & F5_MASK) >> 23))
 #define FUNC(x)   (uint32_t) ((x & F3_MASK) >> 12)
 
 // Immediates are always int32_t (sign-extended) before shifting
 #define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
-
 
 #define B_IMM(x)                                                                                                       \
     ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) | (((uint32_t) (0x1 << 7) & x) << 4) | \
@@ -224,17 +242,17 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("AND");
         break;
     case SLL:
-		//only first 5 bits should take effect
-		*rd = (uint32_t)(rs1 << (rs2 & 31));
+        // only first 5 bits should take effect
+        *rd = (uint32_t) (rs1 << (rs2 & 31));
         LOG_R("SLL");
         break;
     case SRL:
-		//only first 5 bits should take effect
+        // only first 5 bits should take effect
         *rd = (uint32_t) rs1 >> (rs2 & 31);
         LOG_R("SRL");
         break;
     case SRA:
-		//only first 5 bits should take effect
+        // only first 5 bits should take effect
         *rd = (uint32_t) ((int32_t) rs1 >> (rs2 & 31));
         LOG_R("SRA");
         break;
@@ -247,7 +265,7 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("SLTU");
         break;
     case MUL:
-        *rd = (uint32_t) ((int32_t) rs1 * (int32_t) rs2);
+        *rd = (uint32_t) ((int64_t) (int32_t) rs1 * (int64_t) (int32_t) rs2);
         LOG_R("MUL");
         break;
     case MULH:
@@ -568,6 +586,12 @@ void vcore_run(VCore *core) {
         core->regs[ZERO] = 0;
         ins = mem_rw(core->pc);
         INSTR_SWITCH;
+
+//due to LL/SR semantics i think that implementation of them must be done
+//without checkings for interrupts untill they both terminate, in this way a
+//set of LL/SR instructions isn' interrupted with another thread executing on the core
+//the same LL/SR pair of instruction generating sort of ABA problems on the reserved value
+//(i'm emulating LL/SR with CAS)
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
