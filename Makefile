@@ -39,6 +39,30 @@ CFLAGS += -Wswitch-default
 CFLAGS += -Wconversion
 
 #####################################
+##	  	      PARAMS    	       ##
+#####################################
+
+#defaults
+MODE := user
+MODE_FLAGS := -DUSER
+INCLUDE_MODE := -Isrc/user
+BIN_NAME := sv32_user
+DEBUG_OPT :=
+
+#supervisor params
+ifeq ($(MODE),supervisor)
+MODE := supervisor
+MODE_FLAGS := -DSUPERVISOR
+INCLUDE_MODE := -Isrc/supervisor
+BIN_NAME := sv32_supervisor
+endif
+
+#enable debugging
+ifdef DEBUG
+DEBUG_OPT := -d
+endif
+
+#####################################
 ##	  		 LIBRARIES 			   ##
 #####################################
 
@@ -51,30 +75,9 @@ LIBS := $(addsuffix .a, $(LIBS))
 # compiler include flags
 INCLUDE_FLAGS := $(addprefix -I, $(LIBS_DIRS))
 INCLUDE_FLAGS += -I/usr/include/SDL2 -Isrc
+INCLUDE_FLAGS += $(INCLUDE_MODE)
 # linker flag
 LDFLAGS = -lSDL2  
-
-#####################################
-##	  	      PARAMS    	       ##
-#####################################
-
-#defaults
-MODE := user
-MODE_FLAGS := -DUSER
-BIN_NAME := sv32_user
-DEBUG_OPT :=
-
-#supervisor params
-ifeq ($(MODE),supervisor)
-MODE := supervisor
-MODE_FLAGS := -DSUPERVISOR
-BIN_NAME := sv32_supervisor
-endif
-
-#enable debugging
-ifdef DEBUG
-DEBUG_OPT := -d
-endif
 
 #####################################
 ##	  	        DEMO    	       ##
@@ -125,8 +128,10 @@ $(LIBS): $(LIBS_DIRS)
 $(BUILD_DIR)/$(BIN_NAME): $(OBJS) $(LIBS)
 	$(CC) $(CFLAGS) $(MODE_FLAGS) $(LDFLAGS) $(INCLUDE_FLAGS) $(OBJS) $(LIBS) -o $@
 
-
 $(BUILD_DIR)/%.$(MODE).o: $(SRC_DIR)/%.c
+	$(CC) $(CFLAGS) $(MODE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
+
+$(BUILD_DIR)/%.$(MODE).o: $(SRC_DIR)/$(MODE)/%.c
 	$(CC) $(CFLAGS) $(MODE_FLAGS) $(INCLUDE_FLAGS) -c $< -o $@
 
 cppcheck:

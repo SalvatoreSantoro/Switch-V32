@@ -2,7 +2,7 @@
 #define SV32_VM_H
 
 #include "cpu.h"
-#include "exception.h"
+#include "trap.h"
 
 // match the exception codes for ease of use
 typedef enum {

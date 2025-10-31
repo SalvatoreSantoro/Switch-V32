@@ -1,8 +1,8 @@
 #include "cpu.h"
-#include "emu.h"
 #include "macros.h"
 #include "memory.h"
 #include "threads_mgr.h"
+#include "trap.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -26,7 +26,7 @@ extern Threads_Mgr threads_mgr;
 #define IJ_TYPE        0x67
 #define LUI            0x37
 #define AUIPC          0x17
-#define ENV_TYPE       0x73
+#define SYS_TYPE       0x73
 #define A_TYPE         0x2F
 
 // Every mask and decode assume to operate on an uint32_t "x" (instruction)
@@ -35,25 +35,18 @@ extern Threads_Mgr threads_mgr;
 // Base Integer
 
 // Masks
-#define IM_RD_MASK  (0x1Fu << 7)
-#define RS1_MASK    (0x1Fu << 15)
+
 #define RS2_MASK    (0x1Fu << 20)
 #define IM2_F7_MASK (0x7Fu << 25)
-#define F3_MASK     (0x7u << 12)
 #define F5_MASK     (0x1Fu << 27)
-#define R_IMM_MASK  (0xFFFu << 20)
 #define U_IMM_MASK  (0xFFFFFu << 12)
 
 // Instruction Decoders
-#define RD(x)     (uint32_t) ((x & IM_RD_MASK) >> 7)
-#define RS1(x)    (uint32_t) ((x & RS1_MASK) >> 15)
+
 #define RS2(x)    (uint32_t) ((x & RS2_MASK) >> 20)
 #define R_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
 #define A_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & F5_MASK) >> 23))
-#define FUNC(x)   (uint32_t) ((x & F3_MASK) >> 12)
 
-// Immediates are always int32_t (sign-extended) before shifting
-#define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
 
 #define B_IMM(x)                                                                                                       \
     ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) | (((uint32_t) (0x1 << 7) & x) << 4) | \
@@ -123,9 +116,6 @@ extern Threads_Mgr threads_mgr;
 #define AMAX (0x142)
 #define AMIN (0x102)
 
-// E Type
-#define ECALL  (0x0)
-#define EBREAK (0x1)
 
 const char *re_na(int reg_num) {
     switch (reg_num) {
@@ -139,14 +129,14 @@ const char *re_na(int reg_num) {
     }
 }
 
+// #define##__LINE__##__COUNTER__
+
 #define INSTR_SWITCH                                                                                                   \
     do {                                                                                                               \
         if (IS_COMPRESSED(ins)) {                                                                                      \
-            pc_next = core->pc + 2;                                                                                    \
             printf("Compressed unimplemented\n");                                                                      \
             exit(EXIT_FAILURE);                                                                                        \
         } else {                                                                                                       \
-            pc_next = core->pc + 4;                                                                                    \
             switch (OPCODE_TYPE(ins)) {                                                                                \
             case R_TYPE:                                                                                               \
                 vcore_r_type(core, ins);                                                                               \
@@ -161,13 +151,13 @@ const char *re_na(int reg_num) {
                 vcore_s_type(core, ins);                                                                               \
                 break;                                                                                                 \
             case B_TYPE:                                                                                               \
-                pc_next = vcore_b_type(core, ins);                                                                     \
+                vcore_b_type(core, ins);                                                                               \
                 break;                                                                                                 \
             case J_TYPE:                                                                                               \
-                pc_next = vcore_j_type(core, ins);                                                                     \
+                vcore_j_type(core, ins);                                                                               \
                 break;                                                                                                 \
             case IJ_TYPE:                                                                                              \
-                pc_next = vcore_ij_type(core, ins);                                                                    \
+                vcore_ij_type(core, ins);                                                                              \
                 break;                                                                                                 \
             case LUI:                                                                                                  \
                 vcore_lui_type(core, ins);                                                                             \
@@ -178,17 +168,13 @@ const char *re_na(int reg_num) {
             case A_TYPE:                                                                                               \
                 vcore_a_type(core, ins);                                                                               \
                 break;                                                                                                 \
-            case ENV_TYPE:                                                                                             \
-                if (vcore_e_type(core, ins)) { /* if true(breakpoint) don't update the PC */                           \
-                    pc_next = core->pc;                                                                                \
-                }                                                                                                      \
+            case SYS_TYPE:                                                                                             \
+                vcore_sys_type(core, ins);                                                                             \
                 break;                                                                                                 \
             default:                                                                                                   \
-                fprintf(stderr, "%x BADOPCODE at %x\n", ins, core->pc);                                                \
-                exit(EXIT_FAILURE);                                                                                    \
+                dispatch_trap(core, ILL_INS, ins);                                                                     \
                 break;                                                                                                 \
             }                                                                                                          \
-            core->pc = pc_next;                                                                                        \
         }                                                                                                              \
     } while (0)
 
@@ -201,22 +187,22 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
     if (rs2 == 0) {
         if ((func == DIV) || (func == DIVU)) {
             *rd = 0xFFFFFFFF;
-            return;
+            goto r_increase_pc;
         }
         if ((func == REM) || (func == REMU)) {
             *rd = rs1;
-            return;
+            goto r_increase_pc;
         }
     }
     // overlow (minnegative / -1)
     if (((signed) rs2 == -1) && ((signed) rs1 == INT32_MIN)) {
         if ((func == DIV) || (func == DIVU)) {
             *rd = (uint32_t) INT32_MIN;
-            return;
+            goto r_increase_pc;
         }
         if ((func == REM) || (func == REMU)) {
             *rd = 0;
-            return;
+            goto r_increase_pc;
         }
     }
 
@@ -305,9 +291,12 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
         LOG_R("REMU");
         break;
     default:
-        fprintf(stderr, "%x R-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, ins);
     }
+
+r_increase_pc:
+    core->pc += 4;
+    return;
 }
 
 static void vcore_ir_type(VCore *core, uint32_t ins) {
@@ -321,18 +310,18 @@ static void vcore_ir_type(VCore *core, uint32_t ins) {
     if (func == SRA) {
         *rd = (uint32_t) ((int32_t) rs1 >> shift_imm);
         LOG_I("SRA", shift_imm);
-        return;
+        goto ir_increase_pc;
     }
 
     if (func == SRL) {
         *rd = (uint32_t) rs1 >> shift_imm;
         LOG_I("SRL", shift_imm);
-        return;
+        goto ir_increase_pc;
     }
     if (func == SLL) {
         *rd = (uint32_t) rs1 << shift_imm;
         LOG_I("SLL", shift_imm);
-        return;
+        goto ir_increase_pc;
     }
 
     imm = I_IMM(ins);
@@ -364,12 +353,16 @@ static void vcore_ir_type(VCore *core, uint32_t ins) {
         LOG_I("SLTU", imm);
         break;
     default:
-        fprintf(stderr, "%x IR-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, 0);
+        break;
     }
+
+ir_increase_pc:
+    core->pc += 4;
+    return;
 }
 
-static uint32_t vcore_b_type(VCore *core, uint32_t ins) {
+static void vcore_b_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t inc = 4;
     uint32_t imm = B_IMM(ins);
@@ -405,32 +398,34 @@ static uint32_t vcore_b_type(VCore *core, uint32_t ins) {
         LOG_B("BGEU", imm);
         break;
     default:
-        fprintf(stderr, "%x B-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, ins);
+        break;
     }
-    return core->pc + inc;
+    core->pc += inc;
 }
 
-static inline uint32_t vcore_j_type(VCore *core, uint32_t ins) {
+static inline void vcore_j_type(VCore *core, uint32_t ins) {
     LOG_J();
     core->regs[RD(ins)] = core->pc + 4;
-    return core->pc + J_IMM(ins);
+    core->pc += J_IMM(ins);
 }
 
-static inline uint32_t vcore_ij_type(VCore *core, uint32_t ins) {
+static inline void vcore_ij_type(VCore *core, uint32_t ins) {
     LOG_IJ();
     core->regs[RD(ins)] = core->pc + 4;
-    return core->regs[RS1(ins)] + I_IMM(ins);
+    core->pc = core->regs[RS1(ins)] + I_IMM(ins);
 }
 
 static inline void vcore_lui_type(VCore *core, uint32_t ins) {
     core->regs[RD(ins)] = U_IMM(ins);
     LOG_LUI();
+    core->pc += 4;
 }
 
 static inline void vcore_auipc_type(VCore *core, uint32_t ins) {
     core->regs[RD(ins)] = core->pc + U_IMM(ins);
     LOG_AUIPC();
+    core->pc += 4;
 }
 
 static void vcore_il_type(VCore *core, uint32_t ins) {
@@ -465,9 +460,10 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LHU", imm);
         break;
     default:
-        fprintf(stderr, "%x IL-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, ins);
+        break;
     }
+    core->pc += 4;
 }
 
 static void vcore_s_type(VCore *core, uint32_t ins) {
@@ -487,9 +483,11 @@ static void vcore_s_type(VCore *core, uint32_t ins) {
         LOG_S("SW");
         break;
     default:
-        fprintf(stderr, "%x S-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, ins);
+        break;
     }
+
+    core->pc += 4;
 }
 
 // acquire-release logic unimplemented for now, cause this implementation is
@@ -553,33 +551,15 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
         mem_ww(rs1, *rd);
         break;
     default:
-        fprintf(stderr, "%x A-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
+        dispatch_trap(core, ILL_INS, ins);
+        break;
     }
+    core->pc += 4;
 }
 
-// returns true if executed a breakpoint
-// otherwise false
-static bool vcore_e_type(VCore *core, uint32_t ins) {
-    uint32_t imm = I_IMM(ins);
-    switch (imm) {
-    case ECALL:
-        emu_system_call(core);
-        break;
-    case EBREAK:
-        threads_mgr_halt_all();
-        return true;
-        break;
-    default:
-        fprintf(stderr, "%x E-Type BADCODE\n", ins);
-        exit(EXIT_FAILURE);
-    }
-    return false;
-}
 
 void vcore_run(VCore *core) {
     uint32_t ins;
-    uint32_t pc_next; // used inside INSTR_SWITCH macro
 
     while (1) {
         // reset ZERO reg at every iteration
@@ -587,11 +567,14 @@ void vcore_run(VCore *core) {
         ins = mem_rw(core->pc);
         INSTR_SWITCH;
 
-//due to LL/SR semantics i think that implementation of them must be done
-//without checkings for interrupts untill they both terminate, in this way a
-//set of LL/SR instructions isn' interrupted with another thread executing on the core
-//the same LL/SR pair of instruction generating sort of ABA problems on the reserved value
+// due to LL/SR semantics i think that implementation of them must be done
+// without checkings for interrupts untill they both terminate, in this way a
+// set of LL/SR instructions isn' interrupted with another thread executing on the core
+// the same LL/SR pair of instruction generating sort of ABA problems on the reserved value
 //(i'm emulating LL/SR with CAS)
+//
+// remeber that when checking for interrupts, if the mode of the core is in USER the SIE bit in sstatus
+// is ignored, so basically the core SHOULD interrupt anyway
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
@@ -604,7 +587,6 @@ void vcore_run(VCore *core) {
 
 void vcore_step(VCore *core) {
     uint32_t ins;
-    uint32_t pc_next; // used inside INSTR_SWITCH macro
 
     core->regs[ZERO] = 0;
     ins = mem_rw(core->pc);

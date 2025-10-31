@@ -1,11 +1,12 @@
 #include "args.h"
-#include "emu.h"
+#ifdef USER
+    #include "emu.h"
+#endif
 #include "loader.h"
 #include "threads_mgr.h"
 #include <stdint.h>
 #include <unistd.h>
 
-// #define SUPERVISOR
 
 Args_Context ctx = {.elf_stdin = NULL,
                     .elf_stdout = NULL,
@@ -30,7 +31,7 @@ int main(int argc, char *argv[]) {
     emu_std();
 #endif
 
-	// ctx.binary is always ignored if running in USER
+    // ctx.binary is always ignored if running in USER
     if (ctx.binary)
         // assuming that the binary initializes the STACK
         ld_bin(&GET_CORE(0));

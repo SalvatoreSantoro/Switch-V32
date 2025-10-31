@@ -230,6 +230,7 @@ void ld_elf(VCore *core) {
         core->regs[GP] = sym->st_value;
 
     // load brk
+#ifdef USER
     sym = ld_elf_getsym(&elf, "__BSS_END__");
     if (sym == NULL) {
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __BSS_END__, automatically computing brk value\n");
@@ -245,6 +246,7 @@ void ld_elf(VCore *core) {
         fprintf(stderr, "[WARNING] CAN'T FIND ERRNO\n");
     else
         core->elf_errno = sym->st_value;
+#endif
 
     load_unmap_and_close_file(elf.data, &fd, &fst);
     return;

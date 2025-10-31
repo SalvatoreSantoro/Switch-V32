@@ -1,8 +1,6 @@
-#define SUPERVISOR
 #include "vm.h"
 #include "csr.h"
 #include "defs.h"
-#include "exception.h"
 #include "memory.h"
 #include <assert.h>
 #include <stdint.h>
@@ -52,7 +50,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
 
         // not valid or reserved combination
         if ((selected_pte->v == 0) || (selected_pte->r == 0 && selected_pte->w == 1)) {
-            dispatch_exception((exception_code) op);
+            dispatch_trap(core, (trap_code) op, addr);
             return TREE_WALK_TRAPPED;
         }
 
@@ -64,7 +62,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
             // check read or executable)
             if (((!SSTATUS_MXR(core->sstatus)) && (op == MEM_READ) && (selected_pte->r == 0)) ||
                 ((op == MEM_INS_FETCH) && (selected_pte->x == 0)) || ((op == MEM_WRITE) && (selected_pte->w == 0))) {
-                dispatch_exception((exception_code) op);
+                dispatch_trap(core, (trap_code) op, addr);
                 return TREE_WALK_TRAPPED;
             }
 
@@ -74,7 +72,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
             if (((!SSTATUS_SUM(core->sstatus) || (op == MEM_INS_FETCH)) && (selected_pte->u == 1) &&
                  (core->mode == SUPERVISOR_MODE)) ||
                 ((selected_pte->u == 0) && (core->mode == USER_MODE))) {
-                dispatch_exception((exception_code) op);
+                dispatch_trap(core, (trap_code) op, addr);
                 return TREE_WALK_TRAPPED;
             }
 
@@ -82,14 +80,14 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
             if (level > 0) {
                 // misaligned megapage
                 if (GET_PPN0(selected_pte->ppn) != 0) {
-                    dispatch_exception((exception_code) op);
+                    dispatch_trap(core, (trap_code) op, addr);
                     return TREE_WALK_TRAPPED;
                 }
             }
 
             // demanding the supervisor to set A and D bits
             if (selected_pte->a == 0 || ((selected_pte->d == 0) && (op == MEM_WRITE))) {
-                dispatch_exception((exception_code) op);
+                dispatch_trap(core, (trap_code) op, addr);
                 return TREE_WALK_TRAPPED;
             }
 
@@ -109,6 +107,6 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
     }
 
     // didn't found anything
-    dispatch_exception((exception_code) op);
+    dispatch_trap(core, (trap_code) op, addr);
     return TREE_WALK_TRAPPED;
 }

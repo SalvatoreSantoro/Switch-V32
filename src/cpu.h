@@ -46,6 +46,23 @@ enum {
         REG_NUMS
 };
 
+// THESE MACROS ARE NEEDED FROM BOTH CPU_USER and CPU_SUPERVISOR implementations
+
+#define R_IMM_MASK (0xFFFu << 20)
+#define F3_MASK    (0x7u << 12)
+#define IM_RD_MASK (0x1Fu << 7)
+#define RS1_MASK   (0x1Fu << 15)
+
+#define RD(x)   (uint32_t) ((x & IM_RD_MASK) >> 7)
+#define RS1(x)  (uint32_t) ((x & RS1_MASK) >> 15)
+#define FUNC(x) (uint32_t) ((x & F3_MASK) >> 12)
+// Immediates are always int32_t (sign-extended) before shifting
+#define I_IMM(x) (uint32_t) ((int32_t) (x & R_IMM_MASK) >> 20)
+
+// SYS Type
+#define ECALL  (0x0)
+#define EBREAK (0x1)
+
 #ifdef SUPERVISOR
 typedef enum {
     // supervisor is 0 so when resetting the
@@ -66,7 +83,12 @@ typedef struct {
     // CSRs
     uint32_t satp;
     uint32_t sstatus;
-#else
+    uint32_t scause;
+    uint32_t stval;
+    uint32_t stvec;
+    uint32_t sepc;
+    uint32_t sscratch;
+#elif USER
     // ELF
     uint32_t elf_brk;
     uint32_t elf_errno;
@@ -79,5 +101,8 @@ const char *re_na(int reg_num);
 void vcore_run(VCore *core);
 
 void vcore_step(VCore *core);
+
+// different implementations for USER and SUPERVISOR
+void vcore_sys_type(VCore *core, uint32_t ins);
 
 #endif
