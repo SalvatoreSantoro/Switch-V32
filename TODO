@@ -4,4 +4,7 @@ in the args.c
 -Fix the step mechanism (and also the halted) using a better synchronization mechanism
 basically the same as "halted" but that is used from the core that is halting himself to notify
 the debug thread that it finished
-
+-CHECK ADDRESS ALIGNMENT WHEN FETCHING instructions
+-Implement a wrapper of memory accesses to do general io even on peripherals
+and trigger exceptions on alignment and in the case of peripherals alignment problems
+should trigger access fault not misaligned fault

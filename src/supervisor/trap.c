@@ -23,8 +23,10 @@ void dispatch_trap(VCore *core, trap_code code, uint32_t faulting_val) {
     // save old privilege mode
     if (core->mode == SUPERVISOR_MODE)
         SET_SSTATUS_SPP(core->sstatus);
-    else if (core->mode == USER_MODE)
+    else if (core->mode == USER_MODE) {
         RESET_SSTATUS_SPP(core->sstatus);
+        core->mode = SUPERVISOR_MODE;
+    }
 
     // save interrupted pc/pc that cause exception
     core->sepc = core->pc;
@@ -39,5 +41,28 @@ void dispatch_trap(VCore *core, trap_code code, uint32_t faulting_val) {
             core->pc = STVEC_BASE(core->stvec);
         else if (STVEC_MODE(core->stvec) == STVEC_MODE_VECTORED)
             core->pc = STVEC_BASE(core->stvec) + (GET_INTERRUPT_CODE(code) * 4);
+        else
+            assert(0 && "THERE IS A BUG IN STVEC MODE");
     }
+}
+
+// LCOFI unimplemented
+void check_interrupts(VCore *core) {
+    // never process interrupts during LL/SC instructions
+    if (core->ll_sc_flag)
+        return;
+
+    // if in supervisor mode ignore interrupts if SIE bit in SSTATUS is 0
+    if ((core->mode == SUPERVISOR_MODE) && !SSTATUS_SIE(core->sstatus))
+        return;
+
+    // order specified in the manual to check SEI, SSI, STI, LCOFI
+    if (SIE_SEIE(core->sie) && SIP_SEIP(core->sip))
+        dispatch_trap(core, SUPERVISOR_EXTERNAL_INTERRUPT, RESET_FAULT_VAL);
+
+    if (SIE_SSIE(core->sie) && SIP_SSIP(core->sip))
+        dispatch_trap(core, SUPERVISOR_SOFTWARE_INTERRUPT, RESET_FAULT_VAL);
+
+    if (SIE_STIE(core->sie) && SIP_STIP(core->sip))
+        dispatch_trap(core, SUPERVISOR_TIMER_INTERRUPT, RESET_FAULT_VAL);
 }

@@ -3,6 +3,7 @@
 
 #include "cpu.h"
 #include <stdint.h>
+
 typedef enum {
     INS_ADDR_MIS_ALGN = 0,
     INS_ACC_FAULT = 1,
@@ -17,17 +18,24 @@ typedef enum {
     INS_PAGE_FAULT = 12,
     LOAD_PAGE_FAULT = 13,
     STORE_AMO_PAGE_FAULT = 15,
+    SOFTWARE_CHECK = 18,
+    HARDWARE_ERROR = 19,
 // USER mode doesn't manage interrupts
 #ifdef SUPERVISOR
     // MSB is always 1
     SUPERVISOR_SOFTWARE_INTERRUPT = (int) 0x80000001,
     SUPERVISOR_TIMER_INTERRUPT = (int) 0x80000005,
-    SUPERVISOR_EXTERNAL_INTERRUPT = (int) 0x80000009
+    SUPERVISOR_EXTERNAL_INTERRUPT = (int) 0x80000009,
+    SUPERVISOR_COUNTER_OVEFLOW_INTERRUPT = (int) 0x8000000D //unimplemented
 #endif
 } trap_code;
 
 #define RESET_FAULT_VAL 0
 
 void dispatch_trap(VCore *core, trap_code code, uint32_t faulting_val);
+
+#ifdef SUPERVISOR
+void check_interrupts(VCore *core);
+#endif
 
 #endif

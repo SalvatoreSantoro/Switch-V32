@@ -25,10 +25,22 @@ extern Threads_Mgr threads_mgr;
             SV32_CRASH("LOCK FAILED");                                                                                 \
     } while (0)
 
+#define pthread_cond_wait_(cond_ref, mutex_ref)                                                                        \
+    do {                                                                                                               \
+        if (pthread_cond_wait(cond_ref, mutex_ref) != 0)                                                              \
+            SV32_CRASH("COND WAIT FAILED");                                                                            \
+    } while (0)
+
+#define pthread_cond_signal_(cond_ref)                                                                                 \
+    do {                                                                                                               \
+        if (pthread_cond_signal(cond_ref) != 0)                                                                        \
+            SV32_CRASH("SIGNAL FAILED");                                                                               \
+    } while (0)
+
 
 #define BARRIER_COUNT_WAIT__ barrier_count_wait()
 
-#define RESET_BARRIER_COUNT__                                                                                        \
+#define RESET_BARRIER_COUNT__                                                                                          \
     do {                                                                                                               \
         __atomic_store_n(&threads_mgr.atomic_barrier_count, ctx.cores, __ATOMIC_RELEASE);                              \
     } while (0)
@@ -62,9 +74,9 @@ static void threads_mgr_core_state_check(unsigned int core_idx) {
 #endif
         if (GET_STATE(core_idx) != STATE_HALTED) {
             SET_STATE(core_idx, STATE_HALTED);
-            pthread_cond_signal(&GET_STATE_COND(core_idx));
+            pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
-        pthread_cond_wait(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
+        pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
     }
 
     // run
@@ -72,7 +84,7 @@ static void threads_mgr_core_state_check(unsigned int core_idx) {
         // Signal that the core is running (in case of run or step)
         if (GET_STATE(core_idx) != STATE_RUNNING) {
             SET_STATE(core_idx, STATE_RUNNING);
-            pthread_cond_signal(&GET_STATE_COND(core_idx));
+            pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
     }
 
@@ -80,11 +92,11 @@ static void threads_mgr_core_state_check(unsigned int core_idx) {
     if (GET_SIGNAL(core_idx) == STEP_S) {
         if (GET_STATE(core_idx) != STATE_STEPPING) {
             SET_STATE(core_idx, STATE_STEPPING);
-            pthread_cond_signal(&GET_STATE_COND(core_idx));
+            pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
         // wait for setup of the stop in order to block right after doing the step
         while (GET_SIGNAL(core_idx) != STOP_S) {
-            pthread_cond_wait(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
+            pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
         }
     }
 
@@ -97,11 +109,11 @@ void threads_mgr_signal_run(unsigned int core_idx, bool synch) {
 
     if (GET_SIGNAL(core_idx) != RUN_S) {
         SET_SIGNAL(core_idx, RUN_S);
-        pthread_cond_signal(&GET_SIGN_COND(core_idx));
+        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
     }
 
     while ((GET_STATE(core_idx) != STATE_RUNNING) && synch) {
-        pthread_cond_wait(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
+        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
     }
 
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
@@ -114,11 +126,11 @@ void threads_mgr_signal_stop(unsigned int core_idx, bool synch) {
 
     if (GET_SIGNAL(core_idx) != STOP_S) {
         SET_SIGNAL(core_idx, STOP_S);
-        pthread_cond_signal(&GET_SIGN_COND(core_idx));
+        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
     }
 
     while ((GET_STATE(core_idx) != STATE_HALTED) && synch) {
-        pthread_cond_wait(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
+        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
     }
 
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
@@ -130,21 +142,21 @@ void threads_mgr_signal_step(unsigned int core_idx, bool synch) {
 
     if (GET_SIGNAL(core_idx) != STEP_S) {
         SET_SIGNAL(core_idx, STEP_S);
-        pthread_cond_signal(&GET_SIGN_COND(core_idx));
+        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
     }
 
     // wait for stepping
     while ((GET_STATE(core_idx) != STATE_STEPPING) && synch) {
-        pthread_cond_wait(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
+        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
     }
 
     if (GET_SIGNAL(core_idx) != STOP_S) {
         SET_SIGNAL(core_idx, STOP_S);
-        pthread_cond_signal(&GET_SIGN_COND(core_idx));
+        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
     }
 
     while ((GET_STATE(core_idx) != STATE_HALTED) && synch) {
-        pthread_cond_wait(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
+        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
     }
 
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
@@ -198,7 +210,7 @@ void threads_mgr_init(void) {
 
     pthread_mutex_init(&threads_mgr.halt_all_n_run_mutex, NULL);
 
-	int ret;
+    int ret;
     for (unsigned int i = 0; i < ctx.cores; i++) {
         SET_STATE(i, STATE_HALTED);
         SET_SIGNAL(i, STOP_S);
@@ -225,7 +237,7 @@ bool threads_mgr_is_halted(unsigned int core_idx, bool synch) {
     if (synch) {
         pthread_mutex_lock_(&GET_MUTEX(core_idx));
     } else {
-		int ret;
+        int ret;
         ret = pthread_mutex_trylock(&GET_MUTEX(core_idx));
         if (ret == EBUSY) {
             return false;
@@ -275,7 +287,7 @@ void threads_mgr_halt_all(void) {
     // making the process of stopping the single cores (unrelated mutexes and conditions)
     // into a single uninterruptable operation
     pthread_mutex_lock_(&threads_mgr.halt_all_n_run_mutex);
-	
+
     // activate all the "halted" variables in order to
     // put the cores to sleep
     for (unsigned int i = 0; i < ctx.cores; i++) {

@@ -1,4 +1,5 @@
 #include "cpu.h"
+#include "csr.h"
 #include "trap.h"
 #include <stdint.h>
 
@@ -11,6 +12,7 @@
 
 #define SSTATUS_ADDR    0x100
 #define SIE_ADDR        0x104
+#define STVEC_ADDR      0x105
 #define SCOUNTEREN_ADDR 0x106
 #define SENVCFG_ADDR    0x10B
 #define SSCRATCH_ADDR   0x140
@@ -19,7 +21,6 @@
 #define STVAL_ADDR      0x143
 #define SIP_ADDR        0x144
 #define SATP_ADDR       0x180
-#define SCONTEXT_ADDR   0x5A8
 
 #define CSR_READ_ACCESS          (0xC00u)
 #define GET_CSR_ACCESS(csr_addr) (csr_addr & (0xC00u))
@@ -57,6 +58,7 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
     } else { // CSR
         uint32_t csr_addr = imm;
         uint32_t rs1_val = core->regs[RS1(ins)];
+        uint32_t rs1_imm = RS1(ins);
         uint32_t *rd = &core->regs[RD(ins)];
         uint32_t *csr;
 
@@ -73,6 +75,9 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
                 break;
             case SIE_ADDR:
                 csr = &core->sie;
+                break;
+            case STVEC_ADDR:
+                csr = &core->stvec;
                 break;
             case SCOUNTEREN_ADDR:
                 csr = &core->scounteren;
@@ -97,9 +102,6 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
                 break;
             case SATP_ADDR:
                 csr = &core->satp;
-                break;
-            case SCONTEXT_ADDR:
-                csr = &core->scontext;
                 break;
             default:
                 // unknown register
@@ -130,6 +132,18 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             }
         }
 
+        // the only bit writable to SIP from csr instructions is SSIP
+        if (csr_addr == SIP_ADDR) {
+            rs1_val &= (1u << 1);
+            rs1_imm &= (1u << 1);
+        }
+
+        // only SSIE, STIE and SEIE are writable
+        if (csr_addr == SIE_ADDR) {
+            rs1_val &= ((1u << 9) | (1u << 5) | (1u << 1));
+            rs1_imm &= ((1u << 9) | (1u << 5) | (1u << 1));
+        }
+
         switch (func) {
         case CSRRW:
             *rd = *csr;
@@ -148,26 +162,29 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
 
         case CSRRWI:
             *rd = *csr;
-            *csr = RS1(ins);
+            *csr = rs1_imm;
             break;
 
         case CSRRSI:
             *rd = *csr;
-            *csr |= RS1(ins);
+            *csr |= rs1_imm;
             break;
 
         case CSRRCI:
             *rd = *csr;
-            *csr &= ~RS1(ins);
+            *csr &= ~rs1_imm;
             break;
 
         default:
             break;
         }
 
-		//fix WARL
+        // fix WARL
 
-
-		
+        // stvec "MODE" >= 2 is reserved
+        if ((csr_addr == STVEC_ADDR) && (STVEC_MODE(*csr) >= 2)) {
+            // force Direct
+            *csr &= ~0x3u;
+        }
     }
 }

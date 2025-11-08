@@ -47,7 +47,6 @@ extern Threads_Mgr threads_mgr;
 #define R_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & IM2_F7_MASK) >> 21))
 #define A_FUNC(x) (uint32_t) (((x & F3_MASK) >> 12) | ((x & F5_MASK) >> 23))
 
-
 #define B_IMM(x)                                                                                                       \
     ((((uint32_t) (0xF << 8) & x) >> 7) | (((uint32_t) (0x3F << 25) & x) >> 20) | (((uint32_t) (0x1 << 7) & x) << 4) | \
      (uint32_t) ((int32_t) ((uint32_t) (1u << 31) & x) >> 19))
@@ -116,7 +115,6 @@ extern Threads_Mgr threads_mgr;
 #define AMAX (0x142)
 #define AMIN (0x102)
 
-
 const char *re_na(int reg_num) {
     switch (reg_num) {
 #define X(name, value)                                                                                                 \
@@ -183,6 +181,7 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t func = R_FUNC(ins);
     uint64_t tmp_mul;
+
     // Divide by zero
     if (rs2 == 0) {
         if ((func == DIV) || (func == DIVU)) {
@@ -194,13 +193,14 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
             goto r_increase_pc;
         }
     }
-    // overlow (minnegative / -1)
-    if (((signed) rs2 == -1) && ((signed) rs1 == INT32_MIN)) {
-        if ((func == DIV) || (func == DIVU)) {
+
+    // overflow (minnegative / -1)
+    if ((((signed) rs2) == -1) && (((signed) rs1) == INT32_MIN)) {
+        if (func == DIV) {
             *rd = (uint32_t) INT32_MIN;
             goto r_increase_pc;
         }
-        if ((func == REM) || (func == REMU)) {
+        if (func == REM) {
             *rd = 0;
             goto r_increase_pc;
         }
@@ -305,7 +305,7 @@ static void vcore_ir_type(VCore *core, uint32_t ins) {
     uint32_t func = R_FUNC(ins);
     uint32_t imm;
     // need to be unsigned
-    uint32_t shift_imm = RS2(ins);
+    uint32_t shift_imm = (RS2(ins) & 31);
 
     if (func == SRA) {
         *rd = (uint32_t) ((int32_t) rs1 >> shift_imm);
@@ -362,6 +362,7 @@ ir_increase_pc:
     return;
 }
 
+// TODO: should check if we're jumping to misaligned address?
 static void vcore_b_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t inc = 4;
@@ -404,6 +405,7 @@ static void vcore_b_type(VCore *core, uint32_t ins) {
     core->pc += inc;
 }
 
+// TODO: should check if we're jumping to misaligned address?
 static inline void vcore_j_type(VCore *core, uint32_t ins) {
     LOG_J();
     core->regs[RD(ins)] = core->pc + 4;
@@ -447,7 +449,6 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
         LOG_I("LH", imm);
         break;
     case LW:
-        // printf("ADDR: %x\n", __vmem.m + rs1 + imm);
         *rd = (uint32_t) mem_rw(rs1 + imm);
         LOG_I("LW", imm);
         break;
@@ -492,6 +493,7 @@ static void vcore_s_type(VCore *core, uint32_t ins) {
 
 // acquire-release logic unimplemented for now, cause this implementation is
 // single threaded
+// NEED TO ENFORCE MEMORY ALIGNMENT
 static void vcore_a_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
@@ -557,7 +559,6 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
     core->pc += 4;
 }
 
-
 void vcore_run(VCore *core) {
     uint32_t ins;
 
@@ -578,6 +579,7 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
+        check_interrupts();
         // this is a bit ugly because in general halted should be wrapped in a mutex (we're atomically reading atleast)
         if (GET_SIGNAL(core->core_idx) == STOP_S)
             return;

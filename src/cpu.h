@@ -80,6 +80,7 @@ typedef struct {
     unsigned int core_idx;
 #ifdef SUPERVISOR
     execution_mode mode;
+	bool ll_sc_flag;
     // CSRs
     uint32_t satp;
     uint32_t sstatus;
@@ -88,6 +89,8 @@ typedef struct {
     uint32_t stvec;
     uint32_t sepc;
     uint32_t sscratch;
+	uint32_t sie;
+	uint32_t sip;
 #elif USER
     // ELF
     uint32_t elf_brk;
