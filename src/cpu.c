@@ -437,28 +437,28 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
     // LB and LH need sign extend
     switch (FUNC(ins)) {
     case LB:
+		LOG_I("LB", imm);
         *rd = mem_rb(rs1 + imm);
         if (*rd >= 0x80)
             *rd |= 0xFFFFFF00;
-        LOG_I("LB", imm);
         break;
     case LH:
+		LOG_I("LH", imm);
         *rd = mem_rh(rs1 + imm);
         if (*rd >= 0x8000)
             *rd |= 0xFFFF0000;
-        LOG_I("LH", imm);
         break;
     case LW:
+		LOG_I("LW", imm);
         *rd = (uint32_t) mem_rw(rs1 + imm);
-        LOG_I("LW", imm);
         break;
     case LBU:
         LOG_I("LBU", imm);
         *rd = (uint32_t) mem_rb(rs1 + imm);
         break;
     case LHU:
+		LOG_I("LHU", imm);
         *rd = (uint32_t) mem_rh(rs1 + imm);
-        LOG_I("LHU", imm);
         break;
     default:
         dispatch_trap(core, ILL_INS, ins);
@@ -491,27 +491,16 @@ static void vcore_s_type(VCore *core, uint32_t ins) {
     core->pc += 4;
 }
 
-// acquire-release logic unimplemented for now, cause this implementation is
-// single threaded
 // NEED TO ENFORCE MEMORY ALIGNMENT
 static void vcore_a_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
-    uint32_t tmp_swp;
     uint32_t tmp_load;
 
     switch (A_FUNC(ins)) {
     case LR:
         core->reserved = rs1;
-        tmp_load = mem_rw(rs1);
-        // sign extension
-        // 8 bit
-        if ((tmp_load < 256) && (tmp_load > 127))
-            tmp_load |= 0xFFFFFF00;
-        // 16 bit
-        else if ((tmp_load < 65535) && (tmp_load > 32767))
-            tmp_load |= 0xFFFF0000;
-        *rd = tmp_load;
+        *rd = mem_rw(rs1);
         break;
     case SC:
         if (rs1 == core->reserved) {
@@ -521,9 +510,8 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
             *rd = 1;
         break;
     case ASWP:
-        tmp_swp = mem_rw(rs1);
         *rd = rs2;
-        core->regs[RS2(ins)] = tmp_swp;
+        core->regs[RS2(ins)] = mem_rw(rs1);
         mem_ww(rs1, *rd);
         break;
     case AADD:
@@ -579,7 +567,7 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
-        check_interrupts();
+        check_interrupts(core);
         // this is a bit ugly because in general halted should be wrapped in a mutex (we're atomically reading atleast)
         if (GET_SIGNAL(core->core_idx) == STOP_S)
             return;

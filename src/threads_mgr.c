@@ -198,7 +198,6 @@ void threads_mgr_init(void) {
         SV32_CRASH("OOM");
 
     threads_mgr.atomic_barrier_count = 0;
-    threads_mgr.atomic_spin_all = false;
 
     for (unsigned int i = 0; i < ctx.cores; i++)
         memset(&GET_CORE(i), 0, sizeof(VCore));

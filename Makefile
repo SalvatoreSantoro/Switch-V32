@@ -142,15 +142,15 @@ clang-tidy:
 
 valgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 1024 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 helgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 1024 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 elf: $(MODE)
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 
 bin: supervisor
@@ -158,7 +158,7 @@ ifeq ($(DEMO_MODE), user)
 	@echo "BIN SUPPORTED ONLY FOR SUPERVISORS DEMO"
 else
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).bin" -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).bin" -m 1024 -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 endif
 
 # Separate targets for modes

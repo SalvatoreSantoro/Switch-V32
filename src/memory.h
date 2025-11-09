@@ -1,63 +1,54 @@
 #ifndef SV32_MEM_H
 #define SV32_MEM_H
 
+#include <assert.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <string.h>
-#include "defs.h"
 
-#define TYPE_b uint8_t
-#define TYPE_h uint16_t
-#define TYPE_w uint32_t
+extern uint8_t *vmem;
 
-struct Memory {
-    uint8_t m[MEM_SIZE];
-};
+void mem_init(void);
 
-// map address in the virtualized code to the correct memory address
-#define MAP_ADDR(addr) ((void*) (g_mem.m + addr))
+void mem_deinit(void);
 
-extern struct Memory g_mem __attribute__((aligned(PAGE_SIZE)));
+#define MAP_ADDR(addr)        ((void *) (vmem + addr))
 
-void mem_wb_s(uint32_t addr, uint8_t data, size_t data_size);
+// ASSUMING ALWAYS ALIGNED ACCESS
 
-// Write {Byte/Long/Word} data value in memory address "addr"
-#define GEN_W_FUN_HDR(sign_size) void mem_w##sign_size(uint32_t addr, TYPE_##sign_size data);
+static inline uint8_t align_mem_rb(uintptr_t addr) {
+    return *((uint8_t *) MAP_ADDR(addr));
+}
 
-// Read {Byte/Long/Word} value in memory address "addr"
-#define GEN_R_FUN_HDR(sign_size) TYPE_##sign_size mem_r##sign_size(uint32_t addr);
+static inline uint16_t align_mem_rh(uintptr_t addr) {
+    return *((uint16_t *) MAP_ADDR(addr));
+}
 
-// Write "sz" * {Bytes/Longs/Words} data pointed by "data" in memory address "addr"
-#define GEN_W_PTR_FUN_HDR(sign_size)                                                                                   \
-    void mem_w##sign_size##_ptr_s(uint32_t addr, const void *data, size_t sz);                                         \
-    void mem_w##sign_size##_ptr(uint32_t addr, const void *data);
+static inline uint32_t align_mem_rw(uintptr_t addr) {
+    return *((uint32_t *) MAP_ADDR(addr));
+}
 
-// Read "sz" * {Bytes/Longs/Words} memory data pointed by "addr" in address "data"
-#define GEN_R_PTR_FUN_HDR(sign_size)                                                                                   \
-    void mem_r##sign_size##_ptr_s(uint32_t addr, void *data, size_t sz);                                               \
-    void mem_r##sign_size##_ptr(uint32_t addr, void *data);
+static inline void align_mem_wb(uintptr_t addr, uint8_t data) {
+    *((uint8_t *) MAP_ADDR(addr)) = data;
+}
 
-GEN_W_PTR_FUN_HDR(b)
-GEN_W_PTR_FUN_HDR(h)
-GEN_W_PTR_FUN_HDR(w)
+static inline void align_mem_wh(uintptr_t addr, uint16_t data) {
+    *((uint16_t *) MAP_ADDR(addr)) = data;
+}
 
-GEN_R_PTR_FUN_HDR(b)
-GEN_R_PTR_FUN_HDR(h)
-GEN_R_PTR_FUN_HDR(w)
+static inline void align_mem_ww(uintptr_t addr, uint32_t data) {
+    *((uint32_t *) MAP_ADDR(addr)) = data;
+}
 
-GEN_W_FUN_HDR(b)
-GEN_W_FUN_HDR(h)
-GEN_W_FUN_HDR(w)
+static inline void mem_rb_ptr_s(uintptr_t addr, void *output, size_t output_sz) {
+    memcpy(output, MAP_ADDR(addr), output_sz);
+}
 
-GEN_R_FUN_HDR(b)
-GEN_R_FUN_HDR(h)
-GEN_R_FUN_HDR(w)
+static inline void mem_wb_ptr_s(uintptr_t addr, const void *input, size_t input_sz) {
+    memcpy(MAP_ADDR(addr), input, input_sz);
+}
 
-#define mem_rb_ptr(addr, data) mem_rb_ptr_s(addr, data, 1)
-#define mem_rh_ptr(addr, data) mem_rh_ptr_s(addr, data, 1)
-#define mem_rw_ptr(addr, data) mem_rw_ptr_s(addr, data, 1)
-
-#define mem_wb_ptr(addr, data) mem_wb_ptr_s(addr, data, 1)
-#define mem_wh_ptr(addr, data) mem_wh_ptr_s(addr, data, 1)
-#define mem_ww_ptr(addr, data) mem_ww_ptr_s(addr, data, 1)
-
+static inline void mem_wb_s(uintptr_t addr, uint8_t input, size_t write_sz) {
+    memset(MAP_ADDR(addr), input, write_sz);
+}
 #endif // !_MEM32_H

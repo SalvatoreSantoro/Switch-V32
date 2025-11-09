@@ -1,4 +1,5 @@
 #include "vm.h"
+#include "args.h"
 #include "csr.h"
 #include "defs.h"
 #include "memory.h"
@@ -31,7 +32,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
     assert(SATP_MODE(core->satp));
     // root page_addr
     uint32_t pp_addr = SATP_PPN(core->satp) * PAGE_SIZE;
-    assert(pp_addr < MEM_SIZE);
+    assert(pp_addr < ctx.memory_size);
 
     uint32_t tmp_addr = addr;
 

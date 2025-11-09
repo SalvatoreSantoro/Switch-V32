@@ -32,7 +32,6 @@ typedef struct {
 } Thread_Args;
 
 typedef struct {
-	bool atomic_spin_all;
     unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
     Thread_Args *threads_args;
     // NULL when debug isn't enabled

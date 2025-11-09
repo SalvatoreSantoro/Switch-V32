@@ -138,8 +138,8 @@ void emu_std(void) {
         ret = dup2(STDIN_FILENO, ELF_FDS_BASELINE);
     else {
         fd = open(ctx.elf_stdin, O_RDONLY);
-		if (fd == -1)
-			SV32_CRASH("CAN'T OPEN STDIN");
+        if (fd == -1)
+            SV32_CRASH("CAN'T OPEN STDIN");
 
         ret = dup2(fd, ELF_FDS_BASELINE);
         close(fd);
@@ -151,8 +151,8 @@ void emu_std(void) {
         dup2(STDOUT_FILENO, ELF_FDS_BASELINE + 1);
     else {
         fd = open(ctx.elf_stdout, O_WRONLY | O_TRUNC | O_CREAT, 0644);
-		if (fd == -1)
-			SV32_CRASH("CAN'T OPEN STDOUT");
+        if (fd == -1)
+            SV32_CRASH("CAN'T OPEN STDOUT");
 
         ret = dup2(fd, ELF_FDS_BASELINE + 1);
         close(fd);
@@ -164,8 +164,8 @@ void emu_std(void) {
         dup2(STDERR_FILENO, ELF_FDS_BASELINE + 2);
     else {
         fd = open(ctx.elf_stderr, O_WRONLY | O_TRUNC | O_CREAT, 0644);
-		if (fd == -1)
-			SV32_CRASH("CAN'T OPEN STDERR");
+        if (fd == -1)
+            SV32_CRASH("CAN'T OPEN STDERR");
 
         ret = dup2(fd, ELF_FDS_BASELINE + 2);
         close(fd);
@@ -203,10 +203,10 @@ void emu_args(void) {
     }
 
     // the layout is |STACK_BASE|ARGC|ARGV[0]|ARGV[1]|...|ARGV[ARGC-1]|NULL|STR0|STR1|...|STR_ARGC-1|
-    mem_ww(STACK_BASE, elf_argc);
+    mem_ww(ctx.stack_base, elf_argc);
 
-    uint32_t arg_str_start = STACK_BASE + 4 + ((elf_argc + 1) * 4);
-    uint32_t arg_ptr_start = STACK_BASE + 4;
+    uint32_t arg_str_start = ctx.stack_base + 4 + ((elf_argc + 1) * 4);
+    uint32_t arg_ptr_start = ctx.stack_base + 4;
 
     str = tmp_str;
     for (unsigned int i = 0; i < elf_argc; i++) {
@@ -324,7 +324,7 @@ void emu_system_call(VCore *core) {
 
     case BRK:
         LOG_EX("BRK", MAP_ADDR(core->regs[A0]));
-        if ((MAP_ADDR(core->regs[A0]) >= MAP_ADDR(BRK_LIMIT))) {
+        if (MAP_ADDR(core->regs[A0]) >= MAP_ADDR(ctx.brk_limit)) {
             fprintf(stderr, "THE PROCESS TRIED ALLOCATING TOO MUCH HEAP MEMORY\n");
             core->regs[A0] = (uint32_t) -1;
             break;

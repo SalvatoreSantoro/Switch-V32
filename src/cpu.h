@@ -91,6 +91,9 @@ typedef struct {
     uint32_t sscratch;
 	uint32_t sie;
 	uint32_t sip;
+	// TODO: implement these
+	uint32_t scounteren;
+	uint32_t senvcfg;
 #elif USER
     // ELF
     uint32_t elf_brk;
