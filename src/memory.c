@@ -17,7 +17,7 @@ void mem_init(void) {
 	}
 
     // check page alignment
-    assert(((intptr_t) vmem & (PAGE_SIZE - 1)) == 0);
+    assert(((uintptr_t) vmem & (PAGE_SIZE - 1)) == 0);
 }
 
 void mem_deinit(void) {

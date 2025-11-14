@@ -78,9 +78,9 @@ typedef struct {
     uint32_t reserved; // atomics
     // Index
     unsigned int core_idx;
+    bool ll_sc_flag;
 #ifdef SUPERVISOR
     execution_mode mode;
-	bool ll_sc_flag;
     // CSRs
     uint32_t satp;
     uint32_t sstatus;
@@ -89,11 +89,11 @@ typedef struct {
     uint32_t stvec;
     uint32_t sepc;
     uint32_t sscratch;
-	uint32_t sie;
-	uint32_t sip;
-	// TODO: implement these
-	uint32_t scounteren;
-	uint32_t senvcfg;
+    uint32_t sie;
+    uint32_t sip;
+    // TODO: implement these
+    uint32_t scounteren;
+    uint32_t senvcfg;
 #elif USER
     // ELF
     uint32_t elf_brk;
@@ -110,5 +110,7 @@ void vcore_step(VCore *core);
 
 // different implementations for USER and SUPERVISOR
 void vcore_sys_type(VCore *core, uint32_t ins);
+
+
 
 #endif

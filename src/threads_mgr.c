@@ -11,8 +11,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-extern Threads_Mgr threads_mgr;
-
 #define pthread_mutex_unlock_(mutex_ref)                                                                               \
     do {                                                                                                               \
         if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
@@ -27,7 +25,7 @@ extern Threads_Mgr threads_mgr;
 
 #define pthread_cond_wait_(cond_ref, mutex_ref)                                                                        \
     do {                                                                                                               \
-        if (pthread_cond_wait(cond_ref, mutex_ref) != 0)                                                              \
+        if (pthread_cond_wait(cond_ref, mutex_ref) != 0)                                                               \
             SV32_CRASH("COND WAIT FAILED");                                                                            \
     } while (0)
 
@@ -36,7 +34,6 @@ extern Threads_Mgr threads_mgr;
         if (pthread_cond_signal(cond_ref) != 0)                                                                        \
             SV32_CRASH("SIGNAL FAILED");                                                                               \
     } while (0)
-
 
 #define BARRIER_COUNT_WAIT__ barrier_count_wait()
 
@@ -78,6 +75,17 @@ static void threads_mgr_core_state_check(unsigned int core_idx) {
         }
         pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
     }
+
+#ifdef SUPERVISOR
+    // suspend core (used by HSM extension only)
+    while (GET_SIGNAL(core_idx) == SUSPEND_S) {
+        if (GET_STATE(core_idx) != STATE_SUSPEND) {
+            SET_STATE(core_idx, STATE_SUSPEND);
+            pthread_cond_signal_(&GET_STATE_COND(core_idx));
+        }
+        pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
+    }
+#endif
 
     // run
     if (GET_SIGNAL(core_idx) == RUN_S) {
@@ -363,3 +371,42 @@ void threads_mgr_step_core(unsigned int core_idx) {
     printf("CORE %u FINISHED STEPPING, notifying gdb\n", core_idx);
 #endif
 }
+
+Core_State threads_mgr_get_core_state(unsigned int core_idx) {
+    Core_State status;
+
+    pthread_mutex_lock_(&GET_MUTEX(core_idx));
+
+    status = GET_STATE(core_idx);
+
+    pthread_mutex_unlock_(&GET_MUTEX(core_idx));
+
+    return status;
+}
+
+#ifdef SUPERVISOR
+
+void threads_mgr_suspend_core(unsigned int core_idx) {
+    // assert(core_idx < ctx.cores);
+    if (pthread_equal(pthread_self(), GET_THREAD_ID(core_idx)))
+        threads_mgr_signal_suspend(core_idx, false);
+    else
+        threads_mgr_signal_suspend(core_idx, true);
+}
+
+void threads_mgr_signal_suspend(unsigned int core_idx, bool synch) {
+    pthread_mutex_lock_(&GET_MUTEX(core_idx));
+
+    if (GET_SIGNAL(core_idx) != SUSPEND_S) {
+        SET_SIGNAL(core_idx, SUSPEND_S);
+        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
+    }
+
+    while ((GET_STATE(core_idx) != STATE_SUSPEND) && synch) {
+        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
+    }
+
+    pthread_mutex_unlock_(&GET_MUTEX(core_idx));
+}
+
+#endif

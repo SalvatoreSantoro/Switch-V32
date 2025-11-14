@@ -3,7 +3,7 @@
 
 //#define ALL_VERBOSE
 // #define SYS_VERBOSE
-//   #define LOADER_VERBOSE
+//#define LOADER_VERBOSE
 //#define CPU_VERBOSE
 
 #include <stdio.h>

@@ -130,19 +130,22 @@ static void ld_elf_seg(Elf_File *elf) {
     uint32_t memsz;
     uint32_t addr;
 
+
     for (int i = 0; i < elf->header->e_phnum; i++) {
         if (elf->programs[i].p_type != PT_LOAD)
             continue;
+
 
         fsz = elf->programs[i].p_filesz;
         memsz = elf->programs[i].p_memsz;
         foff = elf->programs[i].p_offset;
         addr = elf->programs[i].p_vaddr;
+
         LOG_LOAD();
 
         mem_wb_ptr_s(addr, (elf->data + foff), memsz);
+
         // for bss section
-        // memory is currently static so should already be to 0, but just in case...
         if (fsz < memsz) {
             mem_wb_s((addr + fsz), 0, (memsz - fsz));
         }

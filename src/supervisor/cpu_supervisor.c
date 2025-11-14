@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include "csr.h"
+#include "sbi.h"
 #include "trap.h"
 #include <stdint.h>
 
@@ -39,10 +40,12 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
         case ECALL:
             // supervisor ecall
             if (core->mode == SUPERVISOR_MODE)
-                dispatch_trap(core, ECALL_S_MODE, RESET_FAULT_VAL);
+                emu_sbi_call(core);
             // user ecall
             else
                 dispatch_trap(core, ECALL_U_MODE, core->pc);
+
+            core->pc += 4;
             break;
         case EBREAK:
             // never increase PC, we want that the core stops on the breakpoint

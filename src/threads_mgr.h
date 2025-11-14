@@ -4,25 +4,30 @@
 #include "cpu.h"
 #include <pthread.h>
 
-
 typedef enum {
     STOP_S,
     RUN_S,
     STEP_S,
+#ifdef SUPERVISOR
+    SUSPEND_S,
+#endif
 } Thread_Signal;
 
 typedef enum {
     STATE_HALTED,
     STATE_RUNNING,
-    STATE_STEPPING
+    STATE_STEPPING,
+#ifdef SUPERVISOR
+    STATE_SUSPEND
+#endif
 } Core_State;
 
 typedef struct {
     pthread_mutex_t mutex;
-    pthread_cond_t cond_signal; //condition used to signal and wait when atomic_signal changes
-    pthread_cond_t cond_state; //condition used to signal and wait when core_state changes
-    Core_State core_state;	   //state of each core used to synchronize operations
-    Thread_Signal atomic_signal; //signal sent to cores to run/stop/step them
+    pthread_cond_t cond_signal;  // condition used to signal and wait when atomic_signal changes
+    pthread_cond_t cond_state;   // condition used to signal and wait when core_state changes
+    Core_State core_state;       // state of each core used to synchronize operations
+    Thread_Signal atomic_signal; // signal sent to cores to run/stop/step them
 } Thread_Cond;
 
 typedef struct {
@@ -35,10 +40,12 @@ typedef struct {
     unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
     Thread_Args *threads_args;
     // NULL when debug isn't enabled
-	pthread_t debug_thread;
+    pthread_t debug_thread;
     pthread_mutex_t halt_all_n_run_mutex; // used to make the halt_all and run/run_all mutually exclusive
                                           // In general "single" run and "single" halt, operations can race
 } Threads_Mgr;
+
+extern Threads_Mgr threads_mgr;
 
 #define GET_ARG(core_idx)         threads_mgr.threads_args[core_idx]
 #define GET_CORE(core_idx)        GET_ARG(core_idx).core
@@ -70,8 +77,11 @@ void threads_mgr_signal_step(unsigned int core_idx, bool synch);
 // the core isn't halted or that it failed the check
 bool threads_mgr_is_halted(unsigned int core_idx, bool synch);
 
-//All these function are synchronous (waiting for the action to take place before returning)
-//are prefered and more robust in order to avoid race conditions
+// HSM ext
+Core_State threads_mgr_get_core_state(unsigned int core_idx);
+
+// All these function are synchronous (waiting for the action to take place before returning)
+// are prefered and more robust in order to avoid race conditions
 
 // the run functions return true if the operation succeded, they return false otherwise.
 // run operations can fail in the moment they're racing with an "halt_all" operation
@@ -88,5 +98,12 @@ void threads_mgr_halt_core(unsigned int core_idx);
 void threads_mgr_halt_all(void);
 
 void threads_mgr_step_core(unsigned int core_idx);
+
+// HSM ext
+#ifdef SUPERVISOR
+void threads_mgr_suspend_core(unsigned int core_idx);
+
+void threads_mgr_signal_suspend(unsigned int core_idx, bool synch);
+#endif
 
 #endif

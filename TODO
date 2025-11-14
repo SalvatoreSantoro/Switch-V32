@@ -8,3 +8,6 @@ the debug thread that it finished
 -Implement a wrapper of memory accesses to do general io even on peripherals
 and trigger exceptions on alignment and in the case of peripherals alignment problems
 should trigger access fault not misaligned fault
+-check when writing/reading on memory out of bounds, for both debugging and loader segments
+-in supervisor, when doing continue all in debugging, there is a bug, the core are all started
+at the same time even if the sould be started only after being activated with SBI

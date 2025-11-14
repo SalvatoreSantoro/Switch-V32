@@ -4,7 +4,7 @@ SV32_DIR := ../../src
 SAD_DIR := ../../include/stubb_a_dub
 SV32_SRCS := $(SV32_DIR)/threads_mgr.c
 
-CFLAGS = -O0 -Wall -Wextra -g -DDEBUG_THREAD_MGR -fsanitize=thread
+CFLAGS = -O0 -Wall -Wextra -g -DDEBUG_THREAD_MGR
 LDFLAGS = -I$(SV32_DIR) -I$(SAD_DIR)
 
 ### BUILD

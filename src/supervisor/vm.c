@@ -46,7 +46,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
         // directly access the memory to reduce overhead
         // assume aligned to stop clang warning (Wcast-align) since
         // we're sure that root_page_addr is 4096 bytes aligned
-        pte_array = (PTE *) (__builtin_assume_aligned(g_mem.m + pp_addr, 4));
+        pte_array = (PTE *) (__builtin_assume_aligned(vmem + pp_addr, 4));
         selected_pte = pte_array + (GET_ADDR_LAST_10(tmp_addr) * sizeof(PTE));
 
         // not valid or reserved combination

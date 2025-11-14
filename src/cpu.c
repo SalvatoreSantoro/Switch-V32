@@ -8,7 +8,6 @@
 #include <stdlib.h>
 #include <sys/types.h>
 
-extern Threads_Mgr threads_mgr;
 
 // Check compress
 #define COMPR_OPCODE_MASK 0x3
@@ -58,6 +57,9 @@ extern Threads_Mgr threads_mgr;
 #define U_IMM(x) (x & (U_IMM_MASK))
 #define S_IMM(x) ((RD(x)) | (uint32_t) ((int32_t) (x & IM2_F7_MASK) >> 20))
 
+#define AQ_BIT(x) (!!(x & (1u << 0x19)))
+#define RL_BIT(x) (!!(x & (1u << 0x1A)))
+
 // R / IR type
 // func7:func3
 #define ADD  (0x000)
@@ -105,15 +107,17 @@ extern Threads_Mgr threads_mgr;
 
 // A Type
 // func5:func3
-#define LR   (0x022)
-#define SC   (0x032)
-#define ASWP (0x012)
-#define AADD (0x002)
-#define AAND (0x0C2)
-#define AOR  (0x0A2)
-#define AXOR (0x042)
-#define AMAX (0x142)
-#define AMIN (0x102)
+#define LR    (0x022)
+#define SC    (0x032)
+#define ASWP  (0x012)
+#define AADD  (0x002)
+#define AAND  (0x0C2)
+#define AOR   (0x0A2)
+#define AXOR  (0x042)
+#define AMAX  (0x142)
+#define AMIN  (0x102)
+#define AMAXU (0x1C2)
+#define AMINU (0x182)
 
 const char *re_na(int reg_num) {
     switch (reg_num) {
@@ -437,19 +441,19 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
     // LB and LH need sign extend
     switch (FUNC(ins)) {
     case LB:
-		LOG_I("LB", imm);
+        LOG_I("LB", imm);
         *rd = mem_rb(rs1 + imm);
         if (*rd >= 0x80)
             *rd |= 0xFFFFFF00;
         break;
     case LH:
-		LOG_I("LH", imm);
+        LOG_I("LH", imm);
         *rd = mem_rh(rs1 + imm);
         if (*rd >= 0x8000)
             *rd |= 0xFFFF0000;
         break;
     case LW:
-		LOG_I("LW", imm);
+        LOG_I("LW", imm);
         *rd = (uint32_t) mem_rw(rs1 + imm);
         break;
     case LBU:
@@ -457,7 +461,7 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
         *rd = (uint32_t) mem_rb(rs1 + imm);
         break;
     case LHU:
-		LOG_I("LHU", imm);
+        LOG_I("LHU", imm);
         *rd = (uint32_t) mem_rh(rs1 + imm);
         break;
     default:
@@ -496,49 +500,59 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
     uint32_t *rd = &core->regs[RD(ins)];
     uint32_t tmp_load;
+    int memorder = __ATOMIC_RELAXED;
+
+    // find memory order
+    if (AQ_BIT(ins) && RL_BIT(ins)) {
+        memorder = __ATOMIC_ACQ_REL;
+    } else {
+        if (AQ_BIT(ins))
+            memorder = __ATOMIC_ACQUIRE;
+        if (RL_BIT(ins))
+            memorder = __ATOMIC_RELEASE;
+    }
 
     switch (A_FUNC(ins)) {
     case LR:
-        core->reserved = rs1;
-        *rd = mem_rw(rs1);
+        core->ll_sc_flag = true;
+        core->reserved = mem_aread(rs1, memorder);
         break;
     case SC:
-        if (rs1 == core->reserved) {
-            mem_ww(rs1, rs2);
-            *rd = 0;
-        } else
+        if (!core->ll_sc_flag) {
+            // fail if it didn't do a LR previously
             *rd = 1;
+            return;
+        }
+        core->ll_sc_flag = false;
+        mem_cas(rs1, rs2, core->reserved, memorder);
+        *rd = 0;
         break;
     case ASWP:
-        *rd = rs2;
-        core->regs[RS2(ins)] = mem_rw(rs1);
-        mem_ww(rs1, *rd);
+        *rd = mem_aswp(rs1, rs2, memorder);
         break;
     case AADD:
-        *rd = (mem_rw(rs1) + rs2);
-        mem_ww(rs1, *rd);
+        *rd = mem_aadd(rs1, rs2, memorder);
         break;
     case AAND:
-        *rd = (mem_rw(rs1) & rs2);
-        mem_ww(rs1, *rd);
+        *rd = mem_aand(rs1, rs2, memorder);
         break;
     case AOR:
-        *rd = (mem_rw(rs1) | rs2);
-        mem_ww(rs1, *rd);
+        *rd = mem_aor(rs1, rs2, memorder);
         break;
     case AXOR:
-        *rd = (mem_rw(rs1) ^ rs2);
-        mem_ww(rs1, *rd);
+        *rd = mem_axor(rs1, rs2, memorder);
         break;
     case AMAX:
-        tmp_load = mem_rw(rs1);
-        *rd = (tmp_load > rs2 ? tmp_load : rs2);
-        mem_ww(rs1, *rd);
+        *rd = (uint32_t) mem_amax(rs1, (int32_t) rs2, memorder);
         break;
     case AMIN:
-        tmp_load = mem_rw(rs1);
-        *rd = (tmp_load < rs2 ? tmp_load : rs2);
-        mem_ww(rs1, *rd);
+        *rd = (uint32_t) mem_amin(rs1, (int32_t) rs2, memorder);
+        break;
+    case AMAXU:
+        *rd = mem_amaxu(rs1, rs2, memorder);
+        break;
+    case AMINU:
+        *rd = mem_aminu(rs1, rs2, memorder);
         break;
     default:
         dispatch_trap(core, ILL_INS, ins);
@@ -569,7 +583,8 @@ void vcore_run(VCore *core) {
 #ifdef SUPERVISOR
         check_interrupts(core);
         // this is a bit ugly because in general halted should be wrapped in a mutex (we're atomically reading atleast)
-        if (GET_SIGNAL(core->core_idx) == STOP_S)
+        // need to check it every cpu cyle, the check interrupts instead can be checked only every N cycles
+        if ((GET_SIGNAL(core->core_idx) == STOP_S) || (GET_SIGNAL(core->core_idx == SUSPEND_S)))
             return;
 #endif
     }
