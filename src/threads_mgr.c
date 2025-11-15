@@ -63,6 +63,7 @@ static void barrier_count_wait(void) {
 
 static void threads_mgr_core_state_check(unsigned int core_idx) {
     pthread_mutex_lock_(&GET_MUTEX(core_idx));
+    printf("CORE %d: state %d\n", core_idx, GET_STATE(core_idx));
 
     // sleep
     while (GET_SIGNAL(core_idx) == STOP_S) {

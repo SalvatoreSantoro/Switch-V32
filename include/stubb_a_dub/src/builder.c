@@ -134,7 +134,11 @@ static void build_g(void) {
     byte regs[regs_sz];
     char output[output_sz];
     // Read regs
-    server.sys_ops.read_regs(regs, regs_sz, server.builder.selected_core);
+    if (server.sys_ops.read_regs(regs, regs_sz, server.builder.selected_core) != SYS_OK) {
+        sad_buff_append_str(server.output_buffer, "E");
+        return;
+    }
+
     // Convert to string;
     sad_bytes_to_hex_chars(output, regs, output_sz, regs_sz);
     // Reply
@@ -153,9 +157,12 @@ static void build_G(void) {
     if (ret != UTIL_OK) {
         sad_buff_append_str(server.output_buffer, "E");
     } else {
-        server.sys_ops.write_regs(regs, regs_sz, server.builder.selected_core);
-        // reply OK
-        sad_buff_append_str(server.output_buffer, "OK");
+        if (server.sys_ops.write_regs(regs, regs_sz, server.builder.selected_core) != SYS_OK) {
+            sad_buff_append_str(server.output_buffer, "E");
+        } else {
+            // reply OK
+            sad_buff_append_str(server.output_buffer, "OK");
+        }
     }
 }
 
@@ -176,7 +183,10 @@ static void build_m(void) {
 
     byte mem[length];
 
-    server.sys_ops.read_mem(mem, (size_t) length, (uint32_t) addr);
+    if (server.sys_ops.read_mem(mem, (size_t) length, (uint32_t) addr) != SYS_OK) {
+        sad_buff_append_str(server.output_buffer, "E");
+        return;
+    }
 
     sad_bytes_to_hex_chars(output, mem, output_sz, (size_t) length);
     sad_buff_append(server.output_buffer, output, output_sz);
@@ -201,10 +211,16 @@ static void build_M(void) {
 
     // prepare data to write
     ret = sad_hex_str_to_bytes(data, data_str, (size_t) length);
-    if (ret != UTIL_OK)
+    if (ret != UTIL_OK) {
         sad_buff_append_str(server.output_buffer, "E");
+        return;
+    }
 
-    server.sys_ops.write_mem(data, (size_t) length, (uint32_t) addr);
+    if (server.sys_ops.write_mem(data, (size_t) length, (uint32_t) addr) != SYS_OK) {
+        sad_buff_append_str(server.output_buffer, "E");
+        return;
+    }
+
     sad_buff_append_str(server.output_buffer, "OK");
 }
 
@@ -281,6 +297,7 @@ static void build_v(void) {
         size_t fill = server.pkt_data.params_filled;
         int thread_id;
         const char *thread_id_str = NULL;
+        brk_ret ret;
 
         if (fill == 0) {
             sad_buff_append_str(server.output_buffer, "E");
@@ -312,11 +329,20 @@ static void build_v(void) {
         case 'c':
             if ((thread_id_str == NULL) || (thread_id == -1)) {
                 // this is the case of continue all so or just "c" or "c:-1"
-                for (unsigned int i = 0; i < server.sys_conf.smp; i++)
-                    sad_step_the_breakpoint(i);
+                for (unsigned int i = 0; i < server.sys_conf.smp; i++) {
+                    ret = sad_step_the_breakpoint(i);
+                    if (ret == BRK_ERROR) {
+                        sad_buff_append_str(server.output_buffer, "E");
+                        return;
+                    }
+                }
                 server.sys_ops.cores_continue();
             } else {
-                sad_step_the_breakpoint((unsigned int) thread_id);
+                ret = sad_step_the_breakpoint((unsigned int) thread_id);
+                if (ret == BRK_ERROR) {
+                    sad_buff_append_str(server.output_buffer, "E");
+                    return;
+                }
                 server.sys_ops.core_continue((unsigned int) thread_id);
             }
             break;
@@ -327,8 +353,18 @@ static void build_v(void) {
                 sad_buff_append_str(server.output_buffer, "E");
                 return;
             } else {
-                if (!sad_step_the_breakpoint((unsigned int) thread_id))
-                    server.sys_ops.core_step((unsigned int) thread_id);
+                // check if the step breakpoint already executed the step
+                // or you should execute it yourself
+                ret = sad_step_the_breakpoint((unsigned int) thread_id);
+                if (ret == BRK_ERROR) {
+                    sad_buff_append_str(server.output_buffer, "E");
+                    return;
+                } else if (ret == BRK_NOT_FOUND) {
+                    if (server.sys_ops.core_step((unsigned int) thread_id) != SYS_OK) {
+                        sad_buff_append_str(server.output_buffer, "E");
+                        return;
+                    }
+                }
             }
             break;
 
@@ -387,8 +423,6 @@ static void build_Z(void) {
 
     LONG_TO_UINT32_CHECK(addr);
 
-    bool inserted;
-
     if (server.sys_conf.arch == RV32) {
         if ((type < 0) || (type > 4) || (kind != 4)) {
             // compressed (kind == 2) is unsupported atm
@@ -396,8 +430,7 @@ static void build_Z(void) {
             return;
         }
 
-        inserted = sad_insert_breakpoint((uint32_t) addr);
-        if (!inserted) {
+        if (sad_insert_breakpoint((uint32_t) addr) != BRK_INSERTED) {
             sad_buff_append_str(server.output_buffer, "E");
             return;
         }
@@ -426,7 +459,10 @@ static void build_z(void) {
             return;
         }
 
-        sad_remove_breakpoint((uint32_t) addr);
+        if (sad_remove_breakpoint((uint32_t) addr) != BRK_REMOVED) {
+            sad_buff_append_str(server.output_buffer, "E");
+            return;
+        }
     }
 
     sad_buff_append_str(server.output_buffer, "OK");

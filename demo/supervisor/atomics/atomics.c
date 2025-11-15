@@ -2,6 +2,7 @@
 
 #define NUM_CORES      4
 #define SBI_HART_START 0u
+#define SBI_HART_SUSPEND 3u
 
 extern void _entry(void);
 
@@ -18,7 +19,7 @@ static inline long sbi_ecall(long ext, long fid, long arg0, long arg1, long arg2
 volatile uint32_t counter = 0;
 volatile uint32_t first = 1;
 
-void main(void) {
+int main(void) {
     int hart_id;
 
     if (first) {
@@ -26,6 +27,7 @@ void main(void) {
         // Start secondary harts
         for (int i = 1; i < NUM_CORES; i++) {
             sbi_ecall(0x48534D, SBI_HART_START, i, (long) _entry, 0);
+            sbi_ecall(0x48534D, SBI_HART_SUSPEND, 0, 0, 0);
         }
     }
 

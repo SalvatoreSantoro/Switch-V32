@@ -1,20 +1,19 @@
 ENTRY(_entry)
 MEMORY
 {
-    ROM (rx)  : ORIGIN = 0x10000000, LENGTH = 64K
-    RAM (rw)  : ORIGIN = 0x10010000, LENGTH = 136K
+   RAM (rwx) : ORIGIN = 0x80400000, LENGTH = 16M
 }
 SECTIONS
 {
     .text :
     {
-        *(.entry .text .text*)
-    } > ROM
+        *(.text .text*)
+    } > RAM
 
     .rodata :
     {
         *(.rodata*)
-    } > ROM
+    } > RAM
 
     .data :
     {

@@ -1,6 +1,7 @@
 #ifndef SV32_MEM_H
 #define SV32_MEM_H
 
+#include "args.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -15,6 +16,8 @@ void mem_init(void);
 void mem_deinit(void);
 
 #define MAP_ADDR(addr) ((void *) (vmem + addr))
+
+#define VALID_ADDR(addr, io_sz) (((uintptr_t) addr + io_sz) < ctx.memory_size)
 
 // ASSUMING ALWAYS ALIGNED ACCESS
 

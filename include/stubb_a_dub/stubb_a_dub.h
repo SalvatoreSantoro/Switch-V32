@@ -21,12 +21,19 @@ typedef enum {
     RV32, // the only one currently supported
 } arch;
 
+typedef enum{
+	SYS_OK,
+	CORE_RUNNING_ERR,
+	CORE_OUT_OF_BOUNDS,
+	MEMORY_OUT_OF_BOUNDS,
+}sys_err;
+
 typedef struct {
-    void (*read_regs)(byte *output, size_t output_sz, unsigned int core_id);
-    void (*write_regs)(const byte *input, size_t input_sz, unsigned int core_id);
-    void (*read_mem)(byte *output, size_t output_sz, uint32_t addr);
-    void (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
-    void (*core_step)(unsigned int core_id);
+    sys_err (*read_regs)(byte *output, size_t output_sz, unsigned int core_id);
+    sys_err (*write_regs)(const byte *input, size_t input_sz, unsigned int core_id);
+    sys_err (*read_mem)(byte *output, size_t output_sz, uint32_t addr);
+    sys_err (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
+    sys_err (*core_step)(unsigned int core_id);
     void (*core_continue)(unsigned int core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);

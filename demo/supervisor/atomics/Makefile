@@ -1,18 +1,13 @@
-CC = $(CROSS)gcc
+include ../build.mk
 
 SRCS := $(wildcard *.c)
 OBJS := $(patsubst %.c, %.o, $(SRCS))
 
-ASMS := entry.S
+ASMS := ../entry.S
 ASMOBJS := $(ASMS:.S=.o)
 
-SV32_DIR := ../../src
-
-CFLAGS = -Wall -O0 -nostdlib -march=rv32ima -mabi=ilp32 -fomit-frame-pointer -g
-LDFLAGS = -T linker.ld
-
 ### BUILD
-all: atomics.elf
+all: build_folder atomics.elf
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@
@@ -21,10 +16,13 @@ all: atomics.elf
 	$(CC) $(CFLAGS) -c $< -o $@
 
 atomics.elf: $(ASMOBJS) $(OBJS)
-	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o $@
+	$(CC) $(CFLAGS) $(LDFLAGS) $^ -o build/$@
+
+build_folder:
+	@mkdir -p build
 
 objcopy: atomics.elf
-	$(CROSS)objcopy -O binary atomics.elf atomics.bin
+	$(CROSS)objcopy -O binary build/atomics.elf build/atomics.bin
 
 clean:
 	rm -f *.o *.bin *.elf

@@ -3,7 +3,7 @@
 #####################################
 
 CC = gcc
-CFLAGS = -std=c99 -O2
+CFLAGS = -std=c99 -O2 
 
 #####################################
 ##	  		 WARNINGS 			   ##
@@ -38,6 +38,7 @@ CFLAGS += -Wwrite-strings
 CFLAGS += -Wswitch-default 
 CFLAGS += -Wconversion
 
+
 #####################################
 ##	  	      PARAMS    	       ##
 #####################################
@@ -48,6 +49,18 @@ MODE_FLAGS := -DUSER
 INCLUDE_MODE := -Isrc/user
 BIN_NAME := sv32_user
 DEBUG_OPT :=
+
+#####################################
+##	  	        DEMO    	       ##
+#####################################
+
+#default demo
+NAME_DEMO ?= doom_riscv
+DEMO_DIRS := $(wildcard demo/user/*) $(wildcard demo/supervisor/*)
+DEMO_PROG_PATH := $(shell find ./demo -type d -name "$(NAME_DEMO)" 2>/dev/null)
+# Determine whether it’s under 'user' or 'supervisor'
+# (extract the second-level directory name based on DEMO_PROG_PATH)
+MODE := $(shell echo "$(DEMO_PROG_PATH)" | awk -F/ '/demo\/(user|supervisor)\// {print $$3; exit}')
 
 #supervisor params
 ifeq ($(MODE),supervisor)
@@ -79,17 +92,6 @@ INCLUDE_FLAGS += $(INCLUDE_MODE)
 # linker flag
 LDFLAGS = -lSDL2  
 
-#####################################
-##	  	        DEMO    	       ##
-#####################################
-
-#default demo
-NAME_DEMO ?= doom_riscv
-DEMO_DIRS := $(wildcard demo/user/*) $(wildcard demo/supervisor/*)
-DEMO_PROG_PATH := $(shell find ./demo -type d -name "$(NAME_DEMO)" 2>/dev/null)
-# Determine whether it’s under 'user' or 'supervisor'
-# (extract the second-level directory name based on DEMO_PROG_PATH)
-DEMO_MODE := $(shell echo "$(DEMO_PROG_PATH)" | awk -F/ '/demo\/(user|supervisor)\// {print $$3; exit}')
 
 #####################################
 ##        SOURCES and OBJECTS      ##
@@ -142,15 +144,20 @@ clang-tidy:
 
 valgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 1024 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -c 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 helgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 1024 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 elf: $(MODE)
+ifeq ($(DEMO_MODE), user)
 	$(MAKE) -C $(DEMO_PROG_PATH)
 	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+else
+	$(MAKE) -C $(DEMO_PROG_PATH)
+	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -c 4 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+endif
 
 
 bin: supervisor
@@ -158,7 +165,7 @@ ifeq ($(DEMO_MODE), user)
 	@echo "BIN SUPPORTED ONLY FOR SUPERVISORS DEMO"
 else
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).bin" -m 1024 -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	./build/sv32_supervisor -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).bin" -m 4096 -c 4 -b -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 endif
 
 # Separate targets for modes

@@ -64,6 +64,14 @@ typedef enum {
     BRK_FULL
 } breakpoint_status;
 
+typedef enum {
+    BRK_ERROR,
+    BRK_INSERTED,
+    BRK_REMOVED,
+    BRK_STEPPED,
+    BRK_NOT_FOUND
+} brk_ret;
+
 struct Breakpoint {
     uint32_t addr;
     uint32_t instr;
@@ -190,12 +198,12 @@ void sad_buff_reset(PKT_Buffer *buff);
 
 // BREAKPOINT
 
-bool sad_insert_breakpoint(uint32_t addr);
+brk_ret sad_insert_breakpoint(uint32_t addr);
 
-bool sad_remove_breakpoint(uint32_t addr);
+brk_ret sad_remove_breakpoint(uint32_t addr);
 
 Breakpoint *sad_find_breakpoint(uint32_t addr);
 
-bool sad_step_the_breakpoint(unsigned int core_idx);
+brk_ret sad_step_the_breakpoint(unsigned int core_idx);
 
 #endif

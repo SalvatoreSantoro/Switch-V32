@@ -9,37 +9,56 @@
 #include <stdio.h>
 #include <string.h>
 
-extern Threads_Mgr threads_mgr;
-
 // need to do more robust checks on memory and core_id
 // in order to really return errors and not just crash with assert
 
-static void read_regs(byte *output, size_t output_sz, unsigned int core_id) {
-    assert(core_id < ctx.cores);
+static sys_err read_regs(byte *output, size_t output_sz, unsigned int core_id) {
+    if (core_id >= ctx.cores)
+        return CORE_OUT_OF_BOUNDS;
+
+    if (!threads_mgr_is_halted(core_id, true))
+        return CORE_RUNNING_ERR;
 
     const VCore *core = &GET_CORE(core_id);
 
     size_t regs_size = output_sz - 4;
     memcpy(output, &core->regs, regs_size);
     memcpy(output + regs_size, &core->pc, 4);
+
+    return SYS_OK;
 }
 
-static void write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
-    assert(core_id < ctx.cores);
+static sys_err write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
+    if (core_id >= ctx.cores)
+        return CORE_OUT_OF_BOUNDS;
+
+    if (!threads_mgr_is_halted(core_id, true))
+        return CORE_RUNNING_ERR;
+
     size_t regs_size = input_sz - 4; // don't count PC
     VCore *core = &GET_CORE(core_id);
     // copy all regs
     memcpy(&core->regs, input, regs_size);
     // copy PC
     memcpy(&core->pc, input + regs_size, 4);
+
+    return SYS_OK;
 }
 
-static void read_mem(byte *output, size_t output_sz, uint32_t addr) {
+static sys_err read_mem(byte *output, size_t output_sz, uint32_t addr) {
+    if (!VALID_ADDR(addr, output_sz))
+        return MEMORY_OUT_OF_BOUNDS;
+
     mem_rb_ptr_s(addr, output, output_sz);
+    return SYS_OK;
 }
 
-static void write_mem(const byte *input, size_t input_sz, uint32_t addr) {
+static sys_err write_mem(const byte *input, size_t input_sz, uint32_t addr) {
+    if (!VALID_ADDR(addr, input_sz))
+        return MEMORY_OUT_OF_BOUNDS;
+
     mem_wb_ptr_s(addr, input, input_sz);
+    return SYS_OK;
 }
 
 static void core_continue(unsigned int core_id) {
@@ -57,9 +76,13 @@ static void cores_halt(void) {
     threads_mgr_halt_all();
 }
 
-static void core_step(unsigned int core_id) {
+static sys_err core_step(unsigned int core_id) {
     // do checks on core_idx
-    threads_mgr_step_core(core_id);
+    if (threads_mgr_is_halted(core_id, true)) {
+        threads_mgr_step_core(core_id);
+        return SYS_OK;
+    }
+    return CORE_RUNNING_ERR;
 }
 
 static bool core_is_halted(unsigned core_id) {

@@ -1,10 +1,10 @@
 #include "loader.h"
+#include "args.h"
 #include "cpu.h"
 #include "defs.h"
 #include "macros.h"
 #include "memory.h"
 #include "threads_mgr.h"
-#include "args.h"
 #include <assert.h>
 #include <elf.h>
 #include <errno.h>
@@ -29,7 +29,6 @@
             SV32_CRASH("ELF HEADER INVALID\n");                                                                        \
     } while (0)
 
-extern Threads_Mgr threads_mgr;
 
 typedef struct {
     size_t prog_size;
@@ -130,11 +129,9 @@ static void ld_elf_seg(Elf_File *elf) {
     uint32_t memsz;
     uint32_t addr;
 
-
     for (int i = 0; i < elf->header->e_phnum; i++) {
         if (elf->programs[i].p_type != PT_LOAD)
             continue;
-
 
         fsz = elf->programs[i].p_filesz;
         memsz = elf->programs[i].p_memsz;
@@ -142,6 +139,9 @@ static void ld_elf_seg(Elf_File *elf) {
         addr = elf->programs[i].p_vaddr;
 
         LOG_LOAD();
+
+        if (!VALID_ADDR(addr, memsz))
+            SV32_CRASH("LOAD segment went out of memory bounds (specify bigger memory).");
 
         mem_wb_ptr_s(addr, (elf->data + foff), memsz);
 
@@ -221,8 +221,8 @@ void ld_elf(VCore *core) {
     ld_elf_seg(&elf);
 
     // load entry point + STACK_BASE
-	core->pc = elf.header->e_entry;
-	core->regs[SP] = ctx.stack_base;
+    core->pc = elf.header->e_entry;
+    core->regs[SP] = ctx.stack_base;
 
     // load GP
     sym = ld_elf_getsym(&elf, "__global_pointer$");
