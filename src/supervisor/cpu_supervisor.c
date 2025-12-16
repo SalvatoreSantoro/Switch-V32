@@ -1,8 +1,11 @@
+#include "args.h"
 #include "cpu.h"
 #include "csr.h"
 #include "sbi.h"
+#include "threads_mgr2.h"
 #include "trap.h"
 #include <stdint.h>
+#include <stdio.h>
 
 #define CSRRW  0x001
 #define CSRRS  0x010
@@ -39,8 +42,10 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
         switch (imm) {
         case ECALL:
             // supervisor ecall
-            if (core->mode == SUPERVISOR_MODE)
-                emu_sbi_call(core);
+            if (core->mode == SUPERVISOR_MODE){
+				emu_sbi_call(core);
+				printf("SBI_GAS\n");
+			}
             // user ecall
             else
                 dispatch_trap(core, ECALL_U_MODE, core->pc);
@@ -52,7 +57,11 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             // if debugging. If the breakpoint is an exception INSIDE an USER program
             // running on a SUPERVISOR, we also don't want to increment because the dispatch exception
             // will change the PC so that the next instruction is the first of the exception handler
-            dispatch_trap(core, BRKPT, core->pc);
+            if (ctx.debug) {
+                threads_mgr_halt_all();
+            } else {
+                dispatch_trap(core, BRKPT, core->pc);
+            }
             break;
         default:
             dispatch_trap(core, ILL_INS, ins);

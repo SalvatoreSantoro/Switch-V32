@@ -27,7 +27,6 @@ int main(void) {
         // Start secondary harts
         for (int i = 1; i < NUM_CORES; i++) {
             sbi_ecall(0x48534D, SBI_HART_START, i, (long) _entry, 0);
-            sbi_ecall(0x48534D, SBI_HART_SUSPEND, 0, 0, 0);
         }
     }
 

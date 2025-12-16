@@ -10,4 +10,7 @@ and trigger exceptions on alignment and in the case of peripherals alignment pro
 should trigger access fault not misaligned fault
 -check when writing/reading on memory out of bounds, for both debugging and loader segments
 -in supervisor, when doing continue all in debugging, there is a bug, the core are all started
-at the same time even if the sould be started only after being activated with SBI
+at the same time even if the should be started only after being activated with SBI
+-check the "debug.c" file, and all the interactions with core state, in general
+should avoid to use the threads_mgr.h macros to access the cores from random places
+without checking the states

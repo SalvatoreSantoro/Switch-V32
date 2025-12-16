@@ -1,6 +1,6 @@
 #include "trap.h"
 #include "emu.h"
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>

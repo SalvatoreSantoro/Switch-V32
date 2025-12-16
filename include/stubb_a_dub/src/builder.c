@@ -57,7 +57,7 @@ SUPPORTED_CMDS
 
 #define LONG_TO_UINT(val)                                                                                              \
     do {                                                                                                               \
-        if (val > UINT_MAX || val <= 0) {                                                                              \
+        if (val > UINT_MAX || val < 0) {                                                                              \
             sad_buff_append_str(server.output_buffer, "E");                                                            \
             return;                                                                                                    \
         }                                                                                                              \

@@ -4,7 +4,7 @@
 #include "defs.h"
 #include "macros.h"
 #include "memory.h"
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include <assert.h>
 #include <elf.h>
 #include <errno.h>

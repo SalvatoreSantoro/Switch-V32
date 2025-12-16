@@ -1,13 +1,12 @@
 #include "cpu.h"
 #include "macros.h"
 #include "memory.h"
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include "trap.h"
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/types.h>
-
 
 // Check compress
 #define COMPR_OPCODE_MASK 0x3
@@ -130,55 +129,6 @@ const char *re_na(int reg_num) {
         return "UNKNOWN_REG";
     }
 }
-
-// #define##__LINE__##__COUNTER__
-
-#define INSTR_SWITCH                                                                                                   \
-    do {                                                                                                               \
-        if (IS_COMPRESSED(ins)) {                                                                                      \
-            printf("Compressed unimplemented\n");                                                                      \
-            exit(EXIT_FAILURE);                                                                                        \
-        } else {                                                                                                       \
-            switch (OPCODE_TYPE(ins)) {                                                                                \
-            case R_TYPE:                                                                                               \
-                vcore_r_type(core, ins);                                                                               \
-                break;                                                                                                 \
-            case IR_TYPE:                                                                                              \
-                vcore_ir_type(core, ins);                                                                              \
-                break;                                                                                                 \
-            case IL_TYPE:                                                                                              \
-                vcore_il_type(core, ins);                                                                              \
-                break;                                                                                                 \
-            case S_TYPE:                                                                                               \
-                vcore_s_type(core, ins);                                                                               \
-                break;                                                                                                 \
-            case B_TYPE:                                                                                               \
-                vcore_b_type(core, ins);                                                                               \
-                break;                                                                                                 \
-            case J_TYPE:                                                                                               \
-                vcore_j_type(core, ins);                                                                               \
-                break;                                                                                                 \
-            case IJ_TYPE:                                                                                              \
-                vcore_ij_type(core, ins);                                                                              \
-                break;                                                                                                 \
-            case LUI:                                                                                                  \
-                vcore_lui_type(core, ins);                                                                             \
-                break;                                                                                                 \
-            case AUIPC:                                                                                                \
-                vcore_auipc_type(core, ins);                                                                           \
-                break;                                                                                                 \
-            case A_TYPE:                                                                                               \
-                vcore_a_type(core, ins);                                                                               \
-                break;                                                                                                 \
-            case SYS_TYPE:                                                                                             \
-                vcore_sys_type(core, ins);                                                                             \
-                break;                                                                                                 \
-            default:                                                                                                   \
-                dispatch_trap(core, ILL_INS, ins);                                                                     \
-                break;                                                                                                 \
-            }                                                                                                          \
-        }                                                                                                              \
-    } while (0)
 
 static void vcore_r_type(VCore *core, uint32_t ins) {
     uint32_t rs1 = core->regs[RS1(ins)], rs2 = core->regs[RS2(ins)];
@@ -568,7 +518,52 @@ void vcore_run(VCore *core) {
         // reset ZERO reg at every iteration
         core->regs[ZERO] = 0;
         ins = mem_rw(core->pc);
-        INSTR_SWITCH;
+
+        if (IS_COMPRESSED(ins)) {
+            printf("Compressed unimplemented\n");
+            exit(EXIT_FAILURE);
+        } else {
+            switch (OPCODE_TYPE(ins)) {
+            case R_TYPE:
+                vcore_r_type(core, ins);
+                break;
+            case IR_TYPE:
+                vcore_ir_type(core, ins);
+                break;
+            case IL_TYPE:
+                vcore_il_type(core, ins);
+                break;
+            case S_TYPE:
+                vcore_s_type(core, ins);
+                break;
+            case B_TYPE:
+                vcore_b_type(core, ins);
+                break;
+            case J_TYPE:
+                vcore_j_type(core, ins);
+                break;
+            case IJ_TYPE:
+                vcore_ij_type(core, ins);
+                break;
+            case LUI:
+                vcore_lui_type(core, ins);
+                break;
+            case AUIPC:
+                vcore_auipc_type(core, ins);
+                break;
+            case A_TYPE:
+                vcore_a_type(core, ins);
+                break;
+            case SYS_TYPE:
+                vcore_sys_type(core, ins);
+                break;
+            default:
+                dispatch_trap(core, ILL_INS, ins);
+                break;
+            }
+
+            if (__atomic_load_n(&core->atomic_stop, __ATOMIC_ACQUIRE))
+                return;
 
 // due to LL/SR semantics i think that implementation of them must be done
 // without checkings for interrupts untill they both terminate, in this way a
@@ -581,19 +576,13 @@ void vcore_run(VCore *core) {
 
 // When running with SUPERVISOR enabled exit check when to exit from the loop (SBI_EXT_HSM)
 #ifdef SUPERVISOR
-        check_interrupts(core);
-        // this is a bit ugly because in general halted should be wrapped in a mutex (we're atomically reading atleast)
-        // need to check it every cpu cyle, the check interrupts instead can be checked only every N cycles
-        if ((GET_SIGNAL(core->core_idx) == STOP_S) || (GET_SIGNAL(core->core_idx == SUSPEND_S)))
-            return;
+            check_interrupts(core);
 #endif
+        }
     }
 }
 
-void vcore_step(VCore *core) {
-    uint32_t ins;
-
-    core->regs[ZERO] = 0;
-    ins = mem_rw(core->pc);
-    INSTR_SWITCH;
+void vcore_reset(VCore *core) {
+    memset(core, 0, sizeof(VCore));
+    core->mode = SUPERVISOR_MODE;
 }

@@ -63,14 +63,10 @@ enum {
 #define ECALL  (0x0)
 #define EBREAK (0x1)
 
-#ifdef SUPERVISOR
 typedef enum {
-    // supervisor is 0 so when resetting the
-    // memory area of the core we ensure to start in supervisor as default
     SUPERVISOR_MODE = 0,
     USER_MODE = 1
 } execution_mode;
-#endif
 
 typedef struct {
     uint32_t regs[REG_NUMS];
@@ -78,9 +74,9 @@ typedef struct {
     uint32_t reserved; // atomics
     // Index
     unsigned int core_idx;
-    bool ll_sc_flag;
-#ifdef SUPERVISOR
+	bool ll_sc_flag;
     execution_mode mode;
+	bool atomic_stop;
     // CSRs
     uint32_t satp;
     uint32_t sstatus;
@@ -94,7 +90,7 @@ typedef struct {
     // TODO: implement these
     uint32_t scounteren;
     uint32_t senvcfg;
-#elif USER
+#ifdef USER
     // ELF
     uint32_t elf_brk;
     uint32_t elf_errno;
@@ -108,9 +104,9 @@ void vcore_run(VCore *core);
 
 void vcore_step(VCore *core);
 
+void vcore_reset(VCore *core);
+
 // different implementations for USER and SUPERVISOR
 void vcore_sys_type(VCore *core, uint32_t ins);
-
-
 
 #endif

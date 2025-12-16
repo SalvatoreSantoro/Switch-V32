@@ -5,6 +5,7 @@ Checks: >
   security-*,
   misc-*,
   modernize-*,
+  concurrency-mt-unsafe
 
 #  bugprone-*,
 
@@ -15,17 +16,16 @@ CheckOptions:
   - key: readability-magic-numbers.IgnoredValues
     value: '0,1,-1'
   - key: bugprone-sizeof-expression
-    value: 'true'                 # Catch sizeof mistakes
+    value: 'true'
   - key: readability-implicit-bool-conversion.StrictMode
-    value: 'true'                 # Force strict bool usage
+    value: 'true'
   - key: clang-analyzer-core.UndefinedBinaryOperatorResult
-    value: 'true'                 # Aggressive undefined behavior detection
+    value: 'true'
   - key: clang-analyzer-core.CallAndMessage
-    value: 'true'                 # Catch dangerous calls
+    value: 'true'
   - key: clang-analyzer-core.NonNullParamChecker
-    value: 'true'                 # Ensure non-null params
+    value: 'true'
   - key: clang-analyzer-deadcode.DeadStores
-    value: 'true'                 # Catch dead stores
+    value: 'true'
   - key: readability-named-parameter.SuppressAllWarnings
-    value: 'false'                # Be super picky
-
+    value: 'false'

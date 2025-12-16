@@ -1,12 +1,14 @@
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include "args.h"
 #include "cpu.h"
 #include "debug.h"
 #include "defs.h"
 #include "macros.h"
+#include "thread.h"
 #include <assert.h>
 #include <errno.h> // IWYU pragma: export
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -61,34 +63,27 @@ static void barrier_count_wait(void) {
     }
 }
 
-static void threads_mgr_core_state_check(unsigned int core_idx) {
-    pthread_mutex_lock_(&GET_MUTEX(core_idx));
-    printf("CORE %d: state %d\n", core_idx, GET_STATE(core_idx));
-
-    // sleep
+static void threads_mgr_check_stop(unsigned int core_idx) {
     while (GET_SIGNAL(core_idx) == STOP_S) {
-#ifdef DEBUG_THREAD_MGR
-        printf("CORE %u HALTED\n", core_idx);
-#endif
+        if (GET_STATE(core_idx) != STATE_STOPPED) {
+            SET_STATE(core_idx, STATE_STOPPED);
+            pthread_cond_signal_(&GET_STATE_COND(core_idx));
+        }
+        pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
+    }
+}
+
+static void threads_mgr_check_halt(unsigned int core_idx) {
+    while (GET_SIGNAL(core_idx) == HALT_S) {
         if (GET_STATE(core_idx) != STATE_HALTED) {
             SET_STATE(core_idx, STATE_HALTED);
             pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
         pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
     }
+}
 
-#ifdef SUPERVISOR
-    // suspend core (used by HSM extension only)
-    while (GET_SIGNAL(core_idx) == SUSPEND_S) {
-        if (GET_STATE(core_idx) != STATE_SUSPEND) {
-            SET_STATE(core_idx, STATE_SUSPEND);
-            pthread_cond_signal_(&GET_STATE_COND(core_idx));
-        }
-        pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
-    }
-#endif
-
-    // run
+static void threads_mgr_check_run(unsigned int core_idx) {
     if (GET_SIGNAL(core_idx) == RUN_S) {
         // Signal that the core is running (in case of run or step)
         if (GET_STATE(core_idx) != STATE_RUNNING) {
@@ -96,145 +91,81 @@ static void threads_mgr_core_state_check(unsigned int core_idx) {
             pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
     }
+}
 
-    // step
+static void threads_mgr_check_step(unsigned int core_idx) {
     if (GET_SIGNAL(core_idx) == STEP_S) {
         if (GET_STATE(core_idx) != STATE_STEPPING) {
             SET_STATE(core_idx, STATE_STEPPING);
             pthread_cond_signal_(&GET_STATE_COND(core_idx));
         }
         // wait for setup of the stop in order to block right after doing the step
-        while (GET_SIGNAL(core_idx) != STOP_S) {
+        while (GET_SIGNAL(core_idx) != HALT_S) {
             pthread_cond_wait_(&GET_SIGN_COND(core_idx), &GET_MUTEX(core_idx));
         }
     }
-
-    pthread_mutex_unlock_(&GET_MUTEX(core_idx));
 }
 
-// if synch = true wait for response
-void threads_mgr_signal_run(unsigned int core_idx, bool synch) {
+static void threads_mgr_core_state_check(unsigned int core_idx) {
     pthread_mutex_lock_(&GET_MUTEX(core_idx));
 
-    if (GET_SIGNAL(core_idx) != RUN_S) {
-        SET_SIGNAL(core_idx, RUN_S);
-        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
+    switch (GET_STATE(core_idx)) {
+    // off
+    case STATE_STOPPED:
+        threads_mgr_check_stop(core_idx);
+        break;
+    case STATE_HALTED:
+        // halt
+        threads_mgr_check_halt(core_idx);
+        break;
+    case STATE_RUNNING:
+        // run
+        threads_mgr_check_run(core_idx);
+        break;
+    case STATE_STEPPING:
+        // step
+        threads_mgr_check_step(core_idx);
+        break;
+    case STATE_SUSPENDED:
+        break;
+    default:
+        SV32_CRASH("Unexpected core state\n");
     }
-
-    while ((GET_STATE(core_idx) != STATE_RUNNING) && synch) {
-        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
-    }
-
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
 }
 
-// be careful with synch=true, if a core is halting itself
-// making this synchronous will deadlock the core
-void threads_mgr_signal_stop(unsigned int core_idx, bool synch) {
-    pthread_mutex_lock_(&GET_MUTEX(core_idx));
-
-    if (GET_SIGNAL(core_idx) != STOP_S) {
-        SET_SIGNAL(core_idx, STOP_S);
-        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
-    }
-
-    while ((GET_STATE(core_idx) != STATE_HALTED) && synch) {
-        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
-    }
-
-    pthread_mutex_unlock_(&GET_MUTEX(core_idx));
-}
-
-// if synch = true wait for response
-void threads_mgr_signal_step(unsigned int core_idx, bool synch) {
-    pthread_mutex_lock_(&GET_MUTEX(core_idx));
-
-    if (GET_SIGNAL(core_idx) != STEP_S) {
-        SET_SIGNAL(core_idx, STEP_S);
-        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
-    }
-
-    // wait for stepping
-    while ((GET_STATE(core_idx) != STATE_STEPPING) && synch) {
-        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
-    }
-
-    if (GET_SIGNAL(core_idx) != STOP_S) {
-        SET_SIGNAL(core_idx, STOP_S);
-        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
-    }
-
-    while ((GET_STATE(core_idx) != STATE_HALTED) && synch) {
-        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
-    }
-
-    pthread_mutex_unlock_(&GET_MUTEX(core_idx));
-}
 
 static void *core_thread_fun(void *args) {
-
     Thread_Args *casted_args = (Thread_Args *) args;
     VCore *core = &casted_args->core;
     unsigned int core_idx = core->core_idx;
 
     while (1) {
-        // if USER mode and debug is deactivated, just run without using the mutexes
-        if (ctx.debug || SUPERVISOR_IS_SET) {
-            // core 0 is by default set to not halted so it will not stop on this
-            threads_mgr_core_state_check(core_idx);
-        }
-
-        if (ctx.debug) {
-            // start the threads at the same time after a run all
-            BARRIER_COUNT_WAIT__;
-            vcore_step(core);
-        } else {
-            // we go directly here only in USER mode and without debugging
-            // just 1 core that runs directly
-            vcore_run(core);
-        }
+        threads_mgr_core_state_check(core_idx);
+        // start the threads at the same time after a run all
+        BARRIER_COUNT_WAIT__;
+        vcore_run(core);
     }
-
     return NULL;
 }
 
 void threads_mgr_init(void) {
-
     // TODO: make them aligned to 64 bytes in order to avoid
     // false sharing
-    threads_mgr.threads_args = malloc(sizeof(Thread_Args) * ctx.cores);
+    threads_mgr.threads = malloc(sizeof(Thread) * ctx.cores);
     if (threads_mgr.threads_args == NULL)
         SV32_CRASH("OOM");
 
     threads_mgr.atomic_barrier_count = 0;
-
-    for (unsigned int i = 0; i < ctx.cores; i++)
-        memset(&GET_CORE(i), 0, sizeof(VCore));
-
-    // if SUPERVISOR IS SET we want to allocate the debug structures
-    // anyway, because we can use them to implement the SBI HSM extension
-    if (!ctx.debug && !SUPERVISOR_IS_SET)
-        return;
-
     pthread_mutex_init(&threads_mgr.halt_all_n_run_mutex, NULL);
 
-    int ret;
-    for (unsigned int i = 0; i < ctx.cores; i++) {
-        SET_STATE(i, STATE_HALTED);
-        SET_SIGNAL(i, STOP_S);
-        pthread_mutex_init(&GET_MUTEX(i), NULL);
-        ret = pthread_cond_init(&GET_STATE_COND(i), NULL);
-        ret = pthread_cond_init(&GET_SIGN_COND(i), NULL);
-        if (ret != 0)
-            SV32_CRASH("PTHREAD COND INIT");
-    }
+	// core 0 will be run when using a signal start
+    thread_init(threads_mgr.threads[i], STATE_HALTED, HALT_S);
 
-    // In SUPERVISOR configuration CORE 0 just runs anyway
-    // during debug instead all threads are stopped as default
-    if (!ctx.debug) {
-        SET_STATE(0, STATE_RUNNING);
-        SET_SIGNAL(0, RUN_S);
-    }
+	// other cores need to be signaled to halted before starting
+	// so that HSM states and debugging states are coherent
+    for (unsigned int i = 1; i < ctx.cores; i++)
+        thread_init(threads_mgr.threads[i], STATE_STOPPED, STOP_S);
 }
 
 bool threads_mgr_is_halted(unsigned int core_idx, bool synch) {
@@ -254,6 +185,22 @@ bool threads_mgr_is_halted(unsigned int core_idx, bool synch) {
 
     status = GET_STATE(core_idx);
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
+
+// when mixing SBI_HSM with GDB debugger:
+// there is the possibility that a core results halted (because it's powered off)
+// so after a continue all, if gdb find that a core is halted, it assumes that
+// every core is halted (the only way to stop a core after a "continue all" is through a breakpoint that stops
+// everything)
+// but in reality if some cores are "POWERED_OFF" they will not run when gdb sends a "continue all"
+// (in a certain sense HSM has a priority over RUNNING/HALTED states used by gdb), so they
+// will result already halted if gdb run them, even if in reality they didn't even started
+// so in general before reporting to gdb that a core is halted, we just enforce an halt all
+#ifdef SUPERVISOR
+    if (status == STATE_HALTED) {
+        threads_mgr_halt_all();
+        return true;
+    }
+#endif
 
     return status == STATE_HALTED ? true : false;
 }
@@ -284,9 +231,9 @@ void threads_mgr_run(void) {
 void threads_mgr_halt_core(unsigned int core_idx) {
     assert(core_idx < ctx.cores);
     if (pthread_equal(pthread_self(), GET_THREAD_ID(core_idx)))
-        threads_mgr_signal_stop(core_idx, false);
+        threads_mgr_signal_halt(core_idx, false);
     else
-        threads_mgr_signal_stop(core_idx, true);
+        threads_mgr_signal_halt(core_idx, true);
 }
 
 void threads_mgr_halt_all(void) {
@@ -301,16 +248,12 @@ void threads_mgr_halt_all(void) {
     for (unsigned int i = 0; i < ctx.cores; i++) {
         // don't synchronize with yourself (deadlock)
         if (not_found && !!pthread_equal(pthread_self(), GET_THREAD_ID(i))) {
-            threads_mgr_signal_stop(i, false);
+            threads_mgr_signal_halt(i, false);
             not_found = false;
         } else {
-            threads_mgr_signal_stop(i, true);
+            threads_mgr_signal_halt(i, true);
         }
     }
-
-#ifdef DEBUG_THREAD_MGR
-    printf("CORES HALTED, notifying gdb\n");
-#endif
 
     pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
 }
@@ -354,6 +297,7 @@ bool threads_mgr_run_all(void) {
     for (unsigned int i = 0; i < ctx.cores; i++) {
         threads_mgr_signal_run(i, true);
     }
+    printf("Runned all\n");
 
     pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
     return true;
@@ -366,16 +310,11 @@ void threads_mgr_step_core(unsigned int core_idx) {
     assert(threads_mgr_is_halted(core_idx, true) && "Stepping core that isn't halted");
 
     // synch to wait for response
-    threads_mgr_signal_step(core_idx, true);
-
-#ifdef DEBUG_THREAD_MGR
-    printf("CORE %u FINISHED STEPPING, notifying gdb\n", core_idx);
-#endif
+    threads_mgr_signal_step(core_idx);
 }
 
-Core_State threads_mgr_get_core_state(unsigned int core_idx) {
+Core_State threads_mgr_get_state(unsigned int core_idx) {
     Core_State status;
-
     pthread_mutex_lock_(&GET_MUTEX(core_idx));
 
     status = GET_STATE(core_idx);
@@ -385,29 +324,19 @@ Core_State threads_mgr_get_core_state(unsigned int core_idx) {
     return status;
 }
 
-#ifdef SUPERVISOR
-
-void threads_mgr_suspend_core(unsigned int core_idx) {
-    // assert(core_idx < ctx.cores);
-    if (pthread_equal(pthread_self(), GET_THREAD_ID(core_idx)))
-        threads_mgr_signal_suspend(core_idx, false);
-    else
-        threads_mgr_signal_suspend(core_idx, true);
-}
-
-void threads_mgr_signal_suspend(unsigned int core_idx, bool synch) {
+void threads_mgr_init_core(unsigned int core_idx, uint32_t opaque, uint32_t start_addr) {
     pthread_mutex_lock_(&GET_MUTEX(core_idx));
 
-    if (GET_SIGNAL(core_idx) != SUSPEND_S) {
-        SET_SIGNAL(core_idx, SUSPEND_S);
-        pthread_cond_signal_(&GET_SIGN_COND(core_idx));
-    }
+    assert(threads_mgr_is_halted(core_idx, true));
 
-    while ((GET_STATE(core_idx) != STATE_SUSPEND) && synch) {
-        pthread_cond_wait_(&GET_STATE_COND(core_idx), &GET_MUTEX(core_idx));
-    }
+    GET_CORE(core_idx).regs[A0] = core_idx;
+    GET_CORE(core_idx).regs[A1] = opaque;
+    GET_CORE(core_idx).pc = start_addr;
+#ifdef SUPERVISOR
+    GET_CORE(core_idx).mode = SUPERVISOR;
+#endif
 
     pthread_mutex_unlock_(&GET_MUTEX(core_idx));
 }
 
-#endif
+void threads_mgr_init_cond()

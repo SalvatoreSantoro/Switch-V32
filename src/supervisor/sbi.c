@@ -2,7 +2,7 @@
 #include "args.h"
 #include "cpu.h"
 #include "csr.h"
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -45,9 +45,13 @@ typedef enum {
 #define HSM_FID_2 (0x2)
 #define HSM_FID_3 (0x3)
 
-#define HSM_STATE_STARTED   (0x0)
-#define HSM_STATE_STOPPED   (0x1)
-#define HSM_STATE_SUSPENDED (0x4)
+#define HSM_STATE_STARTED         (0x0)
+#define HSM_STATE_STOPPED         (0x1)
+#define HSM_STATE_START_PENDING   (0x2)
+#define HSM_STATE_STOP_PENDING    (0x3)
+#define HSM_STATE_SUSPEND         (0x4)
+#define HSM_STATE_SUSPEND_PENDING (0x5)
+#define HSM_STATE_RESUME_PENDING  (0x6)
 
 #define HSM_RETENTIVE_SUSPEND     (0x00000000)
 #define HSM_NON_RETENTIVE_SUSPEND (0x80000000)
@@ -108,7 +112,7 @@ static void hsm_ext(VCore *core) {
     switch (core->regs[A6]) {
     // Hart Start
     case HSM_FID_0:
-		hart_id = core->regs[A0];
+        hart_id = core->regs[A0];
         start_addr = core->regs[A1];
         opaque = core->regs[A2];
 
@@ -122,15 +126,17 @@ static void hsm_ext(VCore *core) {
             return;
         }
 
-        state = threads_mgr_get_core_state(hart_id);
-        if (state == STATE_RUNNING) {
+        state = threads_mgr_get_state(hart_id);
+        if (state != STATE_STOPPED) {
             core->regs[A0] = (uint32_t) SBI_ERR_ALREADY_AVAILABLE;
             return;
         }
-        GET_CORE(hart_id).regs[A0] = hart_id;
-        GET_CORE(hart_id).regs[A1] = opaque;
-        GET_CORE(hart_id).pc = start_addr;
-        threads_mgr_run_core(hart_id);
+        threads_mgr_init_core(hart_id, opaque, start_addr);
+        threads_mgr_signal_halt(hart_id, true);
+        // if we're not debugging just start the core, otherwise GDB will start it
+        // and we're just setting it on to be continued by gdb
+        if (!ctx.debug)
+            threads_mgr_run_core(hart_id);
         break;
 
     // Hart Stop
@@ -141,7 +147,7 @@ static void hsm_ext(VCore *core) {
             return;
         }
         // halt yourself
-        threads_mgr_halt_core(core->core_idx);
+        threads_mgr_signal_stop(core->core_idx, false);
         break;
 
     case HSM_FID_2:
@@ -150,14 +156,44 @@ static void hsm_ext(VCore *core) {
             core->regs[A0] = (uint32_t) SBI_ERR_INVALID_PARAM;
             return;
         }
-        state = threads_mgr_get_core_state(hart_id);
-        if (state == STATE_RUNNING)
+        state = threads_mgr_get_state(hart_id);
+
+        switch (state) {
+        // when using gdb halted is like running but the core isn't
+        // effectively running, it's stopped waiting for continue signals
+        case STATE_HALTED:
+        case STATE_RUNNING:
             core->regs[A1] = HSM_STATE_STARTED;
-        else if (state == STATE_HALTED)
+            break;
+
+        case STATE_STOPPED:
             core->regs[A1] = HSM_STATE_STOPPED;
-        else
-            core->regs[A1] = HSM_STATE_SUSPENDED;
-        break;
+            break;
+
+        case STATE_START_PENDING:
+            core->regs[A1] = HSM_STATE_START_PENDING;
+            break;
+
+        case STATE_STOP_PENDING:
+            core->regs[A1] = HSM_STATE_STOP_PENDING;
+            break;
+
+        case STATE_SUSPEND_PENDING:
+            core->regs[A1] = HSM_STATE_SUSPEND_PENDING;
+            break;
+
+        case STATE_RESUME_PENDING:
+            core->regs[A1] = HSM_STATE_RESUME_PENDING;
+            break;
+
+        case STATE_SUSPENDED:
+            core->regs[A1] = HSM_STATE_SUSPEND;
+            break;
+
+        default:
+            assert(0 && "Some suspended state aren't implemented");
+            break;
+        }
 
     case HSM_FID_3:
         suspend_type = core->regs[A0];
@@ -175,16 +211,16 @@ static void hsm_ext(VCore *core) {
         if (suspend_type == HSM_RETENTIVE_SUSPEND) {
             break;
         } else if (suspend_type == HSM_NON_RETENTIVE_SUSPEND) {
-            GET_CORE(core->core_idx).regs[A0] = core->core_idx;
-            GET_CORE(core->core_idx).regs[A1] = opaque;
-            GET_CORE(core->core_idx).pc = start_addr;
+            core->regs[A0] = core->core_idx;
+            core->regs[A1] = opaque;
+            core->pc = start_addr;
         } else {
             core->regs[A0] = (uint32_t) SBI_ERR_INVALID_PARAM;
             return;
         }
 
         // finally suspend
-        threads_mgr_suspend_core(core->core_idx);
+        assert(0 && "Some suspended state aren't implemented");
         break;
 
     default:

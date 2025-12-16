@@ -3,7 +3,7 @@
 #####################################
 
 CC = gcc
-CFLAGS = -std=c99 -O2 
+CFLAGS = -std=c99 -O2
 
 #####################################
 ##	  		 WARNINGS 			   ##
@@ -151,7 +151,7 @@ helgrind: user supervisor
 	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 elf: $(MODE)
-ifeq ($(DEMO_MODE), user)
+ifeq ($(MODE), user)
 	$(MAKE) -C $(DEMO_PROG_PATH)
 	./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 else
@@ -161,7 +161,7 @@ endif
 
 
 bin: supervisor
-ifeq ($(DEMO_MODE), user)
+ifeq ($(MODE), user)
 	@echo "BIN SUPPORTED ONLY FOR SUPERVISORS DEMO"
 else
 	$(MAKE) -C $(DEMO_PROG_PATH)

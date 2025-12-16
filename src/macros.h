@@ -8,6 +8,7 @@
 
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 
 #ifdef ALL_VERBOSE
     #define CPU_VERBOSE
@@ -88,17 +89,37 @@
     #define LOG_LOAD()
 #endif
 
-#define SV32_CRASH(msg)                                                                                                \
-    do {                                                                                                               \
-        fprintf(stderr, "[SV32_CRASH] %s:%d: %s\n", __FILE__, __LINE__, (msg));                                        \
-        fflush(stderr);                                                                                                \
-        exit(EXIT_FAILURE);                                                                                            \
-    } while (0)
+
 
 #define SV32_EXIT(str)                                                                                                 \
     do {                                                                                                               \
         printf("%s\n", str);                                                                                           \
         exit(EXIT_SUCCESS);                                                                                            \
+    } while (0)
+
+
+#define pthread_mutex_unlock_(mutex_ref)                                                                               \
+    do {                                                                                                               \
+        if (pthread_mutex_unlock(mutex_ref) != 0)                                                                      \
+            SV32_CRASH("UNLOCK FAILED");                                                                               \
+    } while (0)
+
+#define pthread_mutex_lock_(mutex_ref)                                                                                 \
+    do {                                                                                                               \
+        if (pthread_mutex_lock(mutex_ref) != 0)                                                                        \
+            SV32_CRASH("LOCK FAILED");                                                                                 \
+    } while (0)
+
+#define pthread_cond_wait_(cond_ref, mutex_ref)                                                                        \
+    do {                                                                                                               \
+        if (pthread_cond_wait(cond_ref, mutex_ref) != 0)                                                               \
+            SV32_CRASH("COND WAIT FAILED");                                                                            \
+    } while (0)
+
+#define pthread_cond_signal_(cond_ref)                                                                                 \
+    do {                                                                                                               \
+        if (pthread_cond_signal(cond_ref) != 0)                                                                        \
+            SV32_CRASH("SIGNAL FAILED");                                                                               \
     } while (0)
 
 #endif

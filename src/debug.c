@@ -4,7 +4,7 @@
 #include "macros.h"
 #include "memory.h"
 #include "stubb_a_dub.h"
-#include "threads_mgr.h"
+#include "threads_mgr2.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -49,6 +49,12 @@ static sys_err read_mem(byte *output, size_t output_sz, uint32_t addr) {
     if (!VALID_ADDR(addr, output_sz))
         return MEMORY_OUT_OF_BOUNDS;
 
+    for (unsigned int core_id = 0; core_id < ctx.cores; core_id++) {
+        if (!threads_mgr_is_halted(core_id, true)) {
+            return CORE_RUNNING_ERR;
+        }
+    }
+
     mem_rb_ptr_s(addr, output, output_sz);
     return SYS_OK;
 }
@@ -56,6 +62,12 @@ static sys_err read_mem(byte *output, size_t output_sz, uint32_t addr) {
 static sys_err write_mem(const byte *input, size_t input_sz, uint32_t addr) {
     if (!VALID_ADDR(addr, input_sz))
         return MEMORY_OUT_OF_BOUNDS;
+
+    for (unsigned int core_id = 0; core_id < ctx.cores; core_id++) {
+        if (!threads_mgr_is_halted(core_id, true)) {
+            return CORE_RUNNING_ERR;
+        }
+    }
 
     mem_wb_ptr_s(addr, input, input_sz);
     return SYS_OK;
