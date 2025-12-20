@@ -44,7 +44,6 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             // supervisor ecall
             if (core->mode == SUPERVISOR_MODE){
 				emu_sbi_call(core);
-				printf("SBI_GAS\n");
 			}
             // user ecall
             else

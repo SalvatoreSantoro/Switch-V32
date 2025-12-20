@@ -34,10 +34,10 @@ typedef struct {
     sys_err (*read_mem)(byte *output, size_t output_sz, uint32_t addr);
     sys_err (*write_mem)(const byte *input, size_t input_sz, uint32_t addr);
     sys_err (*core_step)(unsigned int core_id);
-    void (*core_continue)(unsigned int core_id);
+    sys_err (*core_continue)(unsigned int core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);
-    bool (*is_halted)(unsigned int);
+    bool (*is_halted)(void);
 } Sys_Ops;
 
 typedef struct {

@@ -1,14 +1,14 @@
 #ifndef SV32_MACROS_H
 #define SV32_MACROS_H
 
-//#define ALL_VERBOSE
-// #define SYS_VERBOSE
-//#define LOADER_VERBOSE
-//#define CPU_VERBOSE
+// #define ALL_VERBOSE
+//  #define SYS_VERBOSE
+// #define LOADER_VERBOSE
+// #define CPU_VERBOSE
 
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <pthread.h>
 
 #ifdef ALL_VERBOSE
     #define CPU_VERBOSE
@@ -89,14 +89,18 @@
     #define LOG_LOAD()
 #endif
 
-
+#define SV32_CRASH(msg)                                                                                                \
+    do {                                                                                                               \
+        fprintf(stderr, "[SV32_CRASH] %s:%d: %s\n", __FILE__, __LINE__, (msg));                                        \
+        fflush(stderr);                                                                                                \
+        exit(1);                                                                                                       \
+    } while (0)
 
 #define SV32_EXIT(str)                                                                                                 \
     do {                                                                                                               \
         printf("%s\n", str);                                                                                           \
         exit(EXIT_SUCCESS);                                                                                            \
     } while (0)
-
 
 #define pthread_mutex_unlock_(mutex_ref)                                                                               \
     do {                                                                                                               \

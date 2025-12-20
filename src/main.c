@@ -1,7 +1,9 @@
 #include "args.h"
+#include "cthread.h"
 #ifdef USER
     #include "emu.h"
 #endif
+#include "debug.h"
 #include "loader.h"
 #include "memory.h"
 #include "threads_mgr2.h"
@@ -42,11 +44,16 @@ int main(int argc, char *argv[]) {
     // ctx.binary is always ignored if running in USER
     if (ctx.binary)
         // assuming that the binary initializes the STACK
-        ld_bin(&GET_CORE(0));
+        ld_bin(&threads_mgr.cthreads[0].core);
     else
-        // assuming that core 0 is always allocated in USER mode
-        ld_elf(&GET_CORE(0));
+        ld_elf(&threads_mgr.cthreads[0].core);
 
-    // if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
-    threads_mgr_run();
+
+    if (ctx.debug) {
+		run_debug();
+    } else {
+		// if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
+        cthread_signal_continue(&threads_mgr.cthreads[0]);
+    }
+
 }

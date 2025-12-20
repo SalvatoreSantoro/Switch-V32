@@ -3,6 +3,7 @@
 #include "cpu.h"
 #include "csr.h"
 #include "threads_mgr2.h"
+#include "cthread.h"
 #include <assert.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -103,7 +104,7 @@ static void base_ext(VCore *core) {
 // we ignore pending and suspend states, a core can only be started
 // or suspended, we just synchronously check the core's state
 static void hsm_ext(VCore *core) {
-    Core_State state;
+    cthread_state state;
     uint32_t hart_id;
     uint32_t start_addr;
     uint32_t opaque;
@@ -126,7 +127,7 @@ static void hsm_ext(VCore *core) {
             return;
         }
 
-        state = threads_mgr_get_state(hart_id);
+		state = cthread_get_hsm_state(get_thread(hart_id));
         if (state != STATE_STOPPED) {
             core->regs[A0] = (uint32_t) SBI_ERR_ALREADY_AVAILABLE;
             return;

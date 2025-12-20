@@ -76,7 +76,7 @@ typedef struct {
     unsigned int core_idx;
 	bool ll_sc_flag;
     execution_mode mode;
-	bool atomic_stop;
+	bool atomic_exit_loop;
     // CSRs
     uint32_t satp;
     uint32_t sstatus;
@@ -90,10 +90,9 @@ typedef struct {
     // TODO: implement these
     uint32_t scounteren;
     uint32_t senvcfg;
-#ifdef USER
     // ELF
+#ifdef USER
     uint32_t elf_brk;
-    uint32_t elf_errno;
 #endif
 } VCore;
 

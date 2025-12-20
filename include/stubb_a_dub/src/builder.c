@@ -77,7 +77,7 @@ static int fd_set_blocking(bool blocking) {
     return fcntl(server.sad_socket, F_SETFL, flags);
 }
 
-static bool wait_for_halt(unsigned int core_idx) {
+static bool wait_for_halt(void) {
     // set the socket as non blocking
     bool breakp_stop = false;
     size_t filled;
@@ -99,12 +99,12 @@ static bool wait_for_halt(unsigned int core_idx) {
         // check if core halted
         // just check the core_idx because as a convention a breakpoint stops all the threads
         // nonblocking
-        breakp_stop = server.sys_ops.is_halted(core_idx);
+        breakp_stop = server.sys_ops.is_halted();
+
 
         if (!breakp_stop)
             sched_yield();
     }
-
     // reset to blocking socket
     fd_set_blocking(true);
     return breakp_stop;
@@ -377,7 +377,7 @@ static void build_v(void) {
         // wait that the cores hit a breakpoint or the user sends a stop signal
         // from GDB
         bool stop;
-        stop = wait_for_halt((unsigned int) thread_id);
+        stop = wait_for_halt();
         if (stop) { // breakpoint stop or step stop
             if (GET_PARAM_1(0)[0] == 's')
                 sad_buff_append_str(server.output_buffer, "S05");

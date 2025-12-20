@@ -232,8 +232,8 @@ void ld_elf(VCore *core) {
     else
         core->regs[GP] = sym->st_value;
 
-    // load brk
 #ifdef USER
+    // load brk
     sym = ld_elf_getsym(&elf, "__BSS_END__");
     if (sym == NULL) {
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __BSS_END__, automatically computing brk value\n");
@@ -241,14 +241,6 @@ void ld_elf(VCore *core) {
         core->elf_brk = last_segment.p_vaddr + last_segment.p_memsz;
     } else
         core->elf_brk = sym->st_value;
-
-    // load errno
-    // seems broken...
-    sym = ld_elf_getsym(&elf, "errno");
-    if (sym == NULL)
-        fprintf(stderr, "[WARNING] CAN'T FIND ERRNO\n");
-    else
-        core->elf_errno = sym->st_value;
 #endif
 
     load_unmap_and_close_file(elf.data, &fd, &fst);

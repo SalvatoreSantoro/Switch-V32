@@ -3,6 +3,6 @@
 
 #include "stubb_a_dub.h"
 
-void *debug_thread_fun(void *args);
+void run_debug(void);
 
 #endif // !DEBUG_H

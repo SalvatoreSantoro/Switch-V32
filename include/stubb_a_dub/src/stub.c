@@ -110,7 +110,7 @@ stub_ret sad_stub_handle_cmds(void) {
     // check that all cores are halted before running
 
     for (unsigned idx = 0; idx < server.sys_conf.smp; idx++) {
-        if (!server.sys_ops.is_halted(idx))
+        if (!server.sys_ops.is_halted())
             return STUB_HALTED;
     }
 

@@ -13,7 +13,7 @@ void dispatch_trap(VCore *core, trap_code code, uint32_t faulting_val) {
         exit(EXIT_FAILURE);
         break;
     case BRKPT:
-        threads_mgr_halt_all();
+        threads_mgr_halt_cores();
         break;
     case ECALL_U_MODE:
         emu_system_call(core);

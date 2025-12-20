@@ -14,3 +14,6 @@ at the same time even if the should be started only after being activated with S
 -check the "debug.c" file, and all the interactions with core state, in general
 should avoid to use the threads_mgr.h macros to access the cores from random places
 without checking the states
+o
+-ADD an IS HALTED check (to use from the debug stub) that checks that ALL the cores are stopped
+not just the selected one

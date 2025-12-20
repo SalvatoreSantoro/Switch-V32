@@ -562,7 +562,7 @@ void vcore_run(VCore *core) {
                 break;
             }
 
-            if (__atomic_load_n(&core->atomic_stop, __ATOMIC_ACQUIRE))
+            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQUIRE))
                 return;
 
 // due to LL/SR semantics i think that implementation of them must be done
