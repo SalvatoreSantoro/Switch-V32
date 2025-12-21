@@ -105,6 +105,8 @@ void vcore_step(VCore *core);
 
 void vcore_reset(VCore *core);
 
+void vcore_init(VCore* core, uint32_t start_addr, uint32_t id, uint32_t opaque);
+
 // different implementations for USER and SUPERVISOR
 void vcore_sys_type(VCore *core, uint32_t ins);
 

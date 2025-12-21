@@ -115,7 +115,7 @@ void threads_mgr_halt_cores(void) {
 
     for (unsigned int i = 0; i < ctx.cores; i++) {
         // don't synchronize with yourself (deadlock)
-        if (not_found && !!pthread_equal(pthread_self(), threads_mgr.cthreads[i].thread_id)) {
+        if (not_found && cthread_is_you(&threads_mgr.cthreads[i])) {
             cthread_signal_halt(&threads_mgr.cthreads[i], false);
             not_found = false;
         } else {

@@ -18,8 +18,8 @@ static void cthread_wait_on_sign(Cthread *cthread, cthread_signal signal) {
     }
 }
 
-// if synch = true wait for response
-void cthread_signal_start(Cthread *cthread, bool synch) {
+// always asynchronous
+void cthread_signal_start(Cthread *cthread) {
     pthread_mutex_lock_(&cthread->mutex);
 
     cthread_state state = cthread->state;
@@ -39,12 +39,6 @@ void cthread_signal_start(Cthread *cthread, bool synch) {
     pthread_cond_signal_(&cthread->cond_signal);
 
     cthread->state = cthread->state == STATE_STOPPED ? STATE_START_PENDING : STATE_RESUME_PENDING;
-
-    if (synch) {
-        while (cthread->state != STATE_STARTED) {
-            pthread_cond_wait_(&cthread->cond_state, &cthread->mutex);
-        }
-    }
 
     pthread_mutex_unlock_(&cthread->mutex);
 }
@@ -106,7 +100,7 @@ void cthread_signal_halt(Cthread *cthread, bool synch) {
     pthread_mutex_unlock_(&cthread->mutex);
 }
 
-void cthread_signal_stop(Cthread *cthread, bool synch) {
+void cthread_signal_stop(Cthread *cthread) {
     pthread_mutex_lock_(&cthread->mutex);
 
     cthread_state state = cthread->state;
@@ -130,16 +124,10 @@ void cthread_signal_stop(Cthread *cthread, bool synch) {
 
     cthread->state = STATE_STOP_PENDING;
 
-    if (synch) {
-        while (cthread->state != STATE_STOPPED) {
-            pthread_cond_wait_(&cthread->cond_state, &cthread->mutex);
-        }
-    }
-
     pthread_mutex_unlock_(&cthread->mutex);
 }
 
-void cthread_signal_suspend(Cthread *cthread, bool synch) {
+void cthread_signal_suspend(Cthread *cthread) {
     pthread_mutex_lock_(&cthread->mutex);
 
     // the signal is processed only when called while the core
@@ -163,12 +151,6 @@ void cthread_signal_suspend(Cthread *cthread, bool synch) {
     pthread_cond_signal_(&cthread->cond_signal);
 
     cthread->state = STATE_SUSPEND_PENDING;
-
-    if (synch) {
-        while (cthread->state != STATE_SUSPENDED) {
-            pthread_cond_wait_(&cthread->cond_state, &cthread->mutex);
-        }
-    }
 
     pthread_mutex_unlock_(&cthread->mutex);
 }
@@ -339,4 +321,8 @@ void cthread_run(Cthread *cthread) {
         SV32_CRASH("pcthread_create failed");
 
     pthread_attr_destroy(&attr);
+}
+
+inline bool cthread_is_you(Cthread* cthread){
+	return !!pthread_equal(cthread->thread_id, pthread_self());
 }

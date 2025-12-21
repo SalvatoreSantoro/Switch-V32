@@ -47,11 +47,12 @@ void cthread_run(Cthread *thread);
 cthread_state cthread_get_state(Cthread *thread);
 
 // HSM
-void cthread_signal_stop(Cthread *thread, bool synch);
+// always asynch
+void cthread_signal_stop(Cthread *thread);
 
-void cthread_signal_start(Cthread *thread, bool synch);
+void cthread_signal_start(Cthread *thread);
 
-void cthread_signal_suspend(Cthread *thread, bool synch);
+void cthread_signal_suspend(Cthread *thread);
 
 // DEBUG
 void cthread_signal_halt(Cthread *thread, bool synch);
@@ -62,5 +63,7 @@ void cthread_signal_step(Cthread *thread);
 void cthread_signal_continue(Cthread *thread);
 
 cthread_state cthread_get_hsm_state(Cthread *thread);
+
+bool cthread_is_you(Cthread *thread);
 
 #endif

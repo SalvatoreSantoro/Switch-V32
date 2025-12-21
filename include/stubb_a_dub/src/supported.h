@@ -15,7 +15,7 @@
 	X(z, 'z')                                                                                                          \
     X(T, 'T')                                                                                                          \
     X(H, 'H')                                                                                                          \
-    X(unsupported, '0') // assmuning '0' isn't a valid command
+    X(unsupported, '0') // assuming '0' isn't a valid command
 // SAD_EXTEND END
 
 typedef enum {

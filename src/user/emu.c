@@ -294,10 +294,6 @@ void emu_system_call(VCore *core) {
 
     case EXIT:
         LOG_DE("EXIT", core->regs[A0]);
-        tmp_addr = MAP_ADDR(core->elf_errno);
-        if (tmp_addr != 0)
-            fprintf(stderr, "Last application ERRNO: %d %s\n", *((const int *) tmp_addr),
-                    strerror(*(const int *) tmp_addr));
         exit((int) core->regs[A0]);
         break;
 

@@ -9,6 +9,9 @@
 void cthread_signal_step_wrapper(Cthread *thread, bool synch);
 void cthread_signal_continue_wrapper(Cthread *thread, bool synch);
 void cthread_signal_halt_wrapper(Cthread *thread, bool synch);
+void cthread_signal_start_wrapper(Cthread *thread, bool synch);
+void cthread_signal_stop_wrapper(Cthread *thread, bool synch);
+void cthread_signal_suspend_wrapper(Cthread *thread, bool synch);
 
 void vcore_reset(VCore *core) {
     memset(core, 0, sizeof(VCore));
@@ -33,20 +36,29 @@ void cthread_signal_continue_wrapper(Cthread *thread, bool synch) {
     cthread_signal_continue(thread);
 }
 
+void cthread_signal_start_wrapper(Cthread *thread, bool synch) {
+    cthread_signal_start(thread);
+}
+
+void cthread_signal_stop_wrapper(Cthread *thread, bool synch) {
+    cthread_signal_stop(thread);
+}
+
+void cthread_signal_suspend_wrapper(Cthread *thread, bool synch) {
+    cthread_signal_suspend(thread);
+}
+
 #define NO_STATE        ((cthread_state) - 1)
 #define MAX_NEXT_STATES 4
 
 typedef void (*signal_fun)(Cthread *, bool);
 
 typedef enum {
-    STOP_TRUE = 0,
     STOP_FALSE,
+	START_FALSE,
+	SUSPEND_FALSE,
     HALT_TRUE,
     HALT_FALSE,
-    START_TRUE,
-    START_FALSE,
-    SUSPEND_TRUE,
-    SUSPEND_FALSE,
     STEP_TRUE,
     CONTINUE_TRUE,
     IDS_NUM
@@ -59,14 +71,11 @@ typedef struct {
 
 // clang-format off
 Test_Fun functions[]={
-	[STOP_TRUE] = {.fun = cthread_signal_stop, .arg1 = true},
-	[STOP_FALSE] = {.fun = cthread_signal_stop, .arg1 = false},
+	[STOP_FALSE] = {.fun = cthread_signal_stop_wrapper, .arg1 = false},
 	[HALT_TRUE] = {.fun = cthread_signal_halt_wrapper, .arg1 = true},
 	[HALT_FALSE] = {.fun = cthread_signal_halt_wrapper, .arg1 = false},
-	[START_TRUE] = {.fun = cthread_signal_start, .arg1 = true},
-	[START_FALSE] = {.fun = cthread_signal_start, .arg1 = false},
-	[SUSPEND_TRUE] = {.fun = cthread_signal_suspend, .arg1 = true},
-	[SUSPEND_FALSE] = {.fun = cthread_signal_suspend, .arg1 = false},
+	[START_FALSE] = {.fun = cthread_signal_start_wrapper, .arg1 = false},
+	[SUSPEND_FALSE] = {.fun = cthread_signal_suspend_wrapper, .arg1 = false},
 	[STEP_TRUE] = {.fun = cthread_signal_step_wrapper, .arg1 = true},
 	[CONTINUE_TRUE] = {.fun = cthread_signal_continue_wrapper, .arg1 = true}
 };
@@ -83,72 +92,62 @@ static const Transition fsm[][IDS_NUM] = {
         /* all other signals lead to remaining in STATE_STOPPED */
 		[HALT_TRUE]  = {{ STATE_HALTED, NO_STATE }, 1},
 		[HALT_FALSE] = {{ STATE_HALTED, STATE_HALT_PENDING, NO_STATE }, 2},
-        [STOP_TRUE]  = {{ STATE_STOPPED, NO_STATE }, 3},
-        [STOP_FALSE] = {{ STATE_STOPPED, NO_STATE }, 4},
-        [START_TRUE] = {{ STATE_STARTED, NO_STATE }, 5},
-        [START_FALSE]= {{ STATE_STARTED, STATE_START_PENDING, NO_STATE }, 6},
-        [SUSPEND_TRUE] = {{ STATE_STOPPED, NO_STATE }, 7},
-        [SUSPEND_FALSE]= {{ STATE_STOPPED, NO_STATE }, 8},
-        [STEP_TRUE] = {{ STATE_STOPPED, NO_STATE }, 9},
+        [STOP_FALSE] = {{ STATE_STOPPED, NO_STATE }, 3},
+        [START_FALSE]= {{ STATE_STARTED, STATE_START_PENDING, NO_STATE }, 4},
+        [SUSPEND_FALSE]= {{ STATE_STOPPED, NO_STATE }, 5},
+        [STEP_TRUE] = {{ STATE_STOPPED, NO_STATE }, 6},
     },
 
     /* STATE_HALTED */
     [STATE_HALTED] = {
-		[CONTINUE_TRUE]   = {{STATE_CONTINUE_PENDING, NO_STATE }, 10},
+		[CONTINUE_TRUE]   = {{STATE_CONTINUE_PENDING, NO_STATE }, 7},
 		/* remain in HALTED for other signals */
-        [START_TRUE]  = {{ STATE_HALTED, NO_STATE }, 11},
-        [START_FALSE] = {{ STATE_HALTED, NO_STATE }, 12},
-        [HALT_TRUE]   = {{ STATE_HALTED, NO_STATE }, 13},
-        [HALT_FALSE]  = {{ STATE_HALTED, NO_STATE }, 14},
-        [SUSPEND_TRUE]= {{ STATE_HALTED, NO_STATE }, 15},
-        [SUSPEND_FALSE]={{ STATE_HALTED, NO_STATE }, 16},
-        [STEP_TRUE]   = {{ STATE_HALTED, NO_STATE }, 17},
-		[STOP_TRUE]   = {{ STATE_HALTED, NO_STATE }, 18},
-		[STOP_FALSE]  = {{ STATE_HALTED, NO_STATE }, 19},
+        [START_FALSE] = {{ STATE_HALTED, NO_STATE }, 8},
+        [HALT_TRUE]   = {{ STATE_HALTED, NO_STATE }, 9},
+        [HALT_FALSE]  = {{ STATE_HALTED, NO_STATE }, 10},
+        [SUSPEND_FALSE]={{ STATE_HALTED, NO_STATE }, 11},
+        [STEP_TRUE]   = {{ STATE_HALTED, NO_STATE }, 12},
+		[STOP_FALSE]  = {{ STATE_HALTED, NO_STATE }, 13},
     },
 
     /* STATE_STARTED */
     [STATE_STARTED] = {
-        [HALT_TRUE]    = {{ STATE_HALTED, NO_STATE }, 20},
-        [HALT_FALSE]   = {{ STATE_HALT_PENDING, STATE_HALTED, NO_STATE }, 21},
-        [SUSPEND_TRUE] = {{ STATE_SUSPENDED, NO_STATE }, 22},
-        [SUSPEND_FALSE]= {{ STATE_SUSPENDED, STATE_SUSPEND_PENDING, NO_STATE }, 23},
-		[STOP_TRUE]    = {{ STATE_STOPPED, NO_STATE }, 24},
-		[STOP_FALSE]   = {{ STATE_STOPPED, STATE_STOP_PENDING, NO_STATE }, 25},
+        [HALT_TRUE]    = {{ STATE_HALTED, NO_STATE }, 14},
+        [HALT_FALSE]   = {{ STATE_HALT_PENDING, STATE_HALTED, NO_STATE }, 15},
+        [SUSPEND_FALSE]= {{ STATE_SUSPENDED, STATE_SUSPEND_PENDING, NO_STATE }, 16},
+		[STOP_FALSE]   = {{ STATE_STOPPED, STATE_STOP_PENDING, NO_STATE }, 17},
         /* remain in STARTED for other signals */
-        [START_TRUE]   = {{ STATE_STARTED, NO_STATE }, 26},
-        [START_FALSE]  = {{ STATE_STARTED, NO_STATE }, 27},
-        [STEP_TRUE]    = {{ STATE_STARTED, NO_STATE }, 28},
-        [CONTINUE_TRUE]    = {{ STATE_STARTED, NO_STATE }, 29}
+        [START_FALSE]  = {{ STATE_STARTED, NO_STATE }, 18},
+        [STEP_TRUE]    = {{ STATE_STARTED, NO_STATE }, 19},
+        [CONTINUE_TRUE]    = {{ STATE_STARTED, NO_STATE }, 20}
     },
 
     /* STATE_SUSPENDED */
     [STATE_SUSPENDED] = {
-        [START_TRUE]   = {{ STATE_STARTED, NO_STATE }, 30},
-        [START_FALSE]  = {{ STATE_STARTED, STATE_RESUME_PENDING, NO_STATE }, 31},
-		[HALT_TRUE]    = {{ STATE_HALTED, NO_STATE }, 34},
-		[HALT_FALSE]   = {{ STATE_HALTED, STATE_HALT_PENDING, NO_STATE }, 35},
+        [START_FALSE]  = {{ STATE_STARTED, STATE_RESUME_PENDING, NO_STATE }, 21},
+		[HALT_TRUE]    = {{ STATE_HALTED, NO_STATE }, 22},
+		[HALT_FALSE]   = {{ STATE_HALTED, STATE_HALT_PENDING, NO_STATE }, 23},
         /* remain in SUSPENDED for other signals */
-        [STOP_TRUE]    = {{ STATE_SUSPENDED, NO_STATE }, 32},
-        [STOP_FALSE]   = {{ STATE_SUSPENDED, NO_STATE }, 33},
-        [SUSPEND_TRUE] = {{ STATE_SUSPENDED, NO_STATE }, 36},
-        [SUSPEND_FALSE]= {{ STATE_SUSPENDED, NO_STATE }, 37},
-        [STEP_TRUE]    = {{ STATE_SUSPENDED, NO_STATE }, 38},
-        [CONTINUE_TRUE]    = {{ STATE_SUSPENDED, NO_STATE }, 39}
+        [STOP_FALSE]   = {{ STATE_SUSPENDED, NO_STATE }, 24},
+        [SUSPEND_FALSE]= {{ STATE_SUSPENDED, NO_STATE }, 25},
+        [STEP_TRUE]    = {{ STATE_SUSPENDED, NO_STATE }, 26},
+        [CONTINUE_TRUE]    = {{ STATE_SUSPENDED, NO_STATE }, 27}
     },
 
     };
+
+#define NUM_COMBINATIONS 28
 #define THREADS_NUM 20
 #define INIT_STATES 5
 
 Cthread cthreads[THREADS_NUM];
-int combinations[THREADS_NUM][40];
+int combinations[THREADS_NUM][NUM_COMBINATIONS];
 int evaluated[THREADS_NUM] = {0};
 
 // clang-format on
 bool is_transition_legal(cthread_state from, Fun_Id id, cthread_state to, int cthread_id) {
     const Transition *t = &fsm[from][id];
-    // used to check all STATES + SIGNALS combinations (40)
+    // used to check all STATES + SIGNALS combinations (NUM_COMBINATIONS)
 
     if (combinations[cthread_id][t->comb] == 0) {
         combinations[cthread_id][t->comb] = 1;
@@ -176,7 +175,7 @@ int main(int argc, char *argv[]) {
     }
 
     for (int j = 0; j < THREADS_NUM; j++) {
-        while (evaluated[j] != 40) {
+        while (evaluated[j] != NUM_COMBINATIONS) {
             id = rand() % IDS_NUM;
             //  avoid PENDING states
             do {

@@ -31,8 +31,8 @@ void mem_init(void) {
     /**/
     /* loop_b: */
     /*     j   _start */
-    static const uint32_t bootstrap_code[3] = {0x0040006f, 0xffdff06f};
-    memcpy(vmem, bootstrap_code, sizeof(bootstrap_code));
+    //static const uint32_t bootstrap_code[3] = {0x0040006f, 0xffdff06f};
+    //memcpy(vmem, bootstrap_code, sizeof(bootstrap_code));
 #endif
 }
 

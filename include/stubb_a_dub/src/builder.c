@@ -57,7 +57,7 @@ SUPPORTED_CMDS
 
 #define LONG_TO_UINT(val)                                                                                              \
     do {                                                                                                               \
-        if (val > UINT_MAX || val < 0) {                                                                              \
+        if (val > UINT_MAX || val < 0) {                                                                               \
             sad_buff_append_str(server.output_buffer, "E");                                                            \
             return;                                                                                                    \
         }                                                                                                              \
@@ -100,7 +100,6 @@ static bool wait_for_halt(void) {
         // just check the core_idx because as a convention a breakpoint stops all the threads
         // nonblocking
         breakp_stop = server.sys_ops.is_halted();
-
 
         if (!breakp_stop)
             sched_yield();
@@ -244,7 +243,7 @@ static void build_q(void) {
         char core_id_str[16];
         unsigned int i;
         sad_buff_append_str(server.output_buffer, "m");
-        for (i = 0; i < server.sys_conf.smp - 1; i++) {
+        for (i = 1; i < server.sys_conf.smp; i++) {
             sprintf(core_id_str, "%u,", i);
             sad_buff_append_str(server.output_buffer, core_id_str);
         }
@@ -262,7 +261,7 @@ static void build_q(void) {
 
     if (strcmp(server.pkt_data.command, "qC") == 0) {
         char response[10];
-        sprintf(response, "QC%u", server.builder.selected_core);
+        sprintf(response, "QC%u", server.builder.selected_core + 1);
         sad_buff_append_str(server.output_buffer, response);
     }
     if (strcmp(server.pkt_data.command, "qSymbol") == 0) {
@@ -277,7 +276,7 @@ static void build_q(void) {
 //	that a thread is executing a step or a continue, other threads can execute concurrently
 // 2. set scheduler-locking on we're saying that when in the meantime
 //	that a thread is executing a step or a continue it's the only one to effectively run
-// 3. set scheduler-locking step it's just set scheduler-locking on but only in the step case
+// 3. set scheduler-locking step is just set scheduler-locking on but only in the step case
 // in the continue case it's more like set-scheduler-off
 //
 // in this implementation we're assuming that everything is like "set scheduler-locking on"
@@ -338,6 +337,11 @@ static void build_v(void) {
                 }
                 server.sys_ops.cores_continue();
             } else {
+                if (thread_id == 0)
+                    thread_id = (int) server.builder.selected_core;
+                else
+                    thread_id -= 1;
+
                 ret = sad_step_the_breakpoint((unsigned int) thread_id);
                 if (ret == BRK_ERROR) {
                     sad_buff_append_str(server.output_buffer, "E");
@@ -353,6 +357,11 @@ static void build_v(void) {
                 sad_buff_append_str(server.output_buffer, "E");
                 return;
             } else {
+                if (thread_id == 0)
+                    thread_id = (int) server.builder.selected_core;
+                else
+                    thread_id -= 1;
+
                 // check if the step breakpoint already executed the step
                 // or you should execute it yourself
                 ret = sad_step_the_breakpoint((unsigned int) thread_id);
@@ -399,9 +408,9 @@ static void build_H(void) {
 
         LONG_CHECK(thread_id);
 
-        if (thread_id != -1) {
+        if ((thread_id != -1) && (thread_id != 0)) {
             LONG_TO_UINT(thread_id);
-            server.builder.selected_core = (unsigned int) thread_id;
+            server.builder.selected_core = (unsigned int) thread_id - 1;
         }
 
         sad_buff_append_str(server.output_buffer, "OK");

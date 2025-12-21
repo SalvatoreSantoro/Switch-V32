@@ -586,3 +586,10 @@ void vcore_reset(VCore *core) {
     memset(core, 0, sizeof(VCore));
     core->mode = SUPERVISOR_MODE;
 }
+
+void vcore_init(VCore* core, uint32_t start_addr, uint32_t id, uint32_t opaque){
+	vcore_reset(core);
+	core->pc = start_addr;
+	core->regs[A0] = id;
+	core->regs[A1] = opaque;
+}

@@ -57,7 +57,7 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             // running on a SUPERVISOR, we also don't want to increment because the dispatch exception
             // will change the PC so that the next instruction is the first of the exception handler
             if (ctx.debug) {
-                threads_mgr_halt_all();
+                threads_mgr_halt_cores();
             } else {
                 dispatch_trap(core, BRKPT, core->pc);
             }
