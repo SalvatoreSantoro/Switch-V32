@@ -37,7 +37,19 @@
     X(T3, 28)  /* x28 */                                                                                               \
     X(T4, 29)  /* x29 */                                                                                               \
     X(T5, 30)  /* x30 */                                                                                               \
-    X(T6, 31)  /* x31 */
+    X(T6, 31)  /* x31 */                                                                                               \
+    X(PC, 32)                                                                                                          \
+    X(SATP, 33)                                                                                                        \
+    X(SSTATUS, 34)                                                                                                     \
+    X(SCAUSE, 35)                                                                                                      \
+    X(STVAL, 36)                                                                                                       \
+    X(STVEC, 37)                                                                                                       \
+    X(SEPC, 38)                                                                                                        \
+    X(SSCRATCH, 39)                                                                                                    \
+    X(SIE, 40)                                                                                                         \
+    X(SIP, 41)                                                                                                         \
+    X(SCOUNTEREN, 42)                                                                                                  \
+    X(SENCFG, 43)
 
 enum {
 #define X(name, value) name = value,
@@ -70,26 +82,11 @@ typedef enum {
 
 typedef struct {
     uint32_t regs[REG_NUMS];
-    uint32_t pc;
     uint32_t reserved; // atomics
     // Index
-    unsigned int core_idx;
-	bool ll_sc_flag;
+    bool ll_sc_flag;
+    bool atomic_exit_loop;
     execution_mode mode;
-	bool atomic_exit_loop;
-    // CSRs
-    uint32_t satp;
-    uint32_t sstatus;
-    uint32_t scause;
-    uint32_t stval;
-    uint32_t stvec;
-    uint32_t sepc;
-    uint32_t sscratch;
-    uint32_t sie;
-    uint32_t sip;
-    // TODO: implement these
-    uint32_t scounteren;
-    uint32_t senvcfg;
     // ELF
 #ifdef USER
     uint32_t elf_brk;
@@ -105,7 +102,7 @@ void vcore_step(VCore *core);
 
 void vcore_reset(VCore *core);
 
-void vcore_init(VCore* core, uint32_t start_addr, uint32_t id, uint32_t opaque);
+void vcore_init(VCore *core, uint32_t start_addr, uint32_t id, uint32_t opaque);
 
 // different implementations for USER and SUPERVISOR
 void vcore_sys_type(VCore *core, uint32_t ins);

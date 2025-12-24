@@ -2,10 +2,11 @@
 #define SAD_GDB_INTERNAL_H
 
 #include "../stubb_a_dub.h"
-#include "defs.h"
 #include "supported.h"
 #include <netinet/in.h>
+#include <stddef.h>
 #include <stdint.h>
+#include <stdio.h>
 
 // TYPES
 
@@ -15,24 +16,15 @@ typedef struct PKT_Data PKT_Data;
 typedef struct PKT_Buffer PKT_Buffer;
 typedef struct Breakpoint Breakpoint;
 
-// PKT_DATA
-
+// TARGET
+// target (arch) specific parameters
 typedef struct {
-    char *param1;
-    char *param2; // Empty string for key-only/value params
-} Data_Param;
-
-struct PKT_Data {
-    size_t params_sz;
-    size_t params_filled;
-    char *command;
-    Data_Param *params;
-};
-
-typedef enum {
-    DATA_OK,
-    DATA_OOM,
-} data_ret;
+    uint64_t breakpoint_val;
+    uint32_t reg_bytes;
+    uint32_t reg_str_bytes;
+    uint32_t regs_bytes;
+    uint32_t regs_str_bytes;
+} Target_Conf;
 
 // PARSER
 typedef enum {
@@ -46,15 +38,12 @@ typedef enum {
     PARSE_FINISHED
 } pars_state;
 
-typedef enum {
-    DATA_RESET,
-    DATA_WRITE_PARAM1,
-} pars_data_state;
+typedef void (*Parse_Data_Fun)(char *);
 
 struct Parser {
     pars_state state;
-    pars_data_state data_state;
     size_t parse_idx;
+    Parse_Data_Fun supported_parsers[COMMANDS_COUNT];
 };
 
 // BREAKPOINT
@@ -84,10 +73,17 @@ typedef void (*Builder_Fun)(void);
 
 struct Builder {
     Builder_Fun supported_builders[COMMANDS_COUNT];
-    size_t cached_regs_bytes;
-    size_t cached_regs_str_bytes;
+
     unsigned int selected_core;
 };
+
+// UTIL
+
+typedef enum {
+    UTIL_OK,
+    UTIL_UNEXPECTED,
+    UTIL_X
+} util_ret;
 
 // BUFFER
 struct PKT_Buffer {
@@ -113,27 +109,15 @@ typedef enum {
 typedef struct {
     int server_fd;
     int sad_socket;
-    bool ack_enabled;
-    PKT_Buffer *input_buffer;
-    PKT_Buffer *output_buffer;
-    PKT_Data pkt_data;
-    Parser parser;
-    Builder builder;
-    Sys_Ops sys_ops;
-    Sys_Conf sys_conf;
     // sad client address
     struct sockaddr_in address;
     socklen_t addrlen;
-    Breakpoint breakpoints[MAX_BREAKPOINTS];
 } SAD_Stub;
 
-// UTILS
+// EXTRACT
 
-typedef enum {
-    UTIL_SIZE_ERROR,
-    UTIL_NO_HEX,
-    UTIL_OK
-} util_ret;
+// end of buff
+#define EOB (-1)
 
 // Functions
 
@@ -153,22 +137,9 @@ void sad_builder_build_resp(void);
 
 void sad_parser_reset(void);
 
+void sad_parser_reset(void);
+
 void sad_parser_pkt(void);
-
-void sad_parser_data(void);
-
-// PKT DATA
-data_ret sad_pkt_data_init(void);
-
-void sad_pkt_data_deinit(void);
-
-void sad_pkt_data_reset(void);
-
-data_ret sad_pkt_data_append_par(char *param1, char *param2);
-
-void sad_pkt_data_print(void);
-
-Data_Param *sad_pkt_data_find(PKT_Data *pkt_data, const char *param1);
 
 // BUFFER
 
@@ -198,12 +169,42 @@ void sad_buff_reset(PKT_Buffer *buff);
 
 // BREAKPOINT
 
-brk_ret sad_insert_breakpoint(uint32_t addr);
+brk_ret sad_insert_breakpoint(uint64_t addr);
 
-brk_ret sad_remove_breakpoint(uint32_t addr);
+brk_ret sad_remove_breakpoint(uint64_t addr);
 
-Breakpoint *sad_find_breakpoint(uint32_t addr);
+Breakpoint *sad_find_breakpoint(uint64_t addr);
 
 brk_ret sad_step_the_breakpoint(unsigned int core_idx);
+
+void sad_breakpoint_reset(void);
+
+// SOCKET
+
+stub_ret sad_socket_init(uint16_t port);
+
+int sad_socket_blocking(bool blocking);
+
+// EXTRACT
+
+stub_ret sad_extract_uint32(uint32_t *val, size_t *cursor, int term);
+
+stub_ret sad_extract_int(int *val, size_t *cursor, int term);
+
+stub_ret sad_extract_uint(unsigned int *val, size_t *cursor, int term);
+
+stub_ret sad_extract_size(size_t *val, size_t *cursor, int term);
+
+char *sad_extract_str(size_t *cursor, int term);
+
+stub_ret sad_extract_uint64(uint64_t *val, size_t *cursor, int term);
+
+// TARGET
+
+stub_ret sad_target_init(void);
+
+void sad_target_read_regs(byte *regs, uint32_t core_id);
+
+void sad_target_write_regs(const byte *regs, uint32_t core_id);
 
 #endif

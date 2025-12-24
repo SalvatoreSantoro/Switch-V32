@@ -7,18 +7,27 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
-SAD_Stub server;
+SAD_Stub server_g;
+PKT_Buffer *input_buffer_g;
+PKT_Buffer *output_buffer_g;
+Parser parser_g;
+Builder builder_g;
+bool ack_enabled_g = true;
+Sys_Ops sys_ops_g;
+Sys_Conf sys_conf_g;
+Breakpoint breakpoints_g[MAX_BREAKPOINTS];
+Target_Conf target_conf_g;
 
 static void sad_stub_reset_input_state(void) {
     sad_parser_reset();
-    sad_pkt_data_reset();
-    sad_buff_reset(server.input_buffer);
+    sad_buff_reset(input_buffer_g);
 }
 
 static void sad_stub_reset_output_state(void) {
-    sad_buff_reset(server.output_buffer);
+    sad_buff_reset(output_buffer_g);
 }
 
 static void sad_stub_reset(void) {
@@ -28,8 +37,6 @@ static void sad_stub_reset(void) {
 
 // STUB
 stub_ret sad_stub_init(Stub_Conf *conf) {
-    int opt = 1;
-    struct sockaddr_in address;
     stub_ret ret = STUB_OOM;
 
     // set to default
@@ -37,8 +44,8 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     size_t socket_io_size = conf->socket_io_size > 0 ? conf->socket_io_size : DEFAULT_SOCKET_IO_SIZE;
     uint16_t port = conf->port > 0 ? conf->port : DEFAULT_PORT;
 
-    server.sys_conf = conf->sys_conf;
-    server.sys_ops = conf->sys_ops;
+    sys_conf_g = conf->sys_conf;
+    sys_ops_g = conf->sys_ops;
 
     if (conf->sys_conf.arch != RV32)
         return STUB_ARCH;
@@ -46,17 +53,18 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     if (conf->sys_conf.smp > MAX_SMP)
         return STUB_SMP;
 
-    server.input_buffer = sad_buff_create(buff_size, socket_io_size);
-    if (server.input_buffer == NULL)
+    // target init
+    ret = sad_target_init();
+    if (ret != STUB_OK)
+        return STUB_UNEXPECTED;
+
+    input_buffer_g = sad_buff_create(buff_size, socket_io_size);
+    if (input_buffer_g == NULL)
         goto input_err;
 
-    server.output_buffer = sad_buff_create(buff_size, socket_io_size);
-    if (server.output_buffer == NULL)
+    output_buffer_g = sad_buff_create(buff_size, socket_io_size);
+    if (output_buffer_g == NULL)
         goto output_err;
-
-    // create pkt data
-    if (sad_pkt_data_init() == DATA_OOM)
-        return STUB_OOM;
 
     // builder init
     sad_builder_init();
@@ -64,42 +72,21 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     // reset state
     sad_stub_reset();
 
-    if ((server.server_fd = socket(AF_INET, SOCK_STREAM, 0)) == -1)
+    // socket init
+    ret = sad_socket_init(port);
+    if (ret != STUB_OK)
         goto socket_err;
 
-    address.sin_family = AF_INET;
-    address.sin_addr.s_addr = INADDR_ANY;
-    address.sin_port = htons(port);
-
-    if (setsockopt(server.server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) == -1)
-        goto close_socket;
-
-    if (bind(server.server_fd, (struct sockaddr *) &address, sizeof(address)) == -1)
-        goto close_socket;
-
-    // set backlog to 1 (hint on number of outstanding connections
-    // in the socket's listen queue)
-    if (listen(server.server_fd, 1) == -1)
-        goto close_socket;
-
-    server.sad_socket = accept(server.server_fd, (struct sockaddr *) &server.address, &server.addrlen);
-    if (server.sad_socket == -1)
-        goto close_socket;
-
     // Reset breakpoints
-    for (size_t i = 0; i < MAX_BREAKPOINTS; i++)
-        server.breakpoints[i].status = BRK_EMPTY;
+    sad_breakpoint_reset();
 
-    server.ack_enabled = true;
+    ack_enabled_g = true;
     return STUB_OK;
 
-close_socket:
-    close(server.server_fd);
 socket_err:
-    ret = STUB_SOCKET;
-    sad_buff_destroy(server.output_buffer);
+    sad_buff_destroy(output_buffer_g);
 output_err:
-    sad_buff_destroy(server.input_buffer);
+    sad_buff_destroy(input_buffer_g);
 input_err:
     return ret;
 }
@@ -109,13 +96,11 @@ stub_ret sad_stub_handle_cmds(void) {
 
     // check that all cores are halted before running
 
-    for (unsigned idx = 0; idx < server.sys_conf.smp; idx++) {
-        if (!server.sys_ops.is_halted())
-            return STUB_HALTED;
-    }
+    if (!sys_ops_g.is_halted())
+        return STUB_HALTED;
 
     while (1) {
-        b_ret = sad_buff_from_socket(server.input_buffer, server.sad_socket);
+        b_ret = sad_buff_from_socket(input_buffer_g, server_g.sad_socket);
         if (b_ret == BUFF_OOM)
             return STUB_OOM;
         if (b_ret == BUFF_FD_ERR)
@@ -128,46 +113,41 @@ stub_ret sad_stub_handle_cmds(void) {
         // so in case  sad_parser_pkt returns PARSING_INCOMPLETE the stub does nothing
         sad_parser_pkt();
 #ifdef SAD_DEBUG
-        sad_buff_print_content(server.input_buffer, "READ: ");
+        sad_buff_print_content(input_buffer_g, "READ: ");
 #endif
 
-        if (server.parser.state == PARSE_ERROR) {
+        if (parser_g.state == PARSE_ERROR) {
             // reset output in case last time it was "PARSING_GOT_NACK"
             sad_stub_reset_output_state();
 
-            sad_buff_append_str(server.output_buffer, "-");
+            sad_buff_append_str(output_buffer_g, "-");
 
-            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
+            if (sad_buff_to_socket(output_buffer_g, server_g.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
             sad_stub_reset_input_state();
         }
 
-        if (server.parser.state == PARSE_NACK) {
+        if (parser_g.state == PARSE_NACK) {
             // resend
-            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
+            if (sad_buff_to_socket(output_buffer_g, server_g.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
             sad_stub_reset_input_state();
         }
 
-        if (server.parser.state == PARSE_FINISHED) {
+        if (parser_g.state == PARSE_FINISHED) {
             // reset output in case last time it was "PARSING_GOT_NACK"
             sad_stub_reset_output_state();
-
-            // parse data to initialize server PKT_Data
-            sad_parser_data();
-
-            // sad_pkt_data_print();
 
             sad_builder_build_resp();
 #ifdef SAD_DEBUG
-            sad_buff_print_content(server.output_buffer, "WRITE: ");
+            sad_buff_print_content(output_buffer_g, "WRITE: ");
 #endif
 
-            if (sad_buff_to_socket(server.output_buffer, server.sad_socket) == BUFF_FD_ERR)
+            if (sad_buff_to_socket(output_buffer_g, server_g.sad_socket) == BUFF_FD_ERR)
                 return STUB_SOCKET;
 
             // reset everything for next iteration
@@ -177,10 +157,9 @@ stub_ret sad_stub_handle_cmds(void) {
 }
 
 void sad_stub_deinit(void) {
-    server.ack_enabled = true;
-    close(server.server_fd);
-    close(server.sad_socket);
-    sad_buff_destroy(server.input_buffer);
-    sad_buff_destroy(server.output_buffer);
-    sad_pkt_data_deinit();
+    ack_enabled_g = true;
+    close(server_g.server_fd);
+    close(server_g.sad_socket);
+    sad_buff_destroy(input_buffer_g);
+    sad_buff_destroy(output_buffer_g);
 }

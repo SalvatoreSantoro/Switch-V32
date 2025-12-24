@@ -1,11 +1,13 @@
 #include "sad_gdb_internal.h"
+#include "stubb_a_dub.h"
+#include <assert.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
 
 util_ret sad_hex_chars_to_bytes(byte *dest, const char *src, size_t dest_size, size_t src_size) {
-    if (dest_size > ((src_size + 1) / 2)) {
-        return UTIL_SIZE_ERROR;
+    if (dest_size < ((src_size + 1) / 2)) {
+        return UTIL_UNEXPECTED;
     }
 
     // 0 first hex symbol
@@ -26,7 +28,7 @@ util_ret sad_hex_chars_to_bytes(byte *dest, const char *src, size_t dest_size, s
         else if (c >= 'a' && c <= 'f')
             c = c - 'a' + 10;
         else
-            return UTIL_NO_HEX;
+            return UTIL_X;
 
         if (state) {
             c <<= 4;
@@ -55,13 +57,14 @@ util_ret sad_hex_str_to_bytes(byte *dest, const char *src, size_t dest_size) {
 
 util_ret sad_bytes_to_hex_chars(char *dest, const byte *src, size_t dest_size, size_t src_size) {
     const char hex[] = "0123456789abcdef";
+    byte v;
 
     if (dest_size < (2 * src_size))
-        return UTIL_SIZE_ERROR;
+        return UTIL_UNEXPECTED;
 
     // 2 chars for every byte
     for (size_t i = 0; i < src_size; i++) {
-        unsigned v = src[i];
+        v = src[i];
         dest[2 * i] = hex[v >> 4];
         dest[2 * i + 1] = hex[v & 0xF];
     }

@@ -188,7 +188,7 @@ void ld_bin(VCore *core) {
     // load binary
     mem_wb_ptr_s(0, data, (size_t) fst.st_size);
 
-    core->pc = 0;
+    core->regs[PC] = 0;
 
     load_unmap_and_close_file(data, &fd, &fst);
 }
@@ -221,7 +221,7 @@ void ld_elf(VCore *core) {
     ld_elf_seg(&elf);
 
     // load entry point + STACK_BASE
-    core->pc = elf.header->e_entry;
+    core->regs[PC] = elf.header->e_entry;
     core->regs[SP] = ctx.stack_base;
 
     // load GP

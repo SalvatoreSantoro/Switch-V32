@@ -9,7 +9,7 @@
 void dispatch_trap(VCore *core, trap_code code, uint32_t faulting_val) {
     switch (code) {
     case ILL_INS:
-        fprintf(stderr, "BADOPCODE at %x\n", core->pc);
+        fprintf(stderr, "BADOPCODE at %x\n", core->regs[PC]);
         exit(EXIT_FAILURE);
         break;
     case BRKPT:

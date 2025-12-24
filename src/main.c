@@ -1,5 +1,7 @@
 #include "args.h"
 #include "cthread.h"
+#include "macros.h"
+#include <stdio.h>
 #ifdef USER
     #include "emu.h"
 #endif
@@ -55,5 +57,7 @@ int main(int argc, char *argv[]) {
 		// if running an app that uses SDL, the whole virtual machine process is killed by sdl_shutdown()
         cthread_signal_continue(&threads_mgr.cthreads[0]);
     }
+	while (1) {
+	}
 
 }

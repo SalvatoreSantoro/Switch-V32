@@ -6,99 +6,26 @@
 #include "stubb_a_dub.h"
 #include "threads_mgr2.h"
 #include <assert.h>
-#include <stdio.h>
-#include <string.h>
+#include <stdint.h>
 
-// need to do more robust checks on memory and core_id
-// in order to really return errors and not just crash with assert
+// ASSUMING THE STUB IS SANITIZING INPUTS BASED ON SYS CONF PASSED
 
-static sys_err read_regs(byte *output, size_t output_sz, unsigned int core_id) {
-    if (core_id >= ctx.cores)
-        return CORE_OUT_OF_BOUNDS;
-
-    if (!threads_mgr_are_halted())
-        return CORE_RUNNING_ERR;
-
+static uint64_t read_reg(uint32_t core_id, uint32_t reg_id) {
     const VCore *core = &threads_mgr.cthreads[core_id].core;
-
-    size_t regs_size = output_sz - 4;
-    memcpy(output, &core->regs, regs_size);
-    memcpy(output + regs_size, &core->pc, 4);
-
-    return SYS_OK;
+    return core->regs[reg_id];
 }
 
-static sys_err write_regs(const byte *input, size_t input_sz, unsigned int core_id) {
-    if (core_id >= ctx.cores)
-        return CORE_OUT_OF_BOUNDS;
-
-    if (!threads_mgr_are_halted())
-        return CORE_RUNNING_ERR;
-
-    size_t regs_size = input_sz - 4; // don't count PC
-
+static void write_reg(uint64_t input, uint32_t core_id, uint32_t reg_id) {
     VCore *core = &threads_mgr.cthreads[core_id].core;
-    // copy all regs
-    memcpy(&core->regs, input, regs_size);
-    // copy PC
-    memcpy(&core->pc, input + regs_size, 4);
-    return SYS_OK;
+    core->regs[reg_id] = (uint32_t) input;
 }
 
-static sys_err read_mem(byte *output, size_t output_sz, uint32_t addr) {
-    if (!VALID_ADDR(addr, output_sz))
-        return MEMORY_OUT_OF_BOUNDS;
-
-    for (unsigned int core_id = 0; core_id < ctx.cores; core_id++) {
-        if (!threads_mgr_are_halted()) {
-            return CORE_RUNNING_ERR;
-        }
-    }
-
-    mem_rb_ptr_s(addr, output, output_sz);
-    return SYS_OK;
+static void read_mem(byte *output, uint64_t output_sz, uint64_t addr) {
+    mem_rb_ptr_s((uint32_t) addr, output, output_sz);
 }
 
-static sys_err write_mem(const byte *input, size_t input_sz, uint32_t addr) {
-    if (!VALID_ADDR(addr, input_sz))
-        return MEMORY_OUT_OF_BOUNDS;
-
-    for (unsigned int core_id = 0; core_id < ctx.cores; core_id++) {
-        if (!threads_mgr_are_halted()) {
-            return CORE_RUNNING_ERR;
-        }
-    }
-
-    mem_wb_ptr_s(addr, input, input_sz);
-    return SYS_OK;
-}
-
-static sys_err core_continue(unsigned int core_id) {
-    if (core_id >= ctx.cores)
-        return CORE_OUT_OF_BOUNDS;
-    threads_mgr_continue_core(core_id);
-
-    return SYS_OK;
-}
-
-static void cores_continue(void) {
-    threads_mgr_continue_cores();
-}
-
-static void cores_halt(void) {
-    threads_mgr_halt_cores();
-}
-
-static sys_err core_step(unsigned int core_id) {
-    if (core_id >= ctx.cores)
-        return CORE_OUT_OF_BOUNDS;
-
-    if (threads_mgr_are_halted()) {
-        threads_mgr_step_core(core_id);
-        return SYS_OK;
-    }
-
-    return CORE_RUNNING_ERR;
+static void write_mem(const byte *input, uint64_t input_sz, uint64_t addr) {
+    mem_wb_ptr_s((uint32_t) addr, input, input_sz);
 }
 
 void run_debug(void) {
@@ -106,16 +33,18 @@ void run_debug(void) {
 
     Stub_Conf conf = {
         .sys_conf.arch = RV32,
-        .sys_conf.regs_num = REG_NUMS + 1, // PC isn't counted in regs
-        .sys_conf.smp = ctx.cores,         // core numbers
-        .sys_ops.read_regs = read_regs,
-        .sys_ops.write_regs = write_regs,
+        .sys_conf.regs_num = 33,   // REG_NUMS,
+		.sys_conf.pc_id = PC,
+        .sys_conf.smp = ctx.cores, // core numbers
+        .sys_conf.memory_size = ctx.memory_size,
+        .sys_ops.read_reg = read_reg,
+        .sys_ops.write_reg = write_reg,
         .sys_ops.read_mem = read_mem,
         .sys_ops.write_mem = write_mem,
-        .sys_ops.core_continue = core_continue,
-        .sys_ops.cores_continue = cores_continue,
-        .sys_ops.cores_halt = cores_halt,
-        .sys_ops.core_step = core_step,
+        .sys_ops.core_continue = threads_mgr_continue_core,
+        .sys_ops.cores_continue = threads_mgr_continue_cores,
+        .sys_ops.cores_halt = threads_mgr_halt_cores,
+        .sys_ops.core_step = threads_mgr_step_core,
         .sys_ops.is_halted = threads_mgr_are_halted,
         .port = STUB_PORT,
         .buffers_size = STUB_BUFF_SIZE,

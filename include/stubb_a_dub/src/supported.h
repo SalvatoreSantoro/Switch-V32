@@ -3,6 +3,8 @@
 
 // SAD_EXTEND START "Add new command macro"
 #define SUPPORTED_CMDS                                                                                                 \
+    X(p, 'p')                                                                                                          \
+    X(P, 'P')                                                                                                          \
     X(q, 'q')                                                                                                          \
     X(Q, 'Q')                                                                                                          \
     X(qstmrk, '?')                                                                                                     \
@@ -10,13 +12,15 @@
     X(M, 'M')                                                                                                          \
     X(G, 'G')                                                                                                          \
     X(g, 'g')                                                                                                          \
-    X(v, 'v')                                                                                                          \
-    X(Z, 'Z')                                                                                                          \
-	X(z, 'z')                                                                                                          \
     X(T, 'T')                                                                                                          \
     X(H, 'H')                                                                                                          \
     X(unsupported, '0') // assuming '0' isn't a valid command
 // SAD_EXTEND END
+//
+
+// X(z, 'z')
+// X(v, 'v')
+// X(Z, 'Z')
 
 typedef enum {
 #define X(s, ch) COMMAND_##s,

@@ -352,7 +352,7 @@ void emu_system_call(VCore *core) {
         break;
 
     default:
-        fprintf(stderr, "UNSUPPORTED SYSCALL %u at %x\n", core->regs[A7], core->pc);
+        fprintf(stderr, "UNSUPPORTED SYSCALL %u at %x\n", core->regs[A7], core->regs[PC]);
         core->regs[A0] = 0;
         exit(EXIT_FAILURE);
     }

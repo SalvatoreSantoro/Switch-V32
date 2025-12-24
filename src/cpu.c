@@ -249,7 +249,7 @@ static void vcore_r_type(VCore *core, uint32_t ins) {
     }
 
 r_increase_pc:
-    core->pc += 4;
+    core->regs[PC] += 4;
     return;
 }
 
@@ -312,7 +312,7 @@ static void vcore_ir_type(VCore *core, uint32_t ins) {
     }
 
 ir_increase_pc:
-    core->pc += 4;
+    core->regs[PC] += 4;
     return;
 }
 
@@ -356,32 +356,32 @@ static void vcore_b_type(VCore *core, uint32_t ins) {
         dispatch_trap(core, ILL_INS, ins);
         break;
     }
-    core->pc += inc;
+    core->regs[PC] += inc;
 }
 
 // TODO: should check if we're jumping to misaligned address?
 static inline void vcore_j_type(VCore *core, uint32_t ins) {
     LOG_J();
-    core->regs[RD(ins)] = core->pc + 4;
-    core->pc += J_IMM(ins);
+    core->regs[RD(ins)] = core->regs[PC] + 4;
+    core->regs[PC] += J_IMM(ins);
 }
 
 static inline void vcore_ij_type(VCore *core, uint32_t ins) {
     LOG_IJ();
-    core->regs[RD(ins)] = core->pc + 4;
-    core->pc = core->regs[RS1(ins)] + I_IMM(ins);
+    core->regs[RD(ins)] = core->regs[PC] + 4;
+    core->regs[PC] = core->regs[RS1(ins)] + I_IMM(ins);
 }
 
 static inline void vcore_lui_type(VCore *core, uint32_t ins) {
     core->regs[RD(ins)] = U_IMM(ins);
     LOG_LUI();
-    core->pc += 4;
+    core->regs[PC] += 4;
 }
 
 static inline void vcore_auipc_type(VCore *core, uint32_t ins) {
-    core->regs[RD(ins)] = core->pc + U_IMM(ins);
+    core->regs[RD(ins)] = core->regs[PC] + U_IMM(ins);
     LOG_AUIPC();
-    core->pc += 4;
+    core->regs[PC] += 4;
 }
 
 static void vcore_il_type(VCore *core, uint32_t ins) {
@@ -418,7 +418,7 @@ static void vcore_il_type(VCore *core, uint32_t ins) {
         dispatch_trap(core, ILL_INS, ins);
         break;
     }
-    core->pc += 4;
+    core->regs[PC] += 4;
 }
 
 static void vcore_s_type(VCore *core, uint32_t ins) {
@@ -442,7 +442,7 @@ static void vcore_s_type(VCore *core, uint32_t ins) {
         break;
     }
 
-    core->pc += 4;
+    core->regs[PC] += 4;
 }
 
 // NEED TO ENFORCE MEMORY ALIGNMENT
@@ -508,7 +508,7 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
         dispatch_trap(core, ILL_INS, ins);
         break;
     }
-    core->pc += 4;
+    core->regs[PC] += 4;
 }
 
 void vcore_run(VCore *core) {
@@ -517,7 +517,7 @@ void vcore_run(VCore *core) {
     while (1) {
         // reset ZERO reg at every iteration
         core->regs[ZERO] = 0;
-        ins = mem_rw(core->pc);
+        ins = mem_rw(core->regs[PC]);
 
         if (IS_COMPRESSED(ins)) {
             printf("Compressed unimplemented\n");
@@ -589,7 +589,7 @@ void vcore_reset(VCore *core) {
 
 void vcore_init(VCore* core, uint32_t start_addr, uint32_t id, uint32_t opaque){
 	vcore_reset(core);
-	core->pc = start_addr;
+	core->regs[PC] = start_addr;
 	core->regs[A0] = id;
 	core->regs[A1] = opaque;
 }
