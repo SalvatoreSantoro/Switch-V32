@@ -26,6 +26,7 @@ typedef enum {
 // matches the configured "arch" specified
 // so 4 or 8 bytes depending on the XLEN
 typedef struct {
+    const char *(*core_name)(uint32_t core_id);
     uint64_t (*read_reg)(uint32_t core_id, uint32_t reg_id);
     void (*write_reg)(uint64_t input, uint32_t core_id, uint32_t reg_id);
     void (*read_mem)(byte *output, uint64_t output_sz, uint64_t addr);
@@ -39,7 +40,7 @@ typedef struct {
 
 typedef struct {
     arch arch;
-	uint32_t pc_id;
+    uint32_t pc_id;
     uint32_t regs_num;
     uint32_t smp;
     uint64_t memory_size;

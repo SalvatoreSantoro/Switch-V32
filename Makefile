@@ -121,6 +121,7 @@ all: init $(BUILD_DIR) $(BUILD_DIR)/$(BIN_NAME)
 init:
 	-@git submodule update --init --recursive || true
 
+.PHONY: $(LIBS)
 # Rule: for each library, run make in its folder
 $(LIBS): $(LIBS_DIRS) 
 	@echo "Building library in $^"

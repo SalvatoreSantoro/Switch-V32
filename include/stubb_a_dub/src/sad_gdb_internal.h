@@ -73,7 +73,10 @@ typedef void (*Builder_Fun)(void);
 
 struct Builder {
     Builder_Fun supported_builders[COMMANDS_COUNT];
-
+	// saved according to "user" most reasonable value...
+	// so core 0 is 0, core 1 is 1 and so on...
+	// gdb will take them with a +1 because it uses "0" as a special value
+	// https://sourceware.org/gdb/current/onlinedocs/gdb.html/Packets.html#thread_002did-syntax
     unsigned int selected_core;
 };
 

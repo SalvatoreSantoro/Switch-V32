@@ -47,9 +47,9 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
 			}
             // user ecall
             else
-                dispatch_trap(core, ECALL_U_MODE, core->pc);
+                dispatch_trap(core, ECALL_U_MODE, core->regs[PC]);
 
-            core->pc += 4;
+            core->regs[PC] += 4;
             break;
         case EBREAK:
             // never increase PC, we want that the core stops on the breakpoint
@@ -59,7 +59,7 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             if (ctx.debug) {
                 threads_mgr_halt_cores();
             } else {
-                dispatch_trap(core, BRKPT, core->pc);
+                dispatch_trap(core, BRKPT, core->regs[PC]);
             }
             break;
         default:
@@ -82,37 +82,37 @@ void vcore_sys_type(VCore *core, uint32_t ins) {
             // find the csr
             switch (csr_addr) {
             case SSTATUS_ADDR:
-                csr = &core->sstatus;
+                csr = &core->regs[SSTATUS];
                 break;
             case SIE_ADDR:
-                csr = &core->sie;
+                csr = &core->regs[SIE];
                 break;
             case STVEC_ADDR:
-                csr = &core->stvec;
+                csr = &core->regs[STVEC];
                 break;
             case SCOUNTEREN_ADDR:
-                csr = &core->scounteren;
+                csr = &core->regs[SCOUNTEREN];
                 break;
             case SENVCFG_ADDR:
-                csr = &core->senvcfg;
+                csr = &core->regs[SENVCFG];
                 break;
             case SSCRATCH_ADDR:
-                csr = &core->sscratch;
+                csr = &core->regs[SSCRATCH];
                 break;
             case SEPC_ADDR:
-                csr = &core->sepc;
+                csr = &core->regs[SEPC];
                 break;
             case SCAUSE_ADDR:
-                csr = &core->scause;
+                csr = &core->regs[SCAUSE];
                 break;
             case STVAL_ADDR:
-                csr = &core->stval;
+                csr = &core->regs[STVAL];
                 break;
             case SIP_ADDR:
-                csr = &core->sip;
+                csr = &core->regs[SIP];
                 break;
             case SATP_ADDR:
-                csr = &core->satp;
+                csr = &core->regs[SATP];
                 break;
             default:
                 // unknown register

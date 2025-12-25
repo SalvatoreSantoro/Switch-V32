@@ -55,6 +55,7 @@ util_ret sad_hex_str_to_bytes(byte *dest, const char *src, size_t dest_size) {
     return sad_hex_chars_to_bytes(dest, src, dest_size, src_size);
 }
 
+
 util_ret sad_bytes_to_hex_chars(char *dest, const byte *src, size_t dest_size, size_t src_size) {
     const char hex[] = "0123456789abcdef";
     byte v;

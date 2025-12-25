@@ -1,6 +1,7 @@
 #include "debug.h"
 #include "args.h"
 #include "cpu.h"
+#include "cthread.h"
 #include "macros.h"
 #include "memory.h"
 #include "stubb_a_dub.h"
@@ -28,15 +29,47 @@ static void write_mem(const byte *input, uint64_t input_sz, uint64_t addr) {
     mem_wb_ptr_s((uint32_t) addr, input, input_sz);
 }
 
+static const char *core_name(uint32_t core_id) {
+    cthread_state state = cthread_get_hsm_state(&threads_mgr.cthreads[core_id]);
+
+    switch (state) {
+    case STATE_STARTED:
+		return "[HSM] Started";
+        break;
+    case STATE_STOPPED:
+		return "[HSM] Stopped";
+        break;
+    case STATE_SUSPENDED:
+		return "[HSM] Suspended";
+        break;
+    case STATE_START_PENDING:
+		return "[HSM] Start-pending";
+        break;
+    case STATE_STOP_PENDING:
+		return "[HSM] Stop-pending";
+        break;
+    case STATE_SUSPEND_PENDING:
+		return "[HSM] Suspend-pending";
+        break;
+    case STATE_RESUME_PENDING:
+		return "[HSM] Resume-pending";
+        break;
+    default:
+        return "";
+        break;
+    }
+}
+
 void run_debug(void) {
     stub_ret ret;
 
     Stub_Conf conf = {
         .sys_conf.arch = RV32,
-        .sys_conf.regs_num = 33,   // REG_NUMS,
-		.sys_conf.pc_id = PC,
+        .sys_conf.regs_num = 33, // REG_NUMS,
+        .sys_conf.pc_id = PC,
         .sys_conf.smp = ctx.cores, // core numbers
         .sys_conf.memory_size = ctx.memory_size,
+        .sys_ops.core_name = core_name,
         .sys_ops.read_reg = read_reg,
         .sys_ops.write_reg = write_reg,
         .sys_ops.read_mem = read_mem,

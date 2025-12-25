@@ -100,12 +100,12 @@ static void build_p(void) {
     reg = sys_ops_g.read_reg(builder_g.selected_core, reg_id);
     sad_bytes_to_hex_chars(reg_str, (byte *) &reg, sizeof(reg_str), target_conf_g.reg_bytes);
 
-	sad_buff_append(output_buffer_g, reg_str, sizeof(reg_str));
+    sad_buff_append(output_buffer_g, reg_str, sizeof(reg_str));
 }
 
-static void build_P(void){
+static void build_P(void) {
     // format: P n=r
-	size_t cursor = input_buffer_g->start_pkt_data + 1;
+    size_t cursor = input_buffer_g->start_pkt_data + 1;
     uint32_t reg_id;
     uint64_t reg;
     extract_val(uint32, &reg_id, &cursor, '=');
@@ -116,9 +116,9 @@ static void build_P(void){
         return;
     }
 
-	sys_ops_g.write_reg(reg, builder_g.selected_core, reg_id);
+    sys_ops_g.write_reg(reg, builder_g.selected_core, reg_id);
 
-	sad_buff_append_str(output_buffer_g, "OK");
+    sad_buff_append_str(output_buffer_g, "OK");
 }
 
 static void build_g(void) {
@@ -137,7 +137,7 @@ static void build_G(void) {
     // format: G XX...
 
     util_ret ret;
-    uint64_t reg = 0xCDCDCDCDCDCDCDCD;
+    uint64_t reg;
     byte old_regs[target_conf_g.regs_bytes];
     size_t cursor = input_buffer_g->start_pkt_data + 1;
     uint32_t index = 0;
@@ -160,8 +160,6 @@ static void build_G(void) {
                                      target_conf_g.reg_str_bytes);
 
         memcpy(temp, regs_str + index, 8);
-        /* printf("CHARS: %s\n", temp); */
-        /* printf("NUM: %lx\n", reg); */
 
         index += target_conf_g.reg_str_bytes;
         // when reading "XXXXXXXX" skip register
@@ -257,13 +255,42 @@ static void build_Q(void) {
 
 static void build_q(void) {
     size_t cursor = input_buffer_g->start_pkt_data;
+    size_t cursor_extra = input_buffer_g->start_pkt_data;
     char *command = sad_extract_str(&cursor, ':');
+    char *command_extra = sad_extract_str(&cursor_extra, ',');
+    char core_id_str[16];
+    char response[10];
+    const char *core_name;
+    uint32_t thread_id;
+    unsigned int i;
+
+    //  format ‘qThreadExtraInfo,thread-id’...
+    //  is different from some reasons...
+    if (strncmp(command_extra, "qThreadExtraInfo", 16) == 0) {
+        extract_val(uint32, &thread_id, &cursor_extra, EOB);
+        if ((thread_id - 1) >= sys_conf_g.smp) {
+            sad_buff_append_str(output_buffer_g, "E");
+            return;
+        }
+        if (thread_id == 0) {
+            core_name = sys_ops_g.core_name(builder_g.selected_core);
+        } else {
+            core_name = sys_ops_g.core_name(thread_id - 1);
+        }
+
+        byte core_name_hex[strlen(core_name) * 2];
+
+        sad_bytes_to_hex_chars((char *) core_name_hex, (const byte *) core_name, sizeof(core_name_hex),
+                               strlen(core_name));
+
+        sad_buff_append(output_buffer_g, (char *) core_name_hex, sizeof(core_name_hex));
+    }
+
     if (strcmp(command, "qSupported") == 0) {
         sad_buff_append_str(output_buffer_g, "swbreak+;vCont+;QStartNoAckMode+");
     }
+
     if (strcmp(command, "qfThreadInfo") == 0) {
-        char core_id_str[16];
-        unsigned int i;
         sad_buff_append_str(output_buffer_g, "m");
         for (i = 1; i < sys_conf_g.smp; i++) {
             sprintf(core_id_str, "%u,", i);
@@ -276,16 +303,11 @@ static void build_q(void) {
         sad_buff_append_str(output_buffer_g, "l");
     }
 
-    if (strcmp(command, "qThreadExtraInfo") == 0) {
-        const char *thread_id_str = sad_extract_str(&cursor, EOB);
-        sad_buff_append_str(output_buffer_g, thread_id_str);
-    }
-
     if (strcmp(command, "qC") == 0) {
-        char response[10];
         sprintf(response, "QC%u", builder_g.selected_core + 1);
         sad_buff_append_str(output_buffer_g, response);
     }
+
     if (strcmp(command, "qSymbol") == 0) {
         sad_buff_append_str(output_buffer_g, "OK");
     }

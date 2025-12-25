@@ -29,9 +29,9 @@ typedef struct {
 
 uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
     // assert virtual memory is active
-    assert(SATP_MODE(core->satp));
+    assert(SATP_MODE(core->regs[SATP]));
     // root page_addr
-    uint32_t pp_addr = SATP_PPN(core->satp) * PAGE_SIZE;
+    uint32_t pp_addr = SATP_PPN(core->regs[SATP]) * PAGE_SIZE;
     assert(pp_addr < ctx.memory_size);
 
     uint32_t tmp_addr = addr;
@@ -61,7 +61,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
 
             // if SSTATUS_MXR is set and we're reading, we're basically guaranteed to succeed (the outer if already
             // check read or executable)
-            if (((!SSTATUS_MXR(core->sstatus)) && (op == MEM_READ) && (selected_pte->r == 0)) ||
+            if (((!SSTATUS_MXR(core->regs[SSTATUS])) && (op == MEM_READ) && (selected_pte->r == 0)) ||
                 ((op == MEM_INS_FETCH) && (selected_pte->x == 0)) || ((op == MEM_WRITE) && (selected_pte->w == 0))) {
                 dispatch_trap(core, (trap_code) op, addr);
                 return TREE_WALK_TRAPPED;
@@ -70,7 +70,7 @@ uint64_t vm_tree_walk(VCore *core, uint32_t addr, op_type op) {
             // check mode privilege
             // is SSTATUS_SUM is set we disable the check on the "U" PTEs when executing in supervisor mode
             // but only if we're not fetching instruction, Supervisor can't never execute User code
-            if (((!SSTATUS_SUM(core->sstatus) || (op == MEM_INS_FETCH)) && (selected_pte->u == 1) &&
+            if (((!SSTATUS_SUM(core->regs[SSTATUS]) || (op == MEM_INS_FETCH)) && (selected_pte->u == 1) &&
                  (core->mode == SUPERVISOR_MODE)) ||
                 ((selected_pte->u == 0) && (core->mode == USER_MODE))) {
                 dispatch_trap(core, (trap_code) op, addr);

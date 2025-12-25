@@ -49,7 +49,7 @@
     X(SIE, 40)                                                                                                         \
     X(SIP, 41)                                                                                                         \
     X(SCOUNTEREN, 42)                                                                                                  \
-    X(SENCFG, 43)
+    X(SENVCFG, 43)
 
 enum {
 #define X(name, value) name = value,
@@ -87,6 +87,7 @@ typedef struct {
     bool ll_sc_flag;
     bool atomic_exit_loop;
     execution_mode mode;
+	uint32_t core_idx;
     // ELF
 #ifdef USER
     uint32_t elf_brk;
