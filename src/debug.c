@@ -81,7 +81,6 @@ void run_debug(void) {
         .sys_ops.is_halted = threads_mgr_are_halted,
         .port = STUB_PORT,
         .buffers_size = STUB_BUFF_SIZE,
-        .socket_io_size = STUB_READ_SIZE,
     };
 
     ret = sad_stub_init(&conf);

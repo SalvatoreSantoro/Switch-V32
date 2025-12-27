@@ -24,6 +24,7 @@ typedef struct {
     uint32_t reg_str_bytes;
     uint32_t regs_bytes;
     uint32_t regs_str_bytes;
+	uint32_t brkpt_size;
 } Target_Conf;
 
 // PARSER
@@ -62,8 +63,8 @@ typedef enum {
 } brk_ret;
 
 struct Breakpoint {
-    uint32_t addr;
-    uint32_t instr;
+    uint64_t addr;
+    uint64_t instr;
     breakpoint_status status;
 };
 
@@ -93,7 +94,6 @@ struct PKT_Buffer {
     size_t initial_size;
     size_t start_pkt_data;
     size_t end_pkt_data;
-    size_t socket_io_size;
     size_t filled;
     size_t data_size;
     byte *data;
@@ -146,7 +146,7 @@ void sad_parser_pkt(void);
 
 // BUFFER
 
-PKT_Buffer *sad_buff_create(size_t initial_size, size_t socket_io_size);
+PKT_Buffer *sad_buff_create(size_t initial_size);
 
 void sad_buff_destroy(PKT_Buffer *buff);
 
@@ -201,6 +201,8 @@ stub_ret sad_extract_size(size_t *val, size_t *cursor, int term);
 char *sad_extract_str(size_t *cursor, int term);
 
 stub_ret sad_extract_uint64(uint64_t *val, size_t *cursor, int term);
+
+stub_ret sad_extract_long(long *val, size_t *cursor, int term);
 
 // TARGET
 

@@ -1,7 +1,7 @@
 #include <stdint.h>
 
-#define NUM_CORES      4
-#define SBI_HART_START 0u
+#define NUM_CORES        4
+#define SBI_HART_START   0u
 #define SBI_HART_SUSPEND 3u
 
 extern void _entry(void);
@@ -20,8 +20,6 @@ volatile uint32_t counter = 0;
 volatile uint32_t first = 1;
 
 int main(void) {
-    int hart_id;
-
     if (first) {
         first = 0;
         // Start secondary harts
@@ -32,7 +30,7 @@ int main(void) {
 
     for (int i = 0; i < 1000; i++) {
         // Atomic add 1
-        asm volatile("amoadd.w zero, %1, %0" : "+A"(counter) : "r"(1));
+        __atomic_fetch_add(&counter, 1, __ATOMIC_RELAXED);
     }
 
     // Optional: spin forever

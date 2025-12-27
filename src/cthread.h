@@ -16,7 +16,7 @@ typedef enum {
     STATE_HALTED = 7,
     STATE_STEPPING = 8,
     STATE_HALT_PENDING = 10,
-	STATE_CONTINUE_PENDING = 11
+    STATE_CONTINUE_PENDING = 11
 } cthread_state;
 
 typedef enum {
@@ -25,7 +25,6 @@ typedef enum {
     SUSPEND_S = STATE_SUSPENDED,
     HALT_S = STATE_HALTED,
     STEP_S = STATE_STEPPING,
-    CONTINUE_S,
 } cthread_signal;
 
 typedef struct {
@@ -33,12 +32,11 @@ typedef struct {
     pthread_mutex_t mutex;
     pthread_cond_t cond_signal; // condition used to signal and wait when atomic_signal changes
     pthread_cond_t cond_state;  // condition used to signal and wait when core_state changes
-    cthread_state state;         // state of each core used to synchronize operations
-    cthread_signal signal;       // signal sent to cores to run/stop/step them
-    cthread_signal old_signal;   // used to restore old state after halting during debug
+    cthread_state state;        // state of each core used to synchronize operations
+    cthread_signal signal;      // signal sent to cores to run/stop/step them
+    cthread_signal old_signal;  // used to restore old state after halting during debug
     VCore core;
 } Cthread;
-
 
 void cthread_init(Cthread *thread, cthread_state state);
 

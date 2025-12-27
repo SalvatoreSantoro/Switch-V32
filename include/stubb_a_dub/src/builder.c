@@ -330,114 +330,127 @@ static void build_q(void) {
 // if we receive "s:0" we do only step of thread 0, like set scheduler-locking on
 // if we receive "s" we assume that we step the selected core
 
-/* static void build_v(void) { */
-/*     if (strcmp(server.pkt_data.command, "vCont?") == 0) { */
-/*         sad_buff_append_str(server.output_buffer, "s;c"); */
-/*         return; */
-/**/
-/*     } else if (strcmp(server.pkt_data.command, "vCont") == 0) { */
-/*         size_t fill = server.pkt_data.params_filled; */
-/*         int thread_id; */
-/*         const char *thread_id_str = NULL; */
-/*         brk_ret ret; */
-/**/
-/*         if (fill == 0) { */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/**/
-/*         // s:#;c:# */
-/*         if (fill >= 2) { */
-/*             thread_id_str = GET_PARAM_1(1); */
-/*         } */
-/**/
-/*         if (thread_id_str == NULL) { */
-/*             thread_id = (int) server.builder.selected_core; */
-/*         } else { */
-/*             long tmp_thread_id = strtol(thread_id_str, NULL, 16); */
-/*             LONG_TO_INT_CHECK(tmp_thread_id); */
-/*             thread_id = (int) tmp_thread_id; */
-/*         } */
-/**/
-/*         if ((unsigned) thread_id >= server.sys_conf.smp) { */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/**/
-/*         // always check if there is some core on the breakpoint and correctly */
-/*         // exec the saved instruction before continuing */
-/**/
-/*         switch (GET_PARAM_1(0)[0]) { */
-/*         case 'c': */
-/*             if ((thread_id_str == NULL) || (thread_id == -1)) { */
-/*                 // this is the case of continue all so or just "c" or "c:-1" */
-/*                 for (unsigned int i = 0; i < server.sys_conf.smp; i++) { */
-/*                     ret = sad_step_the_breakpoint(i); */
-/*                     if (ret == BRK_ERROR) { */
-/*                         sad_buff_append_str(server.output_buffer, "E"); */
-/*                         return; */
-/*                     } */
-/*                 } */
-/*                 server.sys_ops.cores_continue(); */
-/*             } else { */
-/*                 if (thread_id == 0) */
-/*                     thread_id = (int) server.builder.selected_core; */
-/*                 else */
-/*                     thread_id -= 1; */
-/**/
-/*                 ret = sad_step_the_breakpoint((unsigned int) thread_id); */
-/*                 if (ret == BRK_ERROR) { */
-/*                     sad_buff_append_str(server.output_buffer, "E"); */
-/*                     return; */
-/*                 } */
-/*                 server.sys_ops.core_continue((unsigned int) thread_id); */
-/*             } */
-/*             break; */
-/**/
-/*         case 's': */
-/*             if ((thread_id_str == NULL) || (thread_id == -1)) { */
-/*                 // this is the case of continue all so or just "s" or "s:-1" */
-/*                 sad_buff_append_str(server.output_buffer, "E"); */
-/*                 return; */
-/*             } else { */
-/*                 if (thread_id == 0) */
-/*                     thread_id = (int) server.builder.selected_core; */
-/*                 else */
-/*                     thread_id -= 1; */
-/**/
-/*                 // check if the step breakpoint already executed the step */
-/*                 // or you should execute it yourself */
-/*                 ret = sad_step_the_breakpoint((unsigned int) thread_id); */
-/*                 if (ret == BRK_ERROR) { */
-/*                     sad_buff_append_str(server.output_buffer, "E"); */
-/*                     return; */
-/*                 } else if (ret == BRK_NOT_FOUND) { */
-/*                     if (server.sys_ops.core_step((unsigned int) thread_id) != SYS_OK) { */
-/*                         sad_buff_append_str(server.output_buffer, "E"); */
-/*                         return; */
-/*                     } */
-/*                 } */
-/*             } */
-/*             break; */
-/**/
-/*         default: */
-/*             return; */
-/*             break; */
-/*         } */
-/**/
-/*         // wait that the cores hit a breakpoint or the user sends a stop signal */
-/*         // from GDB */
-/*         bool stop; */
-/*         stop = wait_for_halt(); */
-/*         if (stop) { // breakpoint stop or step stop */
-/*             if (GET_PARAM_1(0)[0] == 's') */
-/*                 sad_buff_append_str(server.output_buffer, "S05"); */
-/*             else */
-/*                 sad_buff_append_str(server.output_buffer, "T05swbreak:;"); */
-/*         } else // GDB interactive stop */
-/*             sad_buff_append_str(server.output_buffer, "S02"); */
-/*     } */
-/* } */
+static void build_v(void) {
+    size_t cursor = input_buffer_g->start_pkt_data;
+    brk_ret brk_ret;
+    const char *command = sad_extract_str(&cursor, ';');
+
+    if (strcmp(command, "vCont?") == 0) {
+        // only step and continue supported
+        sad_buff_append_str(output_buffer_g, "s;c");
+        return;
+
+    } else if (strcmp(command, "vCont") == 0) {
+        // evaluating just the left most action
+        char action = (char) input_buffer_g->data[cursor];
+        long thread_id;
+        const char *thread_id_str;
+
+        // the ":id" part is optional so check, if there isn't ":" the id is omitted, just assume -1
+        if (input_buffer_g->data[cursor + 1] == ':') {
+            // skip "action" and ":" already fetched
+            cursor += 2;
+            thread_id_str = (char *) &input_buffer_g->data[cursor];
+            // this will place the "\0" after the id to make thread_id_str effectively a string
+            extract_val(long, &thread_id, &cursor, ':');
+        } else {
+            thread_id_str = "";
+            thread_id = -1;
+        }
+
+        if (thread_id - 1 >= sys_conf_g.smp) {
+            sad_buff_append_str(output_buffer_g, "E");
+            return;
+        }
+
+        if (thread_id < -1) {
+            sad_buff_append_str(output_buffer_g, "E");
+            return;
+        }
+
+        switch (action) {
+        case 'c':
+
+            if (thread_id == -1) {
+                // this is the case of continue all so or just "c" or "c:-1"
+                for (unsigned int i = 0; i < sys_conf_g.smp; i++)
+                    sad_step_the_breakpoint(i);
+
+                sys_ops_g.cores_continue();
+            } else {
+                if (thread_id == 0)
+                    thread_id = (int) builder_g.selected_core;
+                else
+                    thread_id--;
+
+                sad_step_the_breakpoint((unsigned int) thread_id);
+                sys_ops_g.core_continue((unsigned int) thread_id);
+            }
+            break;
+
+        case 's':
+            // can only step 1 thread
+            if (thread_id == -1) {
+                sad_buff_append_str(output_buffer_g, "E");
+                return;
+            }
+
+            // any thread case
+            if (thread_id == 0)
+                thread_id = builder_g.selected_core;
+            else
+                thread_id--;
+
+            brk_ret = sad_step_the_breakpoint((uint32_t) thread_id);
+
+            // the current core isn't stopped on a breakpoint so just step it directly
+            if (brk_ret == BRK_NOT_FOUND)
+                sys_ops_g.core_step((unsigned int) thread_id);
+
+            break;
+        default:
+            sad_buff_append_str(output_buffer_g, "E");
+            return;
+            break;
+        }
+
+        // wait that the cores hit a breakpoint or the user sends a stop signal
+        // from GDB
+        bool stop;
+
+        stop = wait_for_halt();
+        if (stop) { // breakpoint stop or step stop
+            if (action == 's')
+                sad_buff_append_str(output_buffer_g, "T05");
+            else
+                sad_buff_append_str(output_buffer_g, "T05swbreak:;");
+        } else // GDB interactive stop
+            sad_buff_append_str(output_buffer_g, "T02");
+
+        if (thread_id >= 0) {
+            sad_buff_append_str(output_buffer_g, "thread:");
+            sad_buff_append_str(output_buffer_g, thread_id_str);
+            sad_buff_append_str(output_buffer_g, ";");
+
+            sad_buff_append_str(output_buffer_g, "core:");
+            sad_buff_append_str(output_buffer_g, thread_id_str);
+            sad_buff_append_str(output_buffer_g, ";");
+
+            uint64_t reg;
+            char reg_str[target_conf_g.reg_str_bytes];
+            char reg_id_str[4] = {0};
+
+            for (uint32_t reg_id = 0; reg_id < sys_conf_g.regs_num; reg_id++) {
+                reg = sys_ops_g.read_reg((uint32_t) thread_id, reg_id);
+                sad_bytes_to_hex_chars(reg_str, (byte *) &reg, sizeof(reg_str), target_conf_g.reg_bytes);
+                sprintf(reg_id_str, "%02x:", reg_id);
+                sad_buff_append_str(output_buffer_g, reg_id_str);
+                sad_buff_append(output_buffer_g, reg_str, sizeof(reg_str));
+                sad_buff_append_str(output_buffer_g, ";");
+            }
+        }
+    }
+}
 
 static void build_T(void) {
     sad_buff_append_str(output_buffer_g, "OK");
@@ -465,63 +478,76 @@ static void build_H(void) {
     }
 }
 
-/* static void build_Z(void) { */
-/*     // format: Z type,addr,kind */
-/*     */
-/*     const char *str_type = GET_CMD_PARAM; */
-/*     const char *str_addr = GET_PARAM_1(0); */
-/*     const char *str_kind = GET_PARAM_1(1); */
-/**/
-/*     int type = atoi(str_type); */
-/*     int kind = atoi(str_kind); */
-/*     long addr = strtol(str_addr, NULL, 16); */
-/**/
-/*     LONG_TO_UINT32_CHECK(addr); */
-/**/
-/*     if (server.sys_conf.arch == RV32) { */
-/*         if ((type < 0) || (type > 4) || (kind != 4)) { */
-/*             // compressed (kind == 2) is unsupported atm */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/**/
-/*         if (sad_insert_breakpoint((uint32_t) addr) != BRK_INSERTED) { */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/*     } */
-/**/
-/*     sad_buff_append_str(server.output_buffer, "OK"); */
-/* } */
-/**/
-/* static void build_z(void) { */
-/*     // format: z type,addr,kind */
-/*      */
-/*     const char *str_type = GET_CMD_PARAM; */
-/*     const char *str_addr = GET_PARAM_1(0); */
-/*     const char *str_kind = GET_PARAM_1(1); */
-/**/
-/*     int type = atoi(str_type); */
-/*     int kind = atoi(str_kind); */
-/*     long addr = strtol(str_addr, NULL, 16); */
-/**/
-/*     LONG_TO_UINT32_CHECK(addr); */
-/**/
-/*     if (server.sys_conf.arch == RV32) { */
-/*         if ((type < 0) || (type > 4) || (kind != 4)) { */
-/*             // compressed (kind == 2) is unsupported atm */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/**/
-/*         if (sad_remove_breakpoint((uint32_t) addr) != BRK_REMOVED) { */
-/*             sad_buff_append_str(server.output_buffer, "E"); */
-/*             return; */
-/*         } */
-/*     } */
-/**/
-/*     sad_buff_append_str(server.output_buffer, "OK"); */
-/* } */
+static void build_Z(void) {
+    // format: Z type,addr,kind
+    // ignoring the optional params
+
+    size_t cursor = input_buffer_g->start_pkt_data + 1;
+    uint32_t type;
+    uint32_t kind;
+    uint64_t addr;
+    extract_val(uint32, &type, &cursor, ',');
+    extract_val(uint64, &addr, &cursor, ',');
+    extract_val(uint32, &kind, &cursor, ';');
+
+    if (addr >= sys_conf_g.memory_size) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    if (kind != target_conf_g.brkpt_size) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    // only sw breakpoint supported
+    if (type != 0) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    if (sad_insert_breakpoint((uint32_t) addr) != BRK_INSERTED) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    sad_buff_append_str(output_buffer_g, "OK");
+}
+
+static void build_z(void) {
+    // format: z type,addr,kind
+
+    size_t cursor = input_buffer_g->start_pkt_data + 1;
+    uint32_t type;
+    uint32_t kind;
+    uint64_t addr;
+    extract_val(uint32, &type, &cursor, ',');
+    extract_val(uint64, &addr, &cursor, ',');
+    extract_val(uint32, &kind, &cursor, EOB);
+
+    if (addr >= sys_conf_g.memory_size) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    if (kind != target_conf_g.brkpt_size) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    // only sw breakpoint supported
+    if (type != 0) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    if (sad_remove_breakpoint(addr) != BRK_REMOVED) {
+        sad_buff_append_str(output_buffer_g, "E");
+        return;
+    }
+
+    sad_buff_append_str(output_buffer_g, "OK");
+}
 
 void sad_builder_build_resp(void) {
     uint8_t checksum;

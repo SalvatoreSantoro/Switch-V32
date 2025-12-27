@@ -3,7 +3,7 @@
 #####################################
 
 CC = gcc
-CFLAGS = -std=c99 -O2 -fsanitize=undefined -fsanitize=address
+CFLAGS = -std=c99 -O2
 
 #####################################
 ##	  		 WARNINGS 			   ##
@@ -145,11 +145,11 @@ clang-tidy:
 
 valgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -c 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind --fair-sched=yes --suppressions=sdl.supp --tool=memcheck --leak-check=full --track-origins=yes -s ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -c 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 helgrind: user supervisor
 	$(MAKE) -C $(DEMO_PROG_PATH)
-	valgrind --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
+	valgrind  --fair-sched=yes --tool=helgrind ./build/$(BIN_NAME) -f "$(DEMO_PROG_PATH)/build/$(NAME_DEMO).elf" -m 4096 -u 4 -c 4 -i /dev/null -o /dev/null -e /dev/null $(DEBUG_OPT)
 
 elf: $(MODE)
 ifeq ($(MODE), user)

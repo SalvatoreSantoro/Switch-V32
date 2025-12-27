@@ -5,8 +5,9 @@
 #include <pthread.h>
 
 typedef struct {
-	Cthread *cthreads;
-    unsigned int atomic_barrier_count; // used like a pthread_barrier_t but more flexible
+    Cthread *cthreads;
+    pthread_mutex_t halt_all_n_run_mutex; // used to make the halt_all and run/run_all mutually exclusive
+                                          // In general "single" run and "single" halt, operations can race
 } Threads_Mgr;
 
 #define get_thread(core_idx) (&threads_mgr.cthreads[core_idx])

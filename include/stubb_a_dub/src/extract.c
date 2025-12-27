@@ -5,6 +5,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
+#include <string.h>
 
 extern PKT_Buffer *input_buffer_g;
 
@@ -31,7 +32,6 @@ static char *sad_cursor_tokenizer(size_t *cursor, int term) {
     return start;
 }
 
-
 stub_ret sad_extract_uint32(uint32_t *val, size_t *cursor, int term) {
     char *uint32_str;
 
@@ -47,7 +47,6 @@ stub_ret sad_extract_uint32(uint32_t *val, size_t *cursor, int term) {
     return STUB_OK;
 }
 
-
 stub_ret sad_extract_uint64(uint64_t *val, size_t *cursor, int term) {
     char *uint64_str;
 
@@ -58,11 +57,27 @@ stub_ret sad_extract_uint64(uint64_t *val, size_t *cursor, int term) {
     if (uint64 == LONG_MAX || uint64 < 0)
         return STUB_UNEXPECTED;
 
-    *val = (size_t) uint64;
+    *val = (uint64_t) uint64;
 
     return STUB_OK;
 }
 
 char *sad_extract_str(size_t *cursor, int term) {
     return sad_cursor_tokenizer(cursor, term);
+}
+
+// vCont packet can omit the id to specify "-1" (all threads) so we need to address this
+stub_ret sad_extract_long(long *val, size_t *cursor, int term) {
+    char *long_str;
+
+    long_str = sad_cursor_tokenizer(cursor, term);
+
+    long long_val = strtol(long_str, NULL, 16);
+
+    if (long_val == LONG_MAX || long_val == LONG_MIN)
+        return STUB_UNEXPECTED;
+
+    *val = long_val;
+
+    return STUB_OK;
 }

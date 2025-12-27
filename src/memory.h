@@ -2,6 +2,7 @@
 #define SV32_MEM_H
 
 #include "args.h"
+#include "macros.h"
 #include <assert.h>
 #include <stdbool.h>
 #include <stddef.h>

@@ -31,8 +31,8 @@ typedef struct {
     void (*write_reg)(uint64_t input, uint32_t core_id, uint32_t reg_id);
     void (*read_mem)(byte *output, uint64_t output_sz, uint64_t addr);
     void (*write_mem)(const byte *input, uint64_t input_sz, uint64_t addr);
-    void (*core_step)(unsigned int core_id);
-    void (*core_continue)(unsigned int core_id);
+    void (*core_step)(uint32_t core_id);
+    void (*core_continue)(uint32_t core_id);
     void (*cores_continue)(void);
     void (*cores_halt)(void);
     bool (*is_halted)(void);
@@ -51,7 +51,6 @@ typedef struct {
     Sys_Conf sys_conf;
     uint16_t port;
     size_t buffers_size;
-    size_t socket_io_size;
 } Stub_Conf;
 
 stub_ret sad_stub_init(Stub_Conf *conf);

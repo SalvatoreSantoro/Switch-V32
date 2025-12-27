@@ -13,14 +13,12 @@
     X(G, 'G')                                                                                                          \
     X(g, 'g')                                                                                                          \
     X(T, 'T')                                                                                                          \
+    X(z, 'z')                                                                                                          \
+    X(Z, 'Z')                                                                                                          \
     X(H, 'H')                                                                                                          \
+    X(v, 'v')                                                                                                          \
     X(unsupported, '0') // assuming '0' isn't a valid command
 // SAD_EXTEND END
-//
-
-// X(z, 'z')
-// X(v, 'v')
-// X(Z, 'Z')
 
 typedef enum {
 #define X(s, ch) COMMAND_##s,

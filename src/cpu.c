@@ -562,8 +562,10 @@ void vcore_run(VCore *core) {
                 break;
             }
 
-            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQUIRE))
+            // made it sequential to avoid helgrind false positives
+            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQ_REL)) {
                 return;
+            }
 
 // due to LL/SR semantics i think that implementation of them must be done
 // without checkings for interrupts untill they both terminate, in this way a
@@ -587,9 +589,9 @@ void vcore_reset(VCore *core) {
     core->mode = SUPERVISOR_MODE;
 }
 
-void vcore_init(VCore* core, uint32_t start_addr, uint32_t id, uint32_t opaque){
-	vcore_reset(core);
-	core->regs[PC] = start_addr;
-	core->regs[A0] = id;
-	core->regs[A1] = opaque;
+void vcore_init(VCore *core, uint32_t start_addr, uint32_t id, uint32_t opaque) {
+    vcore_reset(core);
+    core->regs[PC] = start_addr;
+    core->regs[A0] = id;
+    core->regs[A1] = opaque;
 }

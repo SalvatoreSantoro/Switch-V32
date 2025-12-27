@@ -37,32 +37,6 @@
             SV32_CRASH("SIGNAL FAILED");                                                                               \
     } while (0)
 
-#define BARRIER_COUNT_WAIT__ barrier_count_wait()
-
-#define RESET_BARRIER_COUNT__                                                                                          \
-    do {                                                                                                               \
-        __atomic_store_n(&threads_mgr.atomic_barrier_count, ctx.cores, __ATOMIC_RELEASE);                              \
-    } while (0)
-
-// wait until barrier reaches 0, if already 0 just return
-
-static void barrier_count_wait(void) {
-    // fast path: if already 0, no need to wait
-    if (__atomic_load_n(&threads_mgr.atomic_barrier_count, __ATOMIC_ACQUIRE) == 0)
-        return;
-
-    // decrement counter
-    unsigned int prev = __atomic_fetch_sub(&threads_mgr.atomic_barrier_count, 1, __ATOMIC_RELAXED);
-
-    if (prev == 1) {
-        // This thread “released” the barrier
-    } else {
-        // wait until counter reaches 0
-        while (__atomic_load_n(&threads_mgr.atomic_barrier_count, __ATOMIC_ACQUIRE) != 0) {
-        }
-    }
-}
-
 bool threads_mgr_are_halted(void) {
     cthread_state state;
 
@@ -82,7 +56,7 @@ void threads_mgr_init(void) {
     if (threads_mgr.cthreads == NULL)
         SV32_CRASH("OOM");
 
-    threads_mgr.atomic_barrier_count = 0;
+    pthread_mutex_init(&threads_mgr.halt_all_n_run_mutex, NULL);
 
     // core 0 will be run when using a signal start
     cthread_init(&threads_mgr.cthreads[0], STATE_STARTED);
@@ -113,6 +87,11 @@ void threads_mgr_step_core(unsigned int core_idx) {
 void threads_mgr_halt_cores(void) {
     bool not_found = true;
 
+    // we're serializing the halt_all and run/run_all
+    // making the process of stopping the single cores (unrelated mutexes and conditions)
+    // into a single uninterruptable operation
+    pthread_mutex_lock_(&threads_mgr.halt_all_n_run_mutex);
+
     for (unsigned int i = 0; i < ctx.cores; i++) {
         // don't synchronize with yourself (deadlock)
         if (not_found && cthread_is_you(&threads_mgr.cthreads[i])) {
@@ -122,6 +101,8 @@ void threads_mgr_halt_cores(void) {
             cthread_signal_halt(&threads_mgr.cthreads[i], true);
         }
     }
+
+    pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
 }
 
 void threads_mgr_continue_core(unsigned int core_idx) {
@@ -137,6 +118,15 @@ void threads_mgr_continue_core(unsigned int core_idx) {
 
 void threads_mgr_continue_cores(void) {
     cthread_state state;
+    int ret;
+
+    // when racing with an halt all operation (mutex already locked)
+    // just "abort" the "run" operation and return
+    // here we're enforcing an "ALWAYS STOP" semantic
+    // so a core can be run only if we're not racing against an halt all operation
+    ret = pthread_mutex_trylock(&threads_mgr.halt_all_n_run_mutex);
+    if (ret == EBUSY)
+        return;
 
     // Should continue all only if they were all stopped
     for (unsigned int i = 0; i < ctx.cores; i++) {
@@ -150,4 +140,6 @@ void threads_mgr_continue_cores(void) {
     for (unsigned int i = 0; i < ctx.cores; i++) {
         cthread_signal_continue(&threads_mgr.cthreads[i]);
     }
+
+    pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
 }

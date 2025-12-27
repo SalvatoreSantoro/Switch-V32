@@ -8,11 +8,11 @@
 #include <string.h>
 #include <unistd.h>
 
-PKT_Buffer *sad_buff_create(size_t initial_size, size_t socket_io_size) {
+PKT_Buffer *sad_buff_create(size_t initial_size) {
     PKT_Buffer *buff;
     unsigned char *data;
 
-    if ((initial_size == 0) || (socket_io_size == 0))
+    if (initial_size == 0) 
         return NULL;
 
     buff = malloc(sizeof(PKT_Buffer));
@@ -26,7 +26,6 @@ PKT_Buffer *sad_buff_create(size_t initial_size, size_t socket_io_size) {
     }
 
     buff->initial_size = initial_size;
-    buff->socket_io_size = socket_io_size;
     buff->data_size = initial_size;
     buff->data = data;
     sad_buff_reset(buff);
@@ -89,13 +88,13 @@ byte *sad_buff_read_prep(const PKT_Buffer *buff, size_t *buff_filled) {
 buff_ret sad_buff_from_socket(PKT_Buffer *buff, int fd) {
     ssize_t rd_bytes = 0;
 
-    while ((buff->filled + buff->socket_io_size) > buff->data_size) {
+    while ((buff->filled + buff->initial_size) > buff->data_size) {
         if (sad_buff_expand(buff) == BUFF_OOM)
             return BUFF_OOM;
     };
 
     do {
-        rd_bytes = read(fd, buff->data + buff->filled, buff->socket_io_size);
+        rd_bytes = read(fd, buff->data + buff->filled, buff->initial_size);
     } while (rd_bytes == -1 && errno == EINTR);
 
     if (rd_bytes == -1) {

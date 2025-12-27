@@ -25,7 +25,7 @@ void cthread_signal_start(Cthread *cthread) {
     cthread_state state = cthread->state;
 
     // when concurring with debugging just buffer the signal for later
-    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING))
+    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING) || (state == STATE_CONTINUE_PENDING))
         cthread->old_signal = START_S;
 
     // the signal is processed only when called while the core
@@ -56,7 +56,7 @@ void cthread_signal_continue(Cthread *cthread) {
     }
 
     // old states CAN'T be the debugging ones, otherwise there is a bug
-    if ((cthread->old_signal == HALT_S) || (cthread->old_signal == STEP_S) || (cthread->old_signal == CONTINUE_S)) {
+    if ((cthread->old_signal == HALT_S) || (cthread->old_signal == STEP_S)) {
         pthread_mutex_unlock_(&cthread->mutex);
         SV32_CRASH("BUG IN THE STATE IMPLEMENTATION");
     }
@@ -65,7 +65,7 @@ void cthread_signal_continue(Cthread *cthread) {
     cthread->signal = cthread->old_signal;
     pthread_cond_signal_(&cthread->cond_signal);
 
-	cthread->state = STATE_CONTINUE_PENDING;
+    cthread->state = STATE_CONTINUE_PENDING;
 
     pthread_mutex_unlock_(&cthread->mutex);
 }
@@ -81,7 +81,7 @@ void cthread_signal_halt(Cthread *cthread, bool synch) {
     }
 
     // exit hot loop
-    __atomic_store_n(&cthread->core.atomic_exit_loop, 1, __ATOMIC_RELEASE);
+    __atomic_store_n(&cthread->core.atomic_exit_loop, 1, __ATOMIC_ACQ_REL);
 
     // save old signal
     cthread->old_signal = cthread->signal;
@@ -106,7 +106,7 @@ void cthread_signal_stop(Cthread *cthread) {
     cthread_state state = cthread->state;
 
     // when concurring with debugging just buffer the signal for later
-    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING))
+    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING) || (state == STATE_CONTINUE_PENDING))
         cthread->old_signal = START_S;
 
     // the signal is processed only when called while the core
@@ -136,7 +136,7 @@ void cthread_signal_suspend(Cthread *cthread) {
     // when concurring with debugging just buffer the signal for later
     cthread_state state = cthread->state;
 
-    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING))
+    if ((state == STATE_HALTED) || (state == STATE_HALT_PENDING) || (state == STATE_CONTINUE_PENDING))
         cthread->old_signal = START_S;
 
     if (cthread->state != STATE_STARTED) {
@@ -233,18 +233,17 @@ static void cthread_fsm(Cthread *cthread) {
     switch (cthread->signal) {
     case STOP_S:
         cthread_enter_state(cthread, STATE_STOPPED);
+		printf("Thread %d STOP_S\n", cthread->core.core_idx);
         cthread_wait_on_sign(cthread, STOP_S);
-        break;
-    case CONTINUE_S:
-        cthread_enter_state(cthread, STATE_HALTED);
-        cthread_wait_on_sign(cthread, CONTINUE_S);
         break;
     case HALT_S:
         cthread_enter_state(cthread, STATE_HALTED);
+		printf("Thread %d HALT_S\n", cthread->core.core_idx);
         cthread_wait_on_sign(cthread, HALT_S);
         break;
     case START_S:
         cthread_enter_state(cthread, STATE_STARTED);
+		printf("Thread %d START_S\n", cthread->core.core_idx);
         // now the core is effectively out of the hot loop (vcore_run)
         // so effectively reset this
         __atomic_store_n(&cthread->core.atomic_exit_loop, 0, __ATOMIC_RELEASE);
@@ -254,15 +253,20 @@ static void cthread_fsm(Cthread *cthread) {
         break;
     case SUSPEND_S:
         cthread_enter_state(cthread, STATE_SUSPENDED);
+		printf("Thread %d SUSPEND_S\n", cthread->core.core_idx);
         cthread_wait_on_sign(cthread, SUSPEND_S);
         break;
     case STEP_S:
         cthread_enter_state(cthread, STATE_STEPPING);
+		printf("Thread %d STEP_S\n", cthread->core.core_idx);
         cthread_wait_on_sign(cthread, STEP_S);
-        __atomic_store_n(&cthread->core.atomic_exit_loop, 1, __ATOMIC_RELEASE);
-        pthread_mutex_unlock_(&cthread->mutex);
-        vcore_run(&cthread->core);
-        pthread_mutex_lock_(&cthread->mutex);
+        // only step if the core was turned on, otherwise do nothing
+        if (cthread->old_signal == START_S) {
+            __atomic_store_n(&cthread->core.atomic_exit_loop, 1, __ATOMIC_RELEASE);
+            pthread_mutex_unlock_(&cthread->mutex);
+            vcore_run(&cthread->core);
+            pthread_mutex_lock_(&cthread->mutex);
+        }
         break;
     default:
         printf("%d\n", cthread->signal);
@@ -281,6 +285,7 @@ static void *cthread_fun(void *args) {
 }
 
 void cthread_init(Cthread *cthread, cthread_state state) {
+	assert(0 && "CHANGE VCORE_RESET WITH VCORE_INIT IN GENERAL FIX THE CORE_IDX INITIALIZATION");
     switch (state) {
     case STATE_STARTED:
     case STATE_STOPPED:
@@ -323,6 +328,6 @@ void cthread_run(Cthread *cthread) {
     pthread_attr_destroy(&attr);
 }
 
-inline bool cthread_is_you(Cthread* cthread){
-	return !!pthread_equal(cthread->thread_id, pthread_self());
+inline bool cthread_is_you(Cthread *cthread) {
+    return !!pthread_equal(cthread->thread_id, pthread_self());
 }

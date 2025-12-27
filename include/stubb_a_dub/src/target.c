@@ -14,6 +14,7 @@ stub_ret sad_target_init(void) {
     case RV32:
         // 32 bit architecture
         target_conf_g.breakpoint_val = 0x00100073;
+		target_conf_g.brkpt_size = 4;
         target_conf_g.reg_bytes = 4;
         target_conf_g.reg_str_bytes = 8;
         target_conf_g.regs_bytes = target_conf_g.reg_bytes * sys_conf_g.regs_num;
@@ -26,8 +27,8 @@ stub_ret sad_target_init(void) {
 }
 
 void sad_target_read_regs(byte *regs, uint32_t core_id) {
-    uint64_t reg;
-    byte *reg_byte;
+    uint64_t reg = 0;
+    byte *reg_byte = 0;
     uint32_t tot = 0;
 
     for (uint32_t reg_id = 0; reg_id < sys_conf_g.regs_num; reg_id++) {
@@ -44,7 +45,7 @@ void sad_target_read_regs(byte *regs, uint32_t core_id) {
 }
 
 void sad_target_write_regs(const byte *regs, uint32_t core_id) {
-    uint64_t reg;
+    uint64_t reg = 0;
 
     byte *reg_bytes = (byte *) &reg;
 

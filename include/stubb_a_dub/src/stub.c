@@ -41,7 +41,6 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
 
     // set to default
     size_t buff_size = conf->buffers_size > 0 ? conf->buffers_size : DEFAULT_BUFF_SIZE;
-    size_t socket_io_size = conf->socket_io_size > 0 ? conf->socket_io_size : DEFAULT_SOCKET_IO_SIZE;
     uint16_t port = conf->port > 0 ? conf->port : DEFAULT_PORT;
 
     sys_conf_g = conf->sys_conf;
@@ -58,11 +57,11 @@ stub_ret sad_stub_init(Stub_Conf *conf) {
     if (ret != STUB_OK)
         return STUB_UNEXPECTED;
 
-    input_buffer_g = sad_buff_create(buff_size, socket_io_size);
+    input_buffer_g = sad_buff_create(buff_size);
     if (input_buffer_g == NULL)
         goto input_err;
 
-    output_buffer_g = sad_buff_create(buff_size, socket_io_size);
+    output_buffer_g = sad_buff_create(buff_size);
     if (output_buffer_g == NULL)
         goto output_err;
 
