@@ -87,12 +87,23 @@ typedef struct {
     bool ll_sc_flag;
     bool atomic_exit_loop;
     execution_mode mode;
-	uint32_t core_idx;
-    // ELF
+    uint32_t core_idx;
+// ELF
 #ifdef USER
     uint32_t elf_brk;
 #endif
 } VCore;
+
+typedef struct {
+    uint32_t pc;
+    uint32_t sp;
+    uint32_t id;
+    uint32_t opaque;
+    uint32_t gp;
+#ifdef USER
+    uint32_t elf_brk;
+#endif
+} VCore_Init;
 
 // get register name
 const char *re_na(int reg_num);
@@ -101,9 +112,7 @@ void vcore_run(VCore *core);
 
 void vcore_step(VCore *core);
 
-void vcore_reset(VCore *core);
-
-void vcore_init(VCore *core, uint32_t start_addr, uint32_t id, uint32_t opaque);
+void vcore_init(VCore *core, VCore_Init *init);
 
 // different implementations for USER and SUPERVISOR
 void vcore_sys_type(VCore *core, uint32_t ins);

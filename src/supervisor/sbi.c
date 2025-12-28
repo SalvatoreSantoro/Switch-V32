@@ -99,6 +99,7 @@ static void hsm_ext(VCore *core) {
     uint32_t start_addr = core->regs[A1];
     uint32_t opaque = core->regs[A2];
     uint32_t suspend_type = core->regs[A0];
+    VCore_Init init = {0};
 
     switch (core->regs[A6]) {
     // Hart Start
@@ -113,13 +114,17 @@ static void hsm_ext(VCore *core) {
             return;
         }
 
-        state = cthread_get_hsm_state(get_thread(hart_id));
+        state = cthread_get_hsm_state(&threads_mgr.cthreads[hart_id]);
         if ((state == STATE_START_PENDING) || (state == STATE_STARTED)) {
             core->regs[A0] = (uint32_t) SBI_ERR_ALREADY_AVAILABLE;
             return;
         }
 
-        vcore_init(&threads_mgr.cthreads[hart_id].core, start_addr, hart_id, opaque);
+        init.pc = start_addr;
+        init.id = hart_id;
+        init.opaque = opaque;
+
+        vcore_init(&threads_mgr.cthreads[hart_id].core, &init);
         cthread_signal_start(&threads_mgr.cthreads[hart_id]);
         break;
 
@@ -151,7 +156,11 @@ static void hsm_ext(VCore *core) {
             break;
         }
         if (suspend_type == HSM_NON_RETENTIVE_SUSPEND) {
-            vcore_init(&threads_mgr.cthreads[hart_id].core, start_addr, hart_id, opaque);
+            init.pc = start_addr;
+            init.id = hart_id;
+            init.opaque = opaque;
+
+            vcore_init(&threads_mgr.cthreads[hart_id].core, &init);
             break;
         }
         core->regs[A0] = (uint32_t) SBI_ERR_INVALID_PARAM;

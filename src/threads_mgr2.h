@@ -10,11 +10,10 @@ typedef struct {
                                           // In general "single" run and "single" halt, operations can race
 } Threads_Mgr;
 
-#define get_thread(core_idx) (&threads_mgr.cthreads[core_idx])
 
 extern Threads_Mgr threads_mgr;
 
-void threads_mgr_init(void);
+void threads_mgr_init(VCore_Init *core0_init);
 
 void threads_mgr_run(void);
 

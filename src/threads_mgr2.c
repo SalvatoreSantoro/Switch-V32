@@ -42,6 +42,7 @@ bool threads_mgr_are_halted(void) {
 
     for (unsigned int i = 0; i < ctx.cores; i++) {
         state = cthread_get_state(&threads_mgr.cthreads[i]);
+        // printf("STATE OF %d was: %d old signal was: %d\n", i, state, threads_mgr.cthreads[i].old_signal);
         if (state != STATE_HALTED) {
             return false;
         }
@@ -49,9 +50,16 @@ bool threads_mgr_are_halted(void) {
     return true;
 }
 
-void threads_mgr_init(void) {
+void threads_mgr_init(VCore_Init *core0_init) {
     // TODO: make them aligned to 64 bytes in order to avoid
     // false sharing
+    VCore_Init cores_init[ctx.cores];
+
+    for (unsigned int i = 0; i < ctx.cores; i++) {
+        memset(&cores_init[i], 0, sizeof(cores_init[i]));
+        cores_init[i].id = i;
+    }
+
     threads_mgr.cthreads = malloc(sizeof(Cthread) * ctx.cores);
     if (threads_mgr.cthreads == NULL)
         SV32_CRASH("OOM");
@@ -59,16 +67,15 @@ void threads_mgr_init(void) {
     pthread_mutex_init(&threads_mgr.halt_all_n_run_mutex, NULL);
 
     // core 0 will be run when using a signal start
-    cthread_init(&threads_mgr.cthreads[0], STATE_STARTED);
+    cthread_init(&threads_mgr.cthreads[0], STATE_STARTED, core0_init);
 
     // other cores need to be signaled to halted before starting
     // so that HSM states and debugging states are coherent
     for (unsigned int i = 1; i < ctx.cores; i++)
-        cthread_init(&threads_mgr.cthreads[i], STATE_STOPPED);
+        cthread_init(&threads_mgr.cthreads[i], STATE_STOPPED, &cores_init[i]);
 
-    for (unsigned int i = 0; i < ctx.cores; i++) {
+    for (unsigned int i = 0; i < ctx.cores; i++)
         cthread_run(&threads_mgr.cthreads[i]);
-    }
 }
 
 void threads_mgr_step_core(unsigned int core_idx) {
@@ -85,23 +92,15 @@ void threads_mgr_step_core(unsigned int core_idx) {
 }
 
 void threads_mgr_halt_cores(void) {
-    bool not_found = true;
 
     // we're serializing the halt_all and run/run_all
     // making the process of stopping the single cores (unrelated mutexes and conditions)
     // into a single uninterruptable operation
     pthread_mutex_lock_(&threads_mgr.halt_all_n_run_mutex);
 
-    for (unsigned int i = 0; i < ctx.cores; i++) {
-        // don't synchronize with yourself (deadlock)
-        if (not_found && cthread_is_you(&threads_mgr.cthreads[i])) {
-            cthread_signal_halt(&threads_mgr.cthreads[i], false);
-            not_found = false;
-        } else {
-            cthread_signal_halt(&threads_mgr.cthreads[i], true);
-        }
-    }
-
+    for (unsigned int i = 0; i < ctx.cores; i++)
+        cthread_signal_halt(&threads_mgr.cthreads[i]);
+    
     pthread_mutex_unlock_(&threads_mgr.halt_all_n_run_mutex);
 }
 

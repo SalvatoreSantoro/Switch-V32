@@ -29,7 +29,6 @@
             SV32_CRASH("ELF HEADER INVALID\n");                                                                        \
     } while (0)
 
-
 typedef struct {
     size_t prog_size;
     size_t sect_size;
@@ -178,7 +177,7 @@ static void load_unmap_and_close_file(uint8_t *data, const int *fd, const struct
     close(*fd);
 }
 
-void ld_bin(VCore *core) {
+void ld_bin(VCore_Init *init) {
     int fd;
     struct stat fst;
     uint8_t *data;
@@ -188,12 +187,12 @@ void ld_bin(VCore *core) {
     // load binary
     mem_wb_ptr_s(0, data, (size_t) fst.st_size);
 
-    core->regs[PC] = 0;
+    init->pc = 0;
 
     load_unmap_and_close_file(data, &fd, &fst);
 }
 
-void ld_elf(VCore *core) {
+void ld_elf(VCore_Init *init) {
     const Elf32_Sym *sym;
     Elf_File elf;
     int fd;
@@ -220,9 +219,8 @@ void ld_elf(VCore *core) {
     // load segments
     ld_elf_seg(&elf);
 
-    // load entry point + STACK_BASE
-    core->regs[PC] = elf.header->e_entry;
-    core->regs[SP] = ctx.stack_base;
+    // load entry point
+    init->pc = elf.header->e_entry;
 
     // load GP
     sym = ld_elf_getsym(&elf, "__global_pointer$");
@@ -230,7 +228,7 @@ void ld_elf(VCore *core) {
     if (sym == NULL)
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __global_pointer$, relying on program init routine to set GP\n");
     else
-        core->regs[GP] = sym->st_value;
+        init->gp = sym->st_value;
 
 #ifdef USER
     // load brk
@@ -238,9 +236,9 @@ void ld_elf(VCore *core) {
     if (sym == NULL) {
         fprintf(stderr, "[WARNING] CAN'T FIND SYMBOL __BSS_END__, automatically computing brk value\n");
         Elf32_Phdr last_segment = elf.programs[elf.prog_size - 1];
-        core->elf_brk = last_segment.p_vaddr + last_segment.p_memsz;
+        init->elf_brk = last_segment.p_vaddr + last_segment.p_memsz;
     } else
-        core->elf_brk = sym->st_value;
+        init->elf_brk = sym->st_value;
 #endif
 
     load_unmap_and_close_file(elf.data, &fd, &fst);

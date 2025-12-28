@@ -389,6 +389,7 @@ static void build_v(void) {
             break;
 
         case 's':
+			printf("STEPPING\n");
             // can only step 1 thread
             if (thread_id == -1) {
                 sad_buff_append_str(output_buffer_g, "E");

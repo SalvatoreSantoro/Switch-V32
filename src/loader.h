@@ -3,8 +3,8 @@
 
 #include "cpu.h"
 
-void ld_elf(VCore* core);
+void ld_elf(VCore_Init *core);
 
-void ld_bin(VCore* core);
+void ld_bin(VCore_Init *core);
 
 #endif

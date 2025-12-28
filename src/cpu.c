@@ -513,6 +513,7 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
 
 void vcore_run(VCore *core) {
     uint32_t ins;
+	static int id=0;
 
     while (1) {
         // reset ZERO reg at every iteration
@@ -563,9 +564,8 @@ void vcore_run(VCore *core) {
             }
 
             // made it sequential to avoid helgrind false positives
-            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQ_REL)) {
+            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQ_REL))
                 return;
-            }
 
 // due to LL/SR semantics i think that implementation of them must be done
 // without checkings for interrupts untill they both terminate, in this way a
@@ -584,14 +584,18 @@ void vcore_run(VCore *core) {
     }
 }
 
-void vcore_reset(VCore *core) {
+void vcore_init(VCore *core, VCore_Init *init) {
     memset(core, 0, sizeof(VCore));
     core->mode = SUPERVISOR_MODE;
-}
-
-void vcore_init(VCore *core, uint32_t start_addr, uint32_t id, uint32_t opaque) {
-    vcore_reset(core);
-    core->regs[PC] = start_addr;
-    core->regs[A0] = id;
-    core->regs[A1] = opaque;
+    if (init != NULL) {
+        core->regs[PC] = init->pc;
+        core->regs[SP] = init->sp;
+        core->regs[A0] = init->id;
+        core->regs[A1] = init->opaque;
+        core->regs[GP] = init->gp;
+        core->core_idx = init->id;
+#ifdef USER
+        core->elf_brk = init->elf_brk;
+#endif
+    }
 }

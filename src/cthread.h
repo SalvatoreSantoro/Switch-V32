@@ -38,7 +38,8 @@ typedef struct {
     VCore core;
 } Cthread;
 
-void cthread_init(Cthread *thread, cthread_state state);
+
+void cthread_init(Cthread *cthread, cthread_state state, VCore_Init *init);
 
 void cthread_run(Cthread *thread);
 
@@ -52,15 +53,21 @@ void cthread_signal_start(Cthread *thread);
 
 void cthread_signal_suspend(Cthread *thread);
 
-// DEBUG
-void cthread_signal_halt(Cthread *thread, bool synch);
+// returns just the HSM states (so it's different from cthread_get_state) used in sbi.c
+cthread_state cthread_get_hsm_state(Cthread *thread);
+
+// DEBUG (all the signal except for "halt" MUST be called only from a thread outside of the core execution
+//		 in SwitchV should be the "main" thread only)
+
+
+// always asynchronous
+void cthread_signal_halt(Cthread *thread);
+
+// always asynchronous
+void cthread_signal_continue(Cthread *thread);
 
 // always synchronized
 void cthread_signal_step(Cthread *thread);
-
-void cthread_signal_continue(Cthread *thread);
-
-cthread_state cthread_get_hsm_state(Cthread *thread);
 
 bool cthread_is_you(Cthread *thread);
 
