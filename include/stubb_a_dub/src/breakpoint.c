@@ -21,13 +21,15 @@ brk_ret sad_insert_breakpoint(uint64_t addr) {
         if (breakpoints_g[i].status == BRK_EMPTY) {
             // read instruction
             sys_ops_g.read_mem((byte *) (&instr), target_conf_g.brkpt_size, addr);
+            // don't place a breakpoint in an address that already has one or the core will be stucked
+            if (instr != target_conf_g.breakpoint_val) {
+                // write breakpoint
+                sys_ops_g.write_mem((const byte *) (&target_conf_g.breakpoint_val), target_conf_g.brkpt_size, addr);
 
-            // write breakpoint
-            sys_ops_g.write_mem((const byte *) (&target_conf_g.breakpoint_val), sizeof(target_conf_g.brkpt_size), addr);
-
-            breakpoints_g[i].addr = addr;
-            breakpoints_g[i].instr = instr;
-            breakpoints_g[i].status = BRK_FULL;
+                breakpoints_g[i].addr = addr;
+                breakpoints_g[i].instr = instr;
+                breakpoints_g[i].status = BRK_FULL;
+            }
             return BRK_INSERTED;
         }
     }
@@ -39,7 +41,7 @@ brk_ret sad_remove_breakpoint(uint64_t addr) {
     if (breakpoint == NULL)
         return BRK_NOT_FOUND;
 
-    sys_ops_g.write_mem((byte *) (&breakpoint->instr), sizeof(target_conf_g.brkpt_size), addr);
+    sys_ops_g.write_mem((byte *) (&breakpoint->instr), target_conf_g.brkpt_size, addr);
 
     breakpoint->status = BRK_EMPTY;
     return BRK_REMOVED;
@@ -47,8 +49,8 @@ brk_ret sad_remove_breakpoint(uint64_t addr) {
 
 Breakpoint *sad_find_breakpoint(uint64_t addr) {
     for (size_t i = 0; i < MAX_BREAKPOINTS; i++) {
-        //printf("SEARCHING: %lx, found: %lx\n", addr, breakpoints_g[i].addr);
-		//printf("SGS %d\n", breakpoints_g[i].status);
+        // printf("SEARCHING: %lx, found: %lx\n", addr, breakpoints_g[i].addr);
+        // printf("SGS %d\n", breakpoints_g[i].status);
         if ((breakpoints_g[i].addr == addr) && (breakpoints_g[i].status == BRK_FULL)) {
             return &breakpoints_g[i];
         }
@@ -62,11 +64,11 @@ Breakpoint *sad_find_breakpoint(uint64_t addr) {
 // step the core, and then restore the breakpoint
 brk_ret sad_step_the_breakpoint(unsigned int core_idx) {
     uint64_t pc = sys_ops_g.read_reg(core_idx, sys_conf_g.pc_id);
-    //printf("THIS WAS THE PC: %lx\n", pc);
+    // printf("THIS WAS THE PC: %lx\n", pc);
 
     // if removed, step and reinsert
     if (sad_remove_breakpoint(pc) == BRK_REMOVED) {
-        //printf("PC NOW: %lx\n", pc);
+        // printf("PC NOW: %lx\n", pc);
         sys_ops_g.core_step(core_idx);
 
         assert(sys_ops_g.is_halted);
@@ -83,4 +85,15 @@ brk_ret sad_step_the_breakpoint(unsigned int core_idx) {
 void sad_breakpoint_reset(void) {
     for (size_t i = 0; i < MAX_BREAKPOINTS; i++)
         breakpoints_g[i].status = BRK_EMPTY;
+}
+
+long sad_breakpoint_hartid(void) {
+    uint64_t pc;
+    for (uint32_t i = 0; i < sys_conf_g.smp; i++) {
+        // read pc of every core and check the one that halted everything
+        pc = sys_ops_g.read_reg(i, sys_conf_g.pc_id);
+        if (sad_find_breakpoint(pc) != NULL)
+            return i;
+    }
+    return -1;
 }

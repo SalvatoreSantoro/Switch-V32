@@ -182,6 +182,8 @@ brk_ret sad_step_the_breakpoint(unsigned int core_idx);
 
 void sad_breakpoint_reset(void);
 
+long sad_breakpoint_hartid(void);
+
 // SOCKET
 
 stub_ret sad_socket_init(uint16_t port);

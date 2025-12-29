@@ -326,9 +326,9 @@ static void build_q(void) {
 // so only 1 thread at the time continue or steps, but eventually all thread can continue
 // togheter if specified
 // so for example if we receive "c" or "c:-1" we do continue all (like set scheduler-locking off)
-// if we receive "c:0" we do continue only of thread 0, like set scheduler-locking on
-// if we receive "s:0" we do only step of thread 0, like set scheduler-locking on
-// if we receive "s" we assume that we step the selected core
+// if we receive "c:1" we do continue only of thread 1, like set scheduler-locking on
+// if we receive "s:1" we do only step of thread 1, like set scheduler-locking on
+// if we receive "s" we throw an error (because missing id means every core)
 
 static void build_v(void) {
     size_t cursor = input_buffer_g->start_pkt_data;
@@ -344,33 +344,36 @@ static void build_v(void) {
         // evaluating just the left most action
         char action = (char) input_buffer_g->data[cursor];
         long thread_id;
-        const char *thread_id_str;
+        long halter_id;
+        char halter_id_str[16] = {0};
+        bool stop;
+        uint64_t reg;
+        char reg_str[target_conf_g.reg_str_bytes];
+        char reg_id_str[16] = {0};
 
         // the ":id" part is optional so check, if there isn't ":" the id is omitted, just assume -1
         if (input_buffer_g->data[cursor + 1] == ':') {
             // skip "action" and ":" already fetched
             cursor += 2;
-            thread_id_str = (char *) &input_buffer_g->data[cursor];
             // this will place the "\0" after the id to make thread_id_str effectively a string
             extract_val(long, &thread_id, &cursor, ':');
         } else {
-            thread_id_str = "";
             thread_id = -1;
         }
 
-        if (thread_id - 1 >= sys_conf_g.smp) {
+        if ((thread_id - 1 >= sys_conf_g.smp) || (thread_id < -1)) {
             sad_buff_append_str(output_buffer_g, "E");
             return;
         }
 
-        if (thread_id < -1) {
-            sad_buff_append_str(output_buffer_g, "E");
-            return;
-        }
+        if (thread_id == 0)
+            thread_id = builder_g.selected_core;
+
+        if (thread_id > 0)
+            thread_id--;
 
         switch (action) {
         case 'c':
-
             if (thread_id == -1) {
                 // this is the case of continue all so or just "c" or "c:-1"
                 for (unsigned int i = 0; i < sys_conf_g.smp; i++)
@@ -378,35 +381,22 @@ static void build_v(void) {
 
                 sys_ops_g.cores_continue();
             } else {
-                if (thread_id == 0)
-                    thread_id = (int) builder_g.selected_core;
-                else
-                    thread_id--;
-
-                sad_step_the_breakpoint((unsigned int) thread_id);
-                sys_ops_g.core_continue((unsigned int) thread_id);
+                sad_step_the_breakpoint((uint32_t) thread_id);
+                sys_ops_g.core_continue((uint32_t) thread_id);
             }
             break;
 
         case 's':
-			printf("STEPPING\n");
             // can only step 1 thread
             if (thread_id == -1) {
                 sad_buff_append_str(output_buffer_g, "E");
                 return;
             }
 
-            // any thread case
-            if (thread_id == 0)
-                thread_id = builder_g.selected_core;
-            else
-                thread_id--;
-
             brk_ret = sad_step_the_breakpoint((uint32_t) thread_id);
-
             // the current core isn't stopped on a breakpoint so just step it directly
             if (brk_ret == BRK_NOT_FOUND)
-                sys_ops_g.core_step((unsigned int) thread_id);
+                sys_ops_g.core_step((uint32_t) thread_id);
 
             break;
         default:
@@ -417,38 +407,40 @@ static void build_v(void) {
 
         // wait that the cores hit a breakpoint or the user sends a stop signal
         // from GDB
-        bool stop;
-
         stop = wait_for_halt();
-        if (stop) { // breakpoint stop or step stop
-            if (action == 's')
-                sad_buff_append_str(output_buffer_g, "T05");
-            else
-                sad_buff_append_str(output_buffer_g, "T05swbreak:;");
-        } else // GDB interactive stop
-            sad_buff_append_str(output_buffer_g, "T02");
 
-        if (thread_id >= 0) {
-            sad_buff_append_str(output_buffer_g, "thread:");
-            sad_buff_append_str(output_buffer_g, thread_id_str);
+        if (!stop) {
+            // GDB interactive stop
+            sad_buff_append_str(output_buffer_g, "S02");
+            return;
+        }
+
+        // breakpoint stop or step stop
+        sad_buff_append_str(output_buffer_g, "T05swbreak:;");
+
+        if (thread_id == -1) {
+            halter_id = sad_breakpoint_hartid();
+            // not found
+            if (halter_id == -1)
+                return;
+        } else {
+            halter_id = thread_id;
+        }
+
+        // gdb wants id from 1 not 0...
+        sprintf(halter_id_str, "thread:%d;", (uint32_t) halter_id + 1);
+        sad_buff_append_str(output_buffer_g, halter_id_str);
+        sprintf(halter_id_str, "core:%d;", (uint32_t) halter_id + 1);
+        sad_buff_append_str(output_buffer_g, halter_id_str);
+
+        // read each register and place it like a string
+        for (uint32_t reg_id = 0; reg_id < sys_conf_g.regs_num; reg_id++) {
+            reg = sys_ops_g.read_reg((uint32_t) halter_id, reg_id);
+            sad_bytes_to_hex_chars(reg_str, (byte *) &reg, sizeof(reg_str), target_conf_g.reg_bytes);
+            sprintf(reg_id_str, "%02x:", reg_id);
+            sad_buff_append_str(output_buffer_g, reg_id_str);
+            sad_buff_append(output_buffer_g, reg_str, sizeof(reg_str));
             sad_buff_append_str(output_buffer_g, ";");
-
-            sad_buff_append_str(output_buffer_g, "core:");
-            sad_buff_append_str(output_buffer_g, thread_id_str);
-            sad_buff_append_str(output_buffer_g, ";");
-
-            uint64_t reg;
-            char reg_str[target_conf_g.reg_str_bytes];
-            char reg_id_str[4] = {0};
-
-            for (uint32_t reg_id = 0; reg_id < sys_conf_g.regs_num; reg_id++) {
-                reg = sys_ops_g.read_reg((uint32_t) thread_id, reg_id);
-                sad_bytes_to_hex_chars(reg_str, (byte *) &reg, sizeof(reg_str), target_conf_g.reg_bytes);
-                sprintf(reg_id_str, "%02x:", reg_id);
-                sad_buff_append_str(output_buffer_g, reg_id_str);
-                sad_buff_append(output_buffer_g, reg_str, sizeof(reg_str));
-                sad_buff_append_str(output_buffer_g, ";");
-            }
         }
     }
 }
@@ -507,7 +499,7 @@ static void build_Z(void) {
         return;
     }
 
-    if (sad_insert_breakpoint((uint32_t) addr) != BRK_INSERTED) {
+    if (sad_insert_breakpoint(addr) != BRK_INSERTED) {
         sad_buff_append_str(output_buffer_g, "E");
         return;
     }

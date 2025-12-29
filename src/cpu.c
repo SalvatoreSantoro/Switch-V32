@@ -513,7 +513,6 @@ static void vcore_a_type(VCore *core, uint32_t ins) {
 
 void vcore_run(VCore *core) {
     uint32_t ins;
-	static int id=0;
 
     while (1) {
         // reset ZERO reg at every iteration
@@ -564,7 +563,7 @@ void vcore_run(VCore *core) {
             }
 
             // made it sequential to avoid helgrind false positives
-            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_ACQ_REL))
+            if (__atomic_load_n(&core->atomic_exit_loop, __ATOMIC_SEQ_CST))
                 return;
 
 // due to LL/SR semantics i think that implementation of them must be done
